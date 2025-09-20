@@ -1,0 +1,29 @@
+{
+  "categories": ["NBA - Junior Events"],
+  "printWindowMinutes": 15,
+  "outputFilename": "attendees.pdf",
+  "email": {
+    "to": "recipient@example.com",
+    "from": "sender@example.com",
+    "transport": {
+      "host": "smtp.example.com",
+      "port": 587,
+      "secure": false,
+      "auth": {
+        "user": "your_username",
+        "pass": "your_password"
+      }
+    }
+  },
+  "pdfLayout": {
+    "logo": null,
+    "fontSize": 10,
+    "columns": [
+      { "id": "name", "header": "Name", "width": 140 },
+      { "id": "phone", "header": "Phone", "width": 100 },
+      { "id": "signUpDate", "header": "Signed up", "width": 100 },
+      { "id": "fee", "header": "Fee", "width": 60 },
+      { "id": "status", "header": "Status", "width": 90 }
+    ]
+  }
+}

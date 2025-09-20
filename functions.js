@@ -1,0 +1,159 @@
+require('dotenv').config();
+const logger = require('./logger');
+const axios = require('axios');
+const fs = require('fs');
+const { print } = require('pdf-to-printer');
+const PdfGenerator = require('./pdf-generator');
+const configSchema = require('./config-schema');
+
+const API_KEY = process.env.API_KEY;
+const BASE_URL = 'https://api.helloclub.com';
+
+const api = axios.create({
+  baseURL: BASE_URL,
+  headers: {
+    'Authorization': `Bearer ${API_KEY}`
+  }
+});
+
+function handleApiError(error, context) {
+  if (error.response) {
+    const { status, data } = error.response;
+    if (status === 401) {
+      logger.error(`API Error: 401 Unauthorized while ${context}. Please check your API_KEY in the .env file.`);
+      process.exit(1);
+    } else {
+      logger.error(`API Error: ${status} while ${context}.`, data);
+    }
+  } else if (error.request) {
+    logger.error(`Network Error: No response received while ${context}.`);
+  } else {
+    logger.error(`An unexpected error occurred while ${context}:`, error.message);
+  }
+}
+
+async function getNextEvent(allowedCategories = []) {
+  try {
+    const response = await api.get('/event', {
+      params: {
+        fromDate: new Date().toISOString(),
+        sort: 'startDate'
+      }
+    });
+
+    if (response.data.events.length > 0) {
+      const nextEvent = response.data.events.find(event => {
+        if (allowedCategories.length === 0) {
+          return true;
+        }
+        return event.categories.some(category => allowedCategories.includes(category.name));
+      });
+
+      if (nextEvent) {
+        return nextEvent;
+      } else {
+        logger.info(`No upcoming events found with the specified categories: ${allowedCategories.join(', ')}`);
+        return null;
+      }
+    } else {
+      logger.info('No upcoming events found.');
+      return null;
+    }
+  } catch (error) {
+    handleApiError(error, 'fetching next event');
+    return null;
+  }
+}
+
+async function getAllAttendees(eventId) {
+  let attendees = [];
+  let offset = 0;
+  const limit = 100;
+  let total = 0;
+  try {
+    do {
+      const response = await api.get('/eventAttendee', {
+        params: { event: eventId, limit: limit, offset: offset }
+      });
+      attendees = attendees.concat(response.data.attendees);
+      total = response.data.meta.total;
+      offset += response.data.meta.count;
+    } while (attendees.length < total);
+
+    attendees.sort((a, b) => {
+      const lastNameA = a.lastName || '';
+      const lastNameB = b.lastName || '';
+      const firstNameA = a.firstName || '';
+      const firstNameB = b.firstName || '';
+      if (lastNameA.toLowerCase() < lastNameB.toLowerCase()) return -1;
+      if (lastNameA.toLowerCase() > lastNameB.toLowerCase()) return 1;
+      if (firstNameA.toLowerCase() < firstNameB.toLowerCase()) return -1;
+      if (firstNameA.toLowerCase() > firstNameB.toLowerCase()) return 1;
+      return 0;
+    });
+    return attendees;
+  } catch (error) {
+    handleApiError(error, `fetching attendees for event ${eventId}`);
+    return [];
+  }
+}
+
+function createAndPrintPdf(event, attendees, outputFileName, pdfLayout) {
+  const generator = new PdfGenerator(event, attendees, pdfLayout);
+  generator.generate(outputFileName);
+  logger.info(`Successfully created ${outputFileName}`);
+  
+  logger.info(`Printing PDF...`);
+  print(outputFileName)
+    .then(msg => logger.info(msg))
+    .catch(err => logger.error(err));
+}
+
+async function main(argv, { getNextEvent, getAllAttendees, createAndPrintPdf }) {
+  let config = {};
+  try {
+    const configData = fs.readFileSync('config.json', 'utf8');
+    config = JSON.parse(configData);
+  } catch (error) {
+    logger.warn('Warning: config.json not found or is invalid JSON. Using default configuration.');
+  }
+
+  const { error, value: validatedConfig } = configSchema.validate(config);
+
+  if (error) {
+    logger.error('Invalid configuration in config.json:', error.details.map(d => d.message).join('\n'));
+    process.exit(1);
+  }
+
+  const finalConfig = {
+    printWindowMinutes: argv.window || validatedConfig.printWindowMinutes,
+    allowedCategories: argv.category || validatedConfig.categories,
+    outputFilename: argv.output || validatedConfig.outputFilename,
+    pdfLayout: validatedConfig.pdfLayout,
+  };
+
+  const { printWindowMinutes, allowedCategories, outputFilename, pdfLayout } = finalConfig;
+
+  const event = await getNextEvent(allowedCategories);
+
+  if (event) {
+    const now = new Date();
+    const eventDate = new Date(event.startDate);
+    const timeDiff = eventDate.getTime() - now.getTime();
+    const minutesDiff = Math.floor(timeDiff / 1000 / 60);
+
+    if (minutesDiff <= printWindowMinutes && minutesDiff > 0) {
+      logger.info(`Event "${event.name}" is starting in ${minutesDiff} minutes. Generating printout...`);
+      const attendees = await getAllAttendees(event.id);
+      if (attendees) {
+        createAndPrintPdf(event, attendees, outputFilename, pdfLayout);
+      }
+    } else {
+      logger.info(`Next event "${event.name}" is not starting within the next ${printWindowMinutes} minutes. Current difference: ${minutesDiff} minutes.`);
+    }
+  } else {
+    logger.info('No event selected or found.');
+  }
+}
+
+module.exports = { getNextEvent, getAllAttendees, createAndPrintPdf, main, api };
