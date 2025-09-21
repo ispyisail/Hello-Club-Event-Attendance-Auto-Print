@@ -1,7 +1,25 @@
+/**
+ * @fileoverview This module defines the Joi schema for the application's configuration file (config.json).
+ * It ensures that the configuration is valid and provides default values for optional settings.
+ * @module config-schema
+ */
+
 const Joi = require('joi');
 
+/**
+ * The Joi schema for validating the `config.json` file.
+ * @type {Joi.ObjectSchema}
+ */
 const configSchema = Joi.object({
+  /**
+   * A list of event category names to process.
+   * @type {Array<string>}
+   */
   categories: Joi.array().items(Joi.string()).default([]),
+  /**
+   * The time window in minutes before an event starts, during which the printout should be generated.
+   * @type {number}
+   */
   printWindowMinutes: Joi.number().integer().positive().default(15),
   outputFilename: Joi.string().default('attendees.pdf'),
   email: Joi.object({

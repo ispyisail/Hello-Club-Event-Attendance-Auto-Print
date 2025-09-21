@@ -56,12 +56,48 @@ This file allows you to specify which event categories the script should process
 1. The `config.json` file is already created in the project directory.
 2. You can edit this file to add or change the list of category names. The script will only generate printouts for events that match one of the categories in this file.
 
+    The `config.json` file allows you to specify the default behavior for the script. The command-line options will always override the settings in this file.
+
     Example `config.json`:
     ```json
     {
-      "categories": ["NBA - Junior Events", "Pickleball"]
+      "categories": ["NBA - Junior Events", "Pickleball"],
+      "printWindowMinutes": 15,
+      "outputFilename": "attendees.pdf",
+      "pdfLayout": {
+        "logo": "./logo.png",
+        "fontSize": 10,
+        "columns": [
+          { "id": "name", "header": "Name", "width": 140 },
+          { "id": "phone", "header": "Phone", "width": 100 },
+          { "id": "signUpDate", "header": "Signed up", "width": 100 },
+          { "id": "fee", "header": "Fee", "width": 60 },
+          { "id": "status", "header": "Status", "width": 90 }
+        ]
+      }
     }
     ```
+    - `categories`: A list of event category names to process.
+    - `printWindowMinutes`: The time window in minutes before an event starts, during which the printout should be generated. (Default: 15)
+    - `outputFilename`: The default name for the generated PDF file. (Default: "attendees.pdf")
+    - `pdfLayout`: Configuration for the PDF's appearance.
+        - `logo`: Path to a logo image file to be included in the header.
+        - `fontSize`: The font size for the text in the table.
+        - `columns`: An array defining the columns in the attendee table.
+
+## Project Structure
+
+The project is organized into the following files:
+
+- `index.js`: The main entry point of the application.
+- `functions.js`: Contains the core logic for fetching data, processing events, and generating the output.
+- `args-parser.js`: Configures and parses command-line arguments using `yargs`.
+- `config-schema.js`: Defines the validation schema for the `config.json` file using `Joi`.
+- `pdf-generator.js`: A class responsible for creating the PDF document from event and attendee data.
+- `csv-generator.js`: Contains logic for generating a CSV file (not used in the primary PDF workflow but available).
+- `email-service.js`: Handles sending emails with attachments using `Nodemailer`.
+- `logger.js`: Sets up a `winston` logger for logging application activity and errors.
+- `functions.test.js`: Unit tests for the core functions.
 
 ## Running the Script Manually
 

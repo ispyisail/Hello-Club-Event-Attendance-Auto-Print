@@ -1,5 +1,16 @@
+/**
+ * @fileoverview This module configures and exports a Winston logger instance.
+ * The logger is set up to write to different files for info and error levels,
+ * and also logs to the console in non-production environments.
+ * @module logger
+ */
+
 const winston = require('winston');
 
+/**
+ * The Winston logger instance.
+ * @type {winston.Logger}
+ */
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(

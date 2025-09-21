@@ -24,6 +24,11 @@ const api = axios.create({
   }
 });
 
+/**
+ * Handles API errors, logs them, and exits if necessary.
+ * @param {Error} error - The error object caught.
+ * @param {string} context - A string describing the context in which the error occurred.
+ */
 function handleApiError(error, context) {
   if (error.response) {
     const { status, data } = error.response;
@@ -40,6 +45,11 @@ function handleApiError(error, context) {
   }
 }
 
+/**
+ * Fetches the next upcoming event from the Hello Club API.
+ * @param {string[]} [allowedCategories=[]] - A list of event categories to filter by. If empty, all categories are considered.
+ * @returns {Promise<Object|null>} A promise that resolves to the next event object, or null if no event is found.
+ */
 async function getNextEvent(allowedCategories = []) {
   try {
     const response = await api.get('/event', {
@@ -73,6 +83,11 @@ async function getNextEvent(allowedCategories = []) {
   }
 }
 
+/**
+ * Fetches all attendees for a given event, handling pagination.
+ * @param {string} eventId - The ID of the event to fetch attendees for.
+ * @returns {Promise<Array<Object>>} A promise that resolves to an array of attendee objects, sorted by last name then first name.
+ */
 async function getAllAttendees(eventId) {
   let attendees = [];
   let offset = 0;
@@ -106,6 +121,15 @@ async function getAllAttendees(eventId) {
   }
 }
 
+/**
+ * Creates a PDF from event and attendee data, and then prints it either locally or via email.
+ * @param {Object} event - The event object.
+ * @param {Array<Object>} attendees - An array of attendee objects.
+ * @param {string} outputFileName - The name of the file to save the PDF as.
+ * @param {Object} pdfLayout - The layout configuration for the PDF.
+ * @param {string} printMode - The printing mode ('local' or 'email').
+ * @returns {Promise<void>}
+ */
 async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode) {
   const generator = new PdfGenerator(event, attendees, pdfLayout);
   generator.generate(outputFileName);
@@ -136,6 +160,15 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
   }
 }
 
+/**
+ * The main function of the application.
+ * @param {Object} argv - The parsed command-line arguments.
+ * @param {Object} dependencies - The dependencies to be injected.
+ * @param {function} dependencies.getNextEvent - The function to get the next event.
+ * @param {function} dependencies.getAllAttendees - The function to get all attendees.
+ * @param {function} dependencies.createAndPrintPdf - The function to create and print the PDF.
+ * @returns {Promise<void>}
+ */
 async function main(argv, { getNextEvent, getAllAttendees, createAndPrintPdf }) {
   let config = {};
   try {
