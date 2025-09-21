@@ -1,6 +1,20 @@
+/**
+ * @fileoverview This module configures and parses command-line arguments using yargs.
+ * It defines the options available to the user when running the application from the command line.
+ * @module args-parser
+ */
+
 const yargs = require('yargs/yargs');
 const { hideBin } = require('yargs/helpers');
 
+/**
+ * The parsed command-line arguments.
+ * @type {Object}
+ * @property {Array<string>} [category] - Event categories to filter by.
+ * @property {number} [window] - Time window in minutes to check for events.
+ * @property {string} [output] - The name of the output PDF file.
+ * @property {string} printMode - The printing method ('local' or 'email').
+ */
 const argv = yargs(hideBin(process.argv))
   .option('category', {
     alias: 'c',

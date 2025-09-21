@@ -1,7 +1,22 @@
+/**
+ * @fileoverview This module contains the PdfGenerator class for creating PDF documents
+ * of event attendee lists.
+ * @module pdf-generator
+ */
+
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 
+/**
+ * A class to generate PDF attendee lists for events.
+ */
 class PdfGenerator {
+  /**
+   * Creates an instance of PdfGenerator.
+   * @param {Object} event - The event object.
+   * @param {Array<Object>} attendees - An array of attendee objects.
+   * @param {Object} layout - The layout configuration for the PDF.
+   */
   constructor(event, attendees, layout) {
     this.event = event;
     this.attendees = attendees;
@@ -10,6 +25,10 @@ class PdfGenerator {
     this.row_height = 30;
   }
 
+  /**
+   * Generates the header section of the PDF.
+   * @private
+   */
   _generateHeader() {
     if (this.layout.logo && fs.existsSync(this.layout.logo)) {
       this.doc.image(this.layout.logo, {
@@ -36,6 +55,10 @@ class PdfGenerator {
     this.doc.moveDown(2);
   }
 
+  /**
+   * Generates the table header row.
+   * @private
+   */
   _generateTableHeader() {
     this.doc.font('Courier-Bold');
     let y = this.doc.y;
@@ -52,6 +75,13 @@ class PdfGenerator {
     this.doc.font('Courier');
   }
 
+  /**
+   * Retrieves a specific value from an attendee object based on a column ID.
+   * @param {Object} attendee - The attendee object.
+   * @param {string} id - The ID of the column/value to retrieve.
+   * @returns {string} The formatted value for the specified ID.
+   * @private
+   */
   _getAttendeeValue(attendee, id) {
     switch (id) {
       case 'name':
@@ -69,6 +99,12 @@ class PdfGenerator {
     }
   }
 
+  /**
+   * Generates a single row in the attendee table.
+   * @param {Object} attendee - The attendee object for the row.
+   * @param {number} y - The y-coordinate to draw the row at.
+   * @private
+   */
   _generateTableRow(attendee, y) {
     let x = 50;
     this.doc.rect(x, y, 10, 10).stroke();
@@ -91,6 +127,10 @@ class PdfGenerator {
     });
   }
 
+  /**
+   * Generates the entire attendee table, handling page breaks.
+   * @private
+   */
   _generateTable() {
     const writePageHeader = () => {
       this._generateHeader();
@@ -115,6 +155,10 @@ class PdfGenerator {
     this.doc.off('pageAdded', writePageHeader);
   }
 
+  /**
+   * Generates the PDF and saves it to a file.
+   * @param {string} outputFileName - The path to save the output PDF file.
+   */
   generate(outputFileName) {
     this.doc.pipe(fs.createWriteStream(outputFileName));
     this._generateTable();
