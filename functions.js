@@ -217,4 +217,4 @@ async function main(argv, { getNextEvent, getAllAttendees, createAndPrintPdf }) 
   }
 }
 
-module.exports = { getNextEvent, getAllAttendees, createAndPrintPdf, main, api };
+module.exports = { getNextEvent, getAllAttendees, createAndPrintPdf, main, api, handleApiError };
