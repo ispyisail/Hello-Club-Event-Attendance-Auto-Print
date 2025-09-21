@@ -203,7 +203,7 @@ async function main(argv, { getNextEvent, getAllAttendees, createAndPrintPdf }) 
     const timeDiff = eventDate.getTime() - now.getTime();
     const minutesDiff = Math.floor(timeDiff / 1000 / 60);
 
-    if (minutesDiff <= printWindowMinutes && minutesDiff > 0) {
+    if (minutesDiff <= printWindowMinutes && minutesDiff >= 0) {
       logger.info(`Event "${event.name}" is starting in ${minutesDiff} minutes. Generating printout...`);
       const attendees = await getAllAttendees(event.id);
       if (attendees) {
