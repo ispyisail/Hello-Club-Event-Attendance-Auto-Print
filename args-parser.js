@@ -17,6 +17,13 @@ const argv = yargs(hideBin(process.argv))
     type: 'string',
     description: 'The name of the output PDF file. Overrides config file.'
   })
+  .option('print-mode', {
+    alias: 'p',
+    type: 'string',
+    choices: ['local', 'email'],
+    default: 'email',
+    description: 'The printing method to use. `local` for a connected printer, `email` for cloud printing.'
+  })
   .help()
   .alias('help', 'h')
   .argv;

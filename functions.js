@@ -3,10 +3,18 @@ const logger = require('./logger');
 const axios = require('axios');
 const fs = require('fs');
 const { print } = require('pdf-to-printer');
+const { sendEmailWithAttachment } = require('./email-service');
 const PdfGenerator = require('./pdf-generator');
 const configSchema = require('./config-schema');
 
 const API_KEY = process.env.API_KEY;
+const PRINTER_EMAIL = process.env.PRINTER_EMAIL;
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+const SMTP_PORT = process.env.SMTP_PORT || 587;
+const SMTP_USER = process.env.SMTP_USER;
+const SMTP_PASS = process.env.SMTP_PASS;
+const EMAIL_FROM = process.env.EMAIL_FROM || SMTP_USER;
+
 const BASE_URL = 'https://api.helloclub.com';
 
 const api = axios.create({
@@ -98,15 +106,34 @@ async function getAllAttendees(eventId) {
   }
 }
 
-function createAndPrintPdf(event, attendees, outputFileName, pdfLayout) {
+async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode) {
   const generator = new PdfGenerator(event, attendees, pdfLayout);
   generator.generate(outputFileName);
   logger.info(`Successfully created ${outputFileName}`);
-  
-  logger.info(`Printing PDF...`);
-  print(outputFileName)
-    .then(msg => logger.info(msg))
-    .catch(err => logger.error(err));
+
+  if (printMode === 'local') {
+    logger.info(`Printing PDF locally...`);
+    try {
+      const msg = await print(outputFileName);
+      logger.info(msg);
+    } catch (err) {
+      logger.error(err);
+    }
+  } else if (printMode === 'email') {
+    logger.info(`Sending PDF to printer via email...`);
+    const transportOptions = {
+      host: SMTP_HOST,
+      port: SMTP_PORT,
+      secure: SMTP_PORT == 465, // true for 465, false for other ports
+      auth: {
+        user: SMTP_USER,
+        pass: SMTP_PASS,
+      },
+    };
+    const subject = `Print Job: ${event.name}`;
+    const body = `Attached is the attendee list for the event: ${event.name}.`;
+    await sendEmailWithAttachment(transportOptions, PRINTER_EMAIL, EMAIL_FROM, subject, body, outputFileName);
+  }
 }
 
 async function main(argv, { getNextEvent, getAllAttendees, createAndPrintPdf }) {
@@ -130,9 +157,10 @@ async function main(argv, { getNextEvent, getAllAttendees, createAndPrintPdf }) 
     allowedCategories: argv.category || validatedConfig.categories,
     outputFilename: argv.output || validatedConfig.outputFilename,
     pdfLayout: validatedConfig.pdfLayout,
+    printMode: argv.printMode || 'email',
   };
 
-  const { printWindowMinutes, allowedCategories, outputFilename, pdfLayout } = finalConfig;
+  const { printWindowMinutes, allowedCategories, outputFilename, pdfLayout, printMode } = finalConfig;
 
   const event = await getNextEvent(allowedCategories);
 
@@ -146,7 +174,7 @@ async function main(argv, { getNextEvent, getAllAttendees, createAndPrintPdf }) 
       logger.info(`Event "${event.name}" is starting in ${minutesDiff} minutes. Generating printout...`);
       const attendees = await getAllAttendees(event.id);
       if (attendees) {
-        createAndPrintPdf(event, attendees, outputFilename, pdfLayout);
+        createAndPrintPdf(event, attendees, outputFilename, pdfLayout, printMode);
       }
     } else {
       logger.info(`Next event "${event.name}" is not starting within the next ${printWindowMinutes} minutes. Current difference: ${minutesDiff} minutes.`);
