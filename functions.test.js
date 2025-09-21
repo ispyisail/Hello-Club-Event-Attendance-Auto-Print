@@ -110,6 +110,21 @@ describe('main', () => {
 
     expect(createAndPrintPdfMock).toHaveBeenCalledTimes(1);
   });
+
+  it('should handle a single category from argv', async () => {
+    const fakeNow = new Date();
+    const eventDate = new Date(fakeNow.getTime() + 10 * 60 * 1000);
+    const mockEvent = { id: 1, name: 'Test Event', startDate: eventDate.toISOString(), categories: [{ name: 'SingleCat' }] };
+
+    fs.readFileSync.mockReturnValue(JSON.stringify({}));
+    getNextEventMock.mockResolvedValue(mockEvent);
+    getAllAttendeesMock.mockResolvedValue([{}]);
+
+    await funcs.main({ category: 'SingleCat' }, { getNextEvent: getNextEventMock, getAllAttendees: getAllAttendeesMock, createAndPrintPdf: createAndPrintPdfMock });
+
+    expect(getNextEventMock).toHaveBeenCalledWith(['SingleCat']);
+    expect(createAndPrintPdfMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('getNextEvent', () => {

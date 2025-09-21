@@ -187,7 +187,7 @@ async function main(argv, { getNextEvent, getAllAttendees, createAndPrintPdf }) 
 
   const finalConfig = {
     printWindowMinutes: argv.window || validatedConfig.printWindowMinutes,
-    allowedCategories: argv.category || validatedConfig.categories,
+    allowedCategories: argv.category ? [].concat(argv.category) : validatedConfig.categories,
     outputFilename: argv.output || validatedConfig.outputFilename,
     pdfLayout: validatedConfig.pdfLayout,
     printMode: argv.printMode || 'email',
