@@ -80,6 +80,21 @@ describe('main', () => {
 
     expect(createAndPrintPdfMock).toHaveBeenCalledTimes(1);
   });
+
+  it('should run and print a PDF if an event is starting now (0 minutes diff)', async () => {
+    const fakeNow = new Date();
+    // Event starts exactly now
+    const eventDate = new Date(fakeNow.getTime());
+    const mockEvent = { id: 1, name: 'Test Event', startDate: eventDate.toISOString() };
+
+    fs.readFileSync.mockReturnValue(JSON.stringify({ printWindowMinutes: 15 }));
+    getNextEventMock.mockResolvedValue(mockEvent);
+    getAllAttendeesMock.mockResolvedValue([{}]);
+
+    await funcs.main({}, { getNextEvent: getNextEventMock, getAllAttendees: getAllAttendeesMock, createAndPrintPdf: createAndPrintPdfMock });
+
+    expect(createAndPrintPdfMock).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('getNextEvent', () => {
