@@ -1,6 +1,7 @@
 {
   "categories": ["NBA - Junior Events"],
-  "printWindowMinutes": 15,
+  "preEventQueryMinutes": 5,
+  "fetchWindowHours": 24,
   "outputFilename": "attendees.pdf",
   "email": {
     "to": "recipient@example.com",
