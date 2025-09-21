@@ -51,6 +51,21 @@ describe('main', () => {
     expect(createAndPrintPdfMock).not.toHaveBeenCalled();
   });
 
+  it('should run and print a PDF if an event is starting now (exactly 0 minutes away)', async () => {
+    const fakeNow = new Date();
+    // Event starts exactly now
+    const eventDate = new Date(fakeNow.getTime());
+    const mockEvent = { id: 1, name: 'Test Event Starting Now', startDate: eventDate.toISOString() };
+
+    fs.readFileSync.mockReturnValue(JSON.stringify({ printWindowMinutes: 15 }));
+    getNextEventMock.mockResolvedValue(mockEvent);
+    getAllAttendeesMock.mockResolvedValue([{}]);
+
+    await funcs.main({}, { getNextEvent: getNextEventMock, getAllAttendees: getAllAttendeesMock, createAndPrintPdf: createAndPrintPdfMock });
+
+    expect(createAndPrintPdfMock).toHaveBeenCalledTimes(1);
+  });
+
   it('should exit if config is invalid', async () => {
     const process = require('process');
     const processExitMock = jest.spyOn(process, 'exit').mockImplementation(() => {});
