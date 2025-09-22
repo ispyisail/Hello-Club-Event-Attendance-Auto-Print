@@ -52,6 +52,8 @@ async function main() {
     logger.info(`Executing command: ${command}`);
 
     if (command === 'fetch-events') {
+        await fetchAndStoreUpcomingEvents(finalConfig);
+    } else if (command === 'process-schedule') {
         // Check for email-related env vars only if printing
         if (finalConfig.printMode === 'email') {
             const requiredEmailVars = ['PRINTER_EMAIL', 'SMTP_USER', 'SMTP_PASS'];
@@ -61,8 +63,6 @@ async function main() {
                 process.exit(1);
             }
         }
-        await fetchAndStoreUpcomingEvents(finalConfig);
-    } else if (command === 'process-schedule') {
         await processScheduledEvents(finalConfig);
     } else {
         logger.error('Invalid command. Please use "fetch-events" or "process-schedule".');
