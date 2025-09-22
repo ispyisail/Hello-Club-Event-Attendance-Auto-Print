@@ -5,8 +5,7 @@ const fs = require('fs');
 const { print } = require('pdf-to-printer');
 const { sendEmailWithAttachment } = require('./email-service');
 const PdfGenerator = require('./pdf-generator');
-const configSchema = require('./config-schema');
-const db = require('./database');
+const { openDb } = require('./database');
 
 const API_KEY = process.env.API_KEY;
 const PRINTER_EMAIL = process.env.PRINTER_EMAIL;
@@ -35,7 +34,6 @@ function handleApiError(error, context) {
     const { status, data } = error.response;
     if (status === 401) {
       logger.error(`API Error: 401 Unauthorized while ${context}. Please check your API_KEY in the .env file.`);
-      process.exit(1);
     } else {
       logger.error(`API Error: ${status} while ${context}.`, data);
     }
@@ -44,6 +42,8 @@ function handleApiError(error, context) {
   } else {
     logger.error(`An unexpected error occurred while ${context}:`, error.message);
   }
+  // Exit with a failure code for any handled API error.
+  process.exit(1);
 }
 
 /**
@@ -53,20 +53,16 @@ function handleApiError(error, context) {
  */
 async function processScheduledEvents(finalConfig) {
   const { preEventQueryMinutes, outputFilename, pdfLayout, printMode } = finalConfig;
+  let db;
+  try {
+    db = await openDb();
+    const now = new Date();
+    const queryTimeLimit = new Date(now.getTime() + preEventQueryMinutes * 60 * 1000);
 
-  const now = new Date();
-  const queryTimeLimit = new Date(now.getTime() + preEventQueryMinutes * 60 * 1000);
-
-  db.all("SELECT * FROM events WHERE status = 'pending' AND startDate <= ?", [queryTimeLimit.toISOString()], async (err, events) => {
-    if (err) {
-      logger.error('Error querying for pending events:', err.message);
-      db.close();
-      return;
-    }
+    const events = await db.all("SELECT * FROM events WHERE status = 'pending' AND startDate <= ?", [queryTimeLimit.toISOString()]);
 
     if (events.length === 0) {
       logger.info(`No events to process within the next ${preEventQueryMinutes} minutes.`);
-      db.close();
       return;
     }
 
@@ -77,33 +73,23 @@ async function processScheduledEvents(finalConfig) {
 
       const attendees = await getAllAttendees(event.id);
       if (attendees && attendees.length > 0) {
-        // The createAndPrintPdf function expects an event object that matches the API response,
-        // so we pass the database row which has `id` and `name`.
         await createAndPrintPdf(event, attendees, outputFilename, pdfLayout, printMode);
-
-        // Mark the event as processed in the database
-        db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id], (updateErr) => {
-          if (updateErr) {
-            logger.error(`Error updating status for event ${event.id}:`, updateErr.message);
-          } else {
-            logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
-          }
-        });
+        await db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id]);
+        logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
       } else {
         logger.warn(`No attendees found for event "${event.name}" (ID: ${event.id}). Skipping PDF generation.`);
-         // Mark as processed anyway to avoid retrying an event with no attendees
-         db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id], (updateErr) => {
-            if (updateErr) {
-                logger.error(`Error updating status for event ${event.id}:`, updateErr.message);
-            }
-         });
+        await db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id]);
+        logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed to avoid retries.`);
       }
     }
-    // It's tricky to know when all async operations are done.
-    // This simple db.close() might run too early.
-    // For this app's purpose, we'll accept it. A more robust solution might use Promises for db calls.
-    setTimeout(() => db.close(), 5000); // Give it a few seconds to finish up.
-  });
+  } catch (err) {
+    logger.error('An error occurred during processScheduledEvents:', err.message);
+  } finally {
+    if (db) {
+      await db.close();
+      logger.info('Database connection closed.');
+    }
+  }
 }
 
 /**
@@ -151,7 +137,7 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
   }
 
   const filteredEvents = events.filter(event => {
-    if (allowedCategories.length === 0) {
+    if (!allowedCategories || allowedCategories.length === 0) {
       return true; // No category filter, include all events
     }
     return event.categories.some(category => allowedCategories.includes(category.name));
@@ -162,28 +148,32 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     return;
   }
 
-  const stmt = db.prepare("INSERT OR IGNORE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')");
-  let insertedCount = 0;
-  for (const event of filteredEvents) {
-    stmt.run(event.id, event.name, event.startDate, function(err) {
-      if (err) {
-        logger.error(`Error inserting event ${event.id}:`, err.message);
-      } else if (this.changes > 0) {
+  let db;
+  try {
+    db = await openDb();
+    const stmt = await db.prepare("INSERT OR IGNORE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')");
+    let insertedCount = 0;
+    for (const event of filteredEvents) {
+      const result = await stmt.run(event.id, event.name, event.startDate);
+      if (result.changes > 0) {
         insertedCount++;
       }
-    });
-  }
-  stmt.finalize((err) => {
-    if (err) {
-        logger.error('Error finalizing statement:', err.message);
     }
+    await stmt.finalize();
+
     if (insertedCount > 0) {
-        logger.info(`Successfully stored ${insertedCount} new events in the database.`);
+      logger.info(`Successfully stored ${insertedCount} new events in the database.`);
     } else {
-        logger.info('No new events to store.');
+      logger.info('No new events to store.');
     }
-    db.close();
-  });
+  } catch (err) {
+    logger.error('An error occurred during fetchAndStoreUpcomingEvents:', err.message);
+  } finally {
+    if (db) {
+      await db.close();
+      logger.info('Database connection closed.');
+    }
+  }
 }
 
 /**
