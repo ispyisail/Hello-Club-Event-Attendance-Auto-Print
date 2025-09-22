@@ -151,6 +151,8 @@ describe('Event Processing Logic', () => {
                 }
             };
             mockApi.get.mockResolvedValueOnce(mockAttendees);
+            // Mock the second call inside getAllAttendees to terminate the loop
+            mockApi.get.mockResolvedValueOnce({ data: { attendees: [] } });
 
             const config = { preEventQueryMinutes: 5, outputFilename: 'test.pdf', pdfLayout: {}, printMode: 'local' };
             await processScheduledEvents(config);
@@ -240,18 +242,21 @@ describe('Event Processing Logic', () => {
                     meta: { total: 150, count: 50 }
                 }
             });
+            // Mock page 3 (empty)
+            mockApi.get.mockResolvedValueOnce({ data: { attendees: [] } });
+
 
             const attendees = await getAllAttendees(eventId);
 
             expect(attendees.length).toBe(150);
-            expect(mockApi.get).toHaveBeenCalledTimes(2);
+            expect(mockApi.get).toHaveBeenCalledTimes(3);
             expect(mockApi.get).toHaveBeenCalledWith('/eventAttendee', { params: { event: eventId, limit: 100, offset: 0 } });
             expect(mockApi.get).toHaveBeenCalledWith('/eventAttendee', { params: { event: eventId, limit: 100, offset: 100 } });
         });
 
         it('should return a sorted list of attendees by name', async () => {
             const eventId = 2;
-            mockApi.get.mockResolvedValue({
+            mockApi.get.mockResolvedValueOnce({
                 data: {
                     attendees: [
                         { firstName: 'Charlie', lastName: 'Davis' },
@@ -261,10 +266,13 @@ describe('Event Processing Logic', () => {
                     meta: { total: 3, count: 3 }
                 }
             });
+            // Mock the second call to return an empty array to terminate the loop
+            mockApi.get.mockResolvedValueOnce({ data: { attendees: [] } });
 
             const attendees = await getAllAttendees(eventId);
 
             expect(attendees.map(a => a.firstName)).toEqual(['Charlie', 'Bob', 'Alice']);
+            expect(mockApi.get).toHaveBeenCalledTimes(2);
         });
 
         it('should not enter an infinite loop if the API reports an incorrect total', async () => {
@@ -289,6 +297,38 @@ describe('Event Processing Logic', () => {
             // If the code is fixed, it should break the loop and return the 10 attendees it found.
             expect(attendees.length).toBe(10);
             expect(mockApi.get).toHaveBeenCalledTimes(2);
+        });
+
+        it('should not loop infinitely if meta.count is missing', async () => {
+            const eventId = 4;
+            // Mock page 1: returns 2 attendees, but has no meta.count
+            mockApi.get.mockResolvedValueOnce({
+                data: {
+                    attendees: [{ id: 1 }, { id: 2 }],
+                    meta: { total: 3 } // Missing count
+                }
+            });
+             // Mock page 2: returns the final attendee.
+            mockApi.get.mockResolvedValueOnce({
+                data: {
+                    attendees: [{ id: 3 }],
+                    meta: { total: 3, count: 1 }
+                }
+            });
+             // Mock page 3: returns empty, signaling the end.
+            mockApi.get.mockResolvedValueOnce({
+                data: {
+                    attendees: [],
+                    meta: { total: 3, count: 0 }
+                }
+            });
+
+            // This would time out if the bug exists, as offset would become NaN.
+            const attendees = await getAllAttendees(eventId);
+
+            // If the code is fixed, it should fetch all 3 attendees.
+            expect(attendees.length).toBe(3);
+            expect(mockApi.get).toHaveBeenCalledTimes(3);
         });
     });
 
