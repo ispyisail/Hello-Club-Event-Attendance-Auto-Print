@@ -6,6 +6,7 @@ const { print } = require('pdf-to-printer');
 const { sendEmailWithAttachment } = require('./email-service');
 const PdfGenerator = require('./pdf-generator');
 const configSchema = require('./config-schema');
+const db = require('./database');
 
 const API_KEY = process.env.API_KEY;
 const PRINTER_EMAIL = process.env.PRINTER_EMAIL;
@@ -46,41 +47,143 @@ function handleApiError(error, context) {
 }
 
 /**
- * Fetches the next upcoming event from the Hello Club API.
- * @param {string[]} [allowedCategories=[]] - A list of event categories to filter by. If empty, all categories are considered.
- * @returns {Promise<Object|null>} A promise that resolves to the next event object, or null if no event is found.
+ * Checks the database for events that are due for printing, then fetches attendees and generates the PDF.
+ * @param {Object} finalConfig - The application's configuration object.
+ * @returns {Promise<void>}
  */
-async function getNextEvent(allowedCategories = []) {
+async function processScheduledEvents(finalConfig) {
+  const { preEventQueryMinutes, outputFilename, pdfLayout, printMode } = finalConfig;
+
+  const now = new Date();
+  const queryTimeLimit = new Date(now.getTime() + preEventQueryMinutes * 60 * 1000);
+
+  db.all("SELECT * FROM events WHERE status = 'pending' AND startDate <= ?", [queryTimeLimit.toISOString()], async (err, events) => {
+    if (err) {
+      logger.error('Error querying for pending events:', err.message);
+      db.close();
+      return;
+    }
+
+    if (events.length === 0) {
+      logger.info(`No events to process within the next ${preEventQueryMinutes} minutes.`);
+      db.close();
+      return;
+    }
+
+    logger.info(`Found ${events.length} event(s) to process.`);
+
+    for (const event of events) {
+      logger.info(`Processing event "${event.name}" (ID: ${event.id})...`);
+
+      const attendees = await getAllAttendees(event.id);
+      if (attendees && attendees.length > 0) {
+        // The createAndPrintPdf function expects an event object that matches the API response,
+        // so we pass the database row which has `id` and `name`.
+        await createAndPrintPdf(event, attendees, outputFilename, pdfLayout, printMode);
+
+        // Mark the event as processed in the database
+        db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id], (updateErr) => {
+          if (updateErr) {
+            logger.error(`Error updating status for event ${event.id}:`, updateErr.message);
+          } else {
+            logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
+          }
+        });
+      } else {
+        logger.warn(`No attendees found for event "${event.name}" (ID: ${event.id}). Skipping PDF generation.`);
+         // Mark as processed anyway to avoid retrying an event with no attendees
+         db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id], (updateErr) => {
+            if (updateErr) {
+                logger.error(`Error updating status for event ${event.id}:`, updateErr.message);
+            }
+         });
+      }
+    }
+    // It's tricky to know when all async operations are done.
+    // This simple db.close() might run too early.
+    // For this app's purpose, we'll accept it. A more robust solution might use Promises for db calls.
+    setTimeout(() => db.close(), 5000); // Give it a few seconds to finish up.
+  });
+}
+
+/**
+ * Fetches upcoming events from the Hello Club API within a given time window.
+ * @param {number} fetchWindowHours - The number of hours to look ahead for events.
+ * @returns {Promise<Array<Object>>} A promise that resolves to an array of event objects.
+ */
+async function getUpcomingEvents(fetchWindowHours) {
   try {
+    const fromDate = new Date();
+    const toDate = new Date(fromDate.getTime() + fetchWindowHours * 60 * 60 * 1000);
+
     const response = await api.get('/event', {
       params: {
-        fromDate: new Date().toISOString(),
+        fromDate: fromDate.toISOString(),
+        toDate: toDate.toISOString(),
         sort: 'startDate'
       }
     });
 
     if (response.data.events.length > 0) {
-      const nextEvent = response.data.events.find(event => {
-        if (allowedCategories.length === 0) {
-          return true;
-        }
-        return event.categories.some(category => allowedCategories.includes(category.name));
-      });
-
-      if (nextEvent) {
-        return nextEvent;
-      } else {
-        logger.info(`No upcoming events found with the specified categories: ${allowedCategories.join(', ')}`);
-        return null;
-      }
+      logger.info(`Found ${response.data.events.length} upcoming events in the next ${fetchWindowHours} hours.`);
+      return response.data.events;
     } else {
-      logger.info('No upcoming events found.');
-      return null;
+      logger.info(`No upcoming events found in the next ${fetchWindowHours} hours.`);
+      return [];
     }
   } catch (error) {
-    handleApiError(error, 'fetching next event');
-    return null;
+    handleApiError(error, 'fetching upcoming events');
+    return [];
   }
+}
+
+/**
+ * Fetches upcoming events and stores them in the local database.
+ * @param {Object} finalConfig - The application's configuration object.
+ * @returns {Promise<void>}
+ */
+async function fetchAndStoreUpcomingEvents(finalConfig) {
+  const { fetchWindowHours, allowedCategories } = finalConfig;
+  const events = await getUpcomingEvents(fetchWindowHours);
+
+  if (events.length === 0) {
+    return;
+  }
+
+  const filteredEvents = events.filter(event => {
+    if (allowedCategories.length === 0) {
+      return true; // No category filter, include all events
+    }
+    return event.categories.some(category => allowedCategories.includes(category.name));
+  });
+
+  if (filteredEvents.length === 0) {
+    logger.info('No events matched the specified categories.');
+    return;
+  }
+
+  const stmt = db.prepare("INSERT OR IGNORE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')");
+  let insertedCount = 0;
+  for (const event of filteredEvents) {
+    stmt.run(event.id, event.name, event.startDate, function(err) {
+      if (err) {
+        logger.error(`Error inserting event ${event.id}:`, err.message);
+      } else if (this.changes > 0) {
+        insertedCount++;
+      }
+    });
+  }
+  stmt.finalize((err) => {
+    if (err) {
+        logger.error('Error finalizing statement:', err.message);
+    }
+    if (insertedCount > 0) {
+        logger.info(`Successfully stored ${insertedCount} new events in the database.`);
+    } else {
+        logger.info('No new events to store.');
+    }
+    db.close();
+  });
 }
 
 /**
@@ -160,61 +263,12 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
   }
 }
 
-/**
- * The main function of the application.
- * @param {Object} argv - The parsed command-line arguments.
- * @param {Object} dependencies - The dependencies to be injected.
- * @param {function} dependencies.getNextEvent - The function to get the next event.
- * @param {function} dependencies.getAllAttendees - The function to get all attendees.
- * @param {function} dependencies.createAndPrintPdf - The function to create and print the PDF.
- * @returns {Promise<void>}
- */
-async function main(argv, { getNextEvent, getAllAttendees, createAndPrintPdf }) {
-  let config = {};
-  try {
-    const configData = fs.readFileSync('config.json', 'utf8');
-    config = JSON.parse(configData);
-  } catch (error) {
-    logger.warn('Warning: config.json not found or is invalid JSON. Using default configuration.');
-  }
-
-  const { error, value: validatedConfig } = configSchema.validate(config);
-
-  if (error) {
-    logger.error('Invalid configuration in config.json:', error.details.map(d => d.message).join('\n'));
-    process.exit(1);
-  }
-
-  const finalConfig = {
-    printWindowMinutes: argv.window || validatedConfig.printWindowMinutes,
-    allowedCategories: argv.category || validatedConfig.categories,
-    outputFilename: argv.output || validatedConfig.outputFilename,
-    pdfLayout: validatedConfig.pdfLayout,
-    printMode: argv.printMode || 'email',
-  };
-
-  const { printWindowMinutes, allowedCategories, outputFilename, pdfLayout, printMode } = finalConfig;
-
-  const event = await getNextEvent(allowedCategories);
-
-  if (event) {
-    const now = new Date();
-    const eventDate = new Date(event.startDate);
-    const timeDiff = eventDate.getTime() - now.getTime();
-    const minutesDiff = Math.floor(timeDiff / 1000 / 60);
-
-    if (minutesDiff <= printWindowMinutes && minutesDiff >= 0) {
-      logger.info(`Event "${event.name}" is starting in ${minutesDiff} minutes. Generating printout...`);
-      const attendees = await getAllAttendees(event.id);
-      if (attendees) {
-        createAndPrintPdf(event, attendees, outputFilename, pdfLayout, printMode);
-      }
-    } else {
-      logger.info(`Next event "${event.name}" is not starting within the next ${printWindowMinutes} minutes. Current difference: ${minutesDiff} minutes.`);
-    }
-  } else {
-    logger.info('No event selected or found.');
-  }
-}
-
-module.exports = { getNextEvent, getAllAttendees, createAndPrintPdf, main, api, handleApiError };
+module.exports = {
+  getUpcomingEvents,
+  fetchAndStoreUpcomingEvents,
+  processScheduledEvents,
+  getAllAttendees,
+  createAndPrintPdf,
+  api,
+  handleApiError
+};

@@ -1,8 +1,14 @@
-# Hello Club - Next Event Attendee Printout
+# Hello Club - Event Attendee Printout
 
 ## Description
 
-This command-line tool automatically finds the next upcoming event from the Hello Club API, retrieves its full attendee list, and formats it into a printable sign-up sheet in PDF format. The script is designed to be run on a schedule to automatically print the attendee list for specific events shortly before they start.
+This command-line tool provides a robust, two-stage process for automatically generating and printing attendee lists for upcoming events from the Hello Club API. It is designed to be efficient by minimizing API calls while ensuring the final attendee list is as up-to-date as possible.
+
+The workflow is split into two main commands:
+1.  **`fetch-events`**: This command queries the Hello Club API for all upcoming events within a configurable time window (e.g., the next 24 hours). It then stores these events in a local database. This command is designed to be run periodically (e.g., once every hour).
+2.  **`process-schedule`**: This command checks the local database for stored events that are about to start. When an event is within a configurable time window (e.g., 5 minutes from its start time), it makes one final API call to get the latest attendee list and generates a printable PDF. This command is designed to be run frequently (e.g., once every minute).
+
+This two-stage approach ensures that the Hello Club API is not queried excessively, while the final printout is generated just moments before the event begins, capturing last-minute sign-ups.
 
 ## Prerequisites
 
@@ -22,12 +28,12 @@ Before you begin, ensure you have the following installed:
 
 There are two configuration files you need to set up:
 
-### 1. API Key & Email Configuration (.env file)
+### 1. API Key & Email Configuration (`.env` file)
 
 This file stores your Hello Club API key and the settings for email printing.
 
 1. Create a file named `.env` in the root of the project directory.
-2. Add your configuration to the file in the following format. The `API_KEY` is always required. The other variables are only needed if you use the `--print-mode email` option.
+2. Add your configuration to the file in the following format. The `API_KEY` is always required. The other variables are only needed if you use the `email` print mode.
 
     ```
     # Required for API access
@@ -38,150 +44,106 @@ This file stores your Hello Club API key and the settings for email printing.
     SMTP_USER=your_gmail_username_or_app_password
     SMTP_PASS=your_gmail_app_password
     EMAIL_FROM=sender_address@example.com
-
-    # Optional: Override if not using Gmail
-    # SMTP_HOST=smtp.example.com
-    # SMTP_PORT=587
     ```
 
-    - Replace `your_hello_club_api_key` with your actual API key.
-    - `PRINTER_EMAIL`: The email address of your Epson Connect enabled printer.
-    - `SMTP_USER` / `SMTP_PASS`: Your Gmail username and an **App Password**. **Important:** Due to Google's security policies, you cannot use your regular Gmail password here. You must generate an "App Password" for this application inside your Google Account settings.
-    - `EMAIL_FROM`: The address the email will be sent from. Can often be the same as `SMTP_USER`.
+### 2. Event & Print Settings (`config.json` file)
 
-### 2. Event Categories (config.json file)
+This file allows you to specify the default behavior for the script. Command-line options will always override the settings in this file.
 
-This file allows you to specify which event categories the script should process.
-
-1. The `config.json` file is already created in the project directory.
-2. You can edit this file to add or change the list of category names. The script will only generate printouts for events that match one of the categories in this file.
-
-    The `config.json` file allows you to specify the default behavior for the script. The command-line options will always override the settings in this file.
-
-    Example `config.json`:
-    ```json
-    {
-      "categories": ["NBA - Junior Events", "Pickleball"],
-      "printWindowMinutes": 15,
-      "outputFilename": "attendees.pdf",
-      "pdfLayout": {
-        "logo": "./logo.png",
-        "fontSize": 10,
-        "columns": [
-          { "id": "name", "header": "Name", "width": 140 },
-          { "id": "phone", "header": "Phone", "width": 100 },
-          { "id": "signUpDate", "header": "Signed up", "width": 100 },
-          { "id": "fee", "header": "Fee", "width": 60 },
-          { "id": "status", "header": "Status", "width": 90 }
-        ]
-      }
-    }
-    ```
-    - `categories`: A list of event category names to process.
-    - `printWindowMinutes`: The time window in minutes before an event starts, during which the printout should be generated. (Default: 15)
-    - `outputFilename`: The default name for the generated PDF file. (Default: "attendees.pdf")
-    - `pdfLayout`: Configuration for the PDF's appearance.
-        - `logo`: Path to a logo image file to be included in the header.
-        - `fontSize`: The font size for the text in the table.
-        - `columns`: An array defining the columns in the attendee table.
+Example `config.json`:
+```json
+{
+  "categories": ["NBA - Junior Events", "Pickleball"],
+  "fetchWindowHours": 24,
+  "preEventQueryMinutes": 5,
+  "outputFilename": "attendees.pdf",
+  "pdfLayout": {
+    "logo": null,
+    "fontSize": 10,
+    "columns": [
+      { "id": "name", "header": "Name", "width": 140 },
+      { "id": "phone", "header": "Phone", "width": 100 },
+      { "id": "signUpDate", "header": "Signed up", "width": 100 },
+      { "id": "fee", "header": "Fee", "width": 60 },
+      { "id": "status", "header": "Status", "width": 90 }
+    ]
+  }
+}
+```
+- `categories`: A list of event category names to process.
+- `fetchWindowHours`: The time window in hours to look ahead for upcoming events when running `fetch-events`. (Default: 24)
+- `preEventQueryMinutes`: The time in minutes before an event starts to perform the final query for attendees. This is used by `process-schedule`. (Default: 5)
+- `outputFilename`: The default name for the generated PDF file. (Default: "attendees.pdf")
+- `pdfLayout`: Configuration for the PDF's appearance.
 
 ## Project Structure
 
-The project is organized into the following files:
-
 - `index.js`: The main entry point of the application.
 - `functions.js`: Contains the core logic for fetching data, processing events, and generating the output.
+- `database.js`: Manages the connection and setup for the local SQLite database.
 - `args-parser.js`: Configures and parses command-line arguments using `yargs`.
-- `config-schema.js`: Defines the validation schema for the `config.json` file using `Joi`.
-- `pdf-generator.js`: A class responsible for creating the PDF document from event and attendee data.
-- `csv-generator.js`: Contains logic for generating a CSV file (not used in the primary PDF workflow but available).
-- `email-service.js`: Handles sending emails with attachments using `Nodemailer`.
-- `logger.js`: Sets up a `winston` logger for logging application activity and errors.
-- `functions.test.js`: Unit tests for the core functions.
+- `config-schema.js`: Defines the validation schema for the `config.json` file.
+- `pdf-generator.js`: A class responsible for creating the PDF document.
+- `email-service.js`: Handles sending emails with attachments.
+- `logger.js`: Sets up a logger for application activity and errors.
 
 ## Running the Script Manually
 
-To run the script manually, open a command prompt or terminal in the project directory and run the following command:
+The script operates using two distinct commands. You must run them separately.
+
+### 1. Fetching and Storing Events
+This command finds upcoming events and saves them to the local database.
 
 ```bash
-node index.js
+node index.js fetch-events
 ```
 
-### Command-Line Options
+**Options:**
+- `--category "Category Name"` (or `-c`): Specify an event category to filter by, overriding the config file. Can be used multiple times.
+- `--fetch-window-hours <hours>` (or `--fwh`): Specify the time window in hours to look for events, overriding the config file.
 
-You can customize the script's behavior using the following optional flags:
+### 2. Processing and Printing Events
+This command checks the database for events that are about to start and prints the attendee list.
 
-- `--print-mode` (or `-p`): Choose the printing method.
-  - `email` (default): Sends the PDF to a configured email address (ideal for cloud printers).
-  - `local`: Prints to a locally connected printer.
-- `--category` (or `-c`): Specify an event category to override the config file. Can be used multiple times.
-- `--window` (or `-w`): Set the time window in minutes to check for events, overriding the config file.
-- `--output` (or `-o`): Define the name of the output PDF file, overriding the config file.
-
-Example using email printing:
 ```bash
-node index.js --print-mode email
+node index.js process-schedule
 ```
 
-The script will then:
-1. Find the next upcoming event that matches the categories in your `config.json`.
-2. Check if the event is starting within the next 15 minutes.
-3. If it is, it will generate a PDF file named `attendees.pdf` and either send it to your default printer or email it, based on the selected print mode.
-4. If no event is starting soon, it will log a message to the console.
+**Options:**
+- `--pre-event-query-minutes <minutes>` (or `-w`): Set the time window in minutes before an event starts to trigger the printout, overriding the config file.
+- `--output <filename>` (or `-o`): Define the name of the output PDF file.
+- `--print-mode <mode>` (or `-p`): Choose the printing method: `email` or `local`.
 
 ## Scheduling the Script
 
-You can run this script automatically on a schedule using different methods depending on your operating system or hosting environment.
+To fully automate the tool, you must schedule **two separate tasks**.
 
-### Windows (Using Task Scheduler)
+### Task 1: Fetch Events (Run Periodically)
 
-You can use the Windows Task Scheduler to run the script automatically at regular intervals.
+This task runs `fetch-events` to keep the local event list up-to-date.
+- **Frequency:** Every 1 to 4 hours is usually sufficient.
+- **Command:** `node index.js fetch-events`
 
-#### 1. Create a Basic Task
-1. Press the **Windows Key**, type **Task Scheduler**, and press Enter.
-2. In the "Actions" pane on the right, click **Create Basic Task...**.
-3. Name the task (e.g., "Hello Club Printout") and click **Next**.
-4. Choose **Daily** for the trigger, then click **Next**.
-5. Leave the start date as today and set the recur option to **1** days. Click **Next**.
-6. For the action, select **Start a program** and click **Next**.
+### Task 2: Process Schedule (Run Frequently)
 
-#### 2. Configure the Action
-1.  **Program/script:** Enter the full path to your `node.exe`. You can find this by opening Command Prompt and running `where node`. It will likely be something like `C:\Program Files\nodejs\node.exe`.
-2.  **Add arguments (optional):** Enter `index.js`.
-3.  **Start in (optional):** Enter the full path to your project directory: `C:\Projects\Hello Club - Print out`. This is a crucial step to ensure the script can find all its related files.
+This task runs `process-schedule` to check if any events are due for printing.
+- **Frequency:** Every 1 to 5 minutes.
+- **Command:** `node index.js process-schedule`
 
-#### 3. Set the Repeat Interval
-1.  Click **Next**, then check the box that says "Open the Properties dialog for this task when I click Finish", and click **Finish**.
-2.  In the "Properties" window, go to the **Triggers** tab.
-3.  Select the trigger and click **Edit**.
-4.  Under "Advanced settings", check the box for **Repeat task every** and set it to **15 minutes**.
-5.  Set the duration to **Indefinitely**.
-6.  Click **OK** on all open windows to save the changes.
+### Example: Scheduling on Windows using Task Scheduler
 
-The script will now run automatically every 15 minutes and generate the printout when a relevant event is about to start.
+You would create two separate tasks.
 
-### Azure (Using a WebJob)
+**Task 1: "Hello Club - Fetch Events"**
+- **Trigger:** Daily, repeat task every **1 hour**.
+- **Action:**
+    - Program/script: `C:\Program Files\nodejs\node.exe`
+    - Add arguments: `index.js fetch-events`
+    - Start in: `C:\path\to\your\project`
 
-When deploying the application to an **Azure App Service**, you can use a **WebJob** to run the script on a schedule. This is the cloud equivalent of the Windows Task Scheduler.
-
-#### 1. Prepare Your Project for the WebJob
-Azure WebJobs needs to know what command to run.
-1. Create a new file in your project's root directory named `run.cmd`.
-2. Add the following line to the file:
-    ```cmd
-    node index.js
-    ```
-This tells the WebJob to execute your main script with Node.js.
-
-#### 2. Deploy and Configure
-1. Deploy your application code (including the new `run.cmd` file) to an Azure App Service.
-2. In the Azure Portal, navigate to your App Service.
-3. From the left-hand menu, select **WebJobs**.
-4. Click **+ Add**.
-5. **Name:** Give your WebJob a name (e.g., "hello-club-scheduler").
-6. **Type:** Select **Triggered**.
-7. **Triggers:** Select **Scheduled**.
-8. **CRON Expression:** Enter a CRON expression for your desired schedule. To run every 15 minutes, use: `0 */15 * * * *`.
-9. Click **OK** to create the WebJob.
-
-The script will now be executed by Azure every 15 minutes. Note that for this to work, the App Service plan must have the "Always On" setting enabled.
+**Task 2: "Hello Club - Process Schedule"**
+- **Trigger:** Daily, repeat task every **1 minute**.
+- **Action:**
+    - Program/script: `C:\Program Files\nodejs\node.exe`
+    - Add arguments: `index.js process-schedule`
+    - Start in: `C:\path\to\your\project`

@@ -17,10 +17,15 @@ const configSchema = Joi.object({
    */
   categories: Joi.array().items(Joi.string()).default([]),
   /**
-   * The time window in minutes before an event starts, during which the printout should be generated.
+   * The time in minutes before an event starts to perform the final query for attendees.
    * @type {number}
    */
-  printWindowMinutes: Joi.number().integer().positive().default(15),
+  preEventQueryMinutes: Joi.number().integer().min(1).default(5),
+  /**
+   * The time window in hours to look ahead for upcoming events.
+   * @type {number}
+   */
+  fetchWindowHours: Joi.number().integer().positive().default(24),
   outputFilename: Joi.string().default('attendees.pdf'),
   email: Joi.object({
     to: Joi.string().email().required(),
