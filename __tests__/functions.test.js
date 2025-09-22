@@ -249,6 +249,7 @@ describe('Event Processing Logic', () => {
             expect(mockDb.prepare).toHaveBeenCalledWith("UPDATE events SET status = 'processed' WHERE id = ?");
             expect(mockStmt.run).toHaveBeenCalledWith(1);
         });
+
     });
 
     describe('getAllAttendees', () => {

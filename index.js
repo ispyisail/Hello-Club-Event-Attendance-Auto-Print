@@ -41,13 +41,13 @@ async function main() {
     // Build the final configuration by merging config file, defaults, and command-line arguments
     const finalConfig = {
         // For fetch-events
-        allowedCategories: argv.category || validatedConfig.categories,
-        fetchWindowHours: argv.fetchWindowHours || validatedConfig.fetchWindowHours,
+        allowedCategories: argv.category ?? validatedConfig.categories,
+        fetchWindowHours: argv.fetchWindowHours ?? validatedConfig.fetchWindowHours,
         // For process-schedule
-        preEventQueryMinutes: argv.preEventQueryMinutes || validatedConfig.preEventQueryMinutes,
-        outputFilename: argv.output || validatedConfig.outputFilename,
+        preEventQueryMinutes: argv.preEventQueryMinutes ?? validatedConfig.preEventQueryMinutes,
+        outputFilename: argv.output ?? validatedConfig.outputFilename,
         pdfLayout: validatedConfig.pdfLayout,
-        printMode: argv.printMode || 'email'
+        printMode: argv.printMode ?? 'email'
     };
 
     logger.info(`Executing command: ${command}`);
