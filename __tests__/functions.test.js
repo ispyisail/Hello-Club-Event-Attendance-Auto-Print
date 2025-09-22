@@ -132,6 +132,32 @@ describe('Event Processing Logic', () => {
 
             await expect(fetchAndStoreUpcomingEvents(config)).rejects.toThrow('Network Error: No response received while fetching upcoming events');
         });
+
+        it('should not crash if an event has no categories property', async () => {
+            const mockEvents = {
+                data: {
+                    events: [
+                        { id: 1, name: 'Event A', startDate: '2025-01-01T10:00:00Z', categories: [{ name: 'Allowed' }] },
+                        { id: 2, name: 'Event B (no categories)', startDate: '2025-01-01T11:00:00Z' }, // No 'categories' property
+                        { id: 3, name: 'Event C', startDate: '2025-01-01T12:00:00Z', categories: [{ name: 'Allowed' }] },
+                    ]
+                }
+            };
+            mockApi.get.mockResolvedValue(mockEvents);
+
+            const config = {
+                fetchWindowHours: 24,
+                allowedCategories: ['Allowed']
+            };
+
+            // This would throw a TypeError with the buggy code. We assert it doesn't.
+            await expect(fetchAndStoreUpcomingEvents(config)).resolves.not.toThrow();
+
+            // And we expect that only the two valid events were processed for storage.
+            expect(mockStmt.run).toHaveBeenCalledTimes(2);
+            expect(mockStmt.run).toHaveBeenCalledWith(1, 'Event A', '2025-01-01T10:00:00Z');
+            expect(mockStmt.run).toHaveBeenCalledWith(3, 'Event C', '2025-01-01T12:00:00Z');
+        });
     });
 
     describe('processScheduledEvents', () => {
