@@ -15,7 +15,7 @@ const SMTP_USER = process.env.SMTP_USER;
 const SMTP_PASS = process.env.SMTP_PASS;
 const EMAIL_FROM = process.env.EMAIL_FROM || SMTP_USER;
 
-const BASE_URL = 'https://api.helloclub.com';
+const BASE_URL = process.env.API_BASE_URL || 'https://api.helloclub.com';
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -71,9 +71,16 @@ async function processScheduledEvents(finalConfig) {
     for (const event of events) {
       logger.info(`Processing event "${event.name}" (ID: ${event.id})...`);
 
+      // Get the full, up-to-date event details for the PDF header
+      const fullEvent = await getEventDetails(event.id);
+      if (!fullEvent) {
+        // Error already logged by getEventDetails -> handleApiError
+        continue; // Skip to the next event
+      }
+
       const attendees = await getAllAttendees(event.id);
       if (attendees && attendees.length > 0) {
-        await createAndPrintPdf(event, attendees, outputFilename, pdfLayout, printMode);
+        await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode);
         await db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id]);
         logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
       } else {
@@ -84,11 +91,27 @@ async function processScheduledEvents(finalConfig) {
     }
   } catch (err) {
     logger.error('An error occurred during processScheduledEvents:', err.message);
+    throw err; // Re-throw the error to ensure the process exits with a failure code
   } finally {
     if (db) {
       await db.close();
       logger.info('Database connection closed.');
     }
+  }
+}
+
+/**
+ * Fetches the full details for a single event.
+ * @param {number} eventId - The ID of the event to fetch.
+ * @returns {Promise<Object|null>} A promise that resolves to the event object or null if not found.
+ */
+async function getEventDetails(eventId) {
+  try {
+    const response = await api.get(`/event/${eventId}`);
+    return response.data;
+  } catch (error) {
+    handleApiError(error, `fetching details for event ${eventId}`);
+    return null; // Return null on error
   }
 }
 
@@ -168,6 +191,7 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     }
   } catch (err) {
     logger.error('An error occurred during fetchAndStoreUpcomingEvents:', err.message);
+    throw err; // Re-throw the error to ensure the process exits with a failure code
   } finally {
     if (db) {
       await db.close();
@@ -234,7 +258,8 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
       const msg = await print(outputFileName);
       logger.info(msg);
     } catch (err) {
-      logger.error(err);
+      logger.error('Failed to print locally:', err);
+      throw err;
     }
   } else if (printMode === 'email') {
     logger.info(`Sending PDF to printer via email...`);
