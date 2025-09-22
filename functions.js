@@ -5,7 +5,7 @@ const fs = require('fs');
 const { print } = require('pdf-to-printer');
 const { sendEmailWithAttachment } = require('./email-service');
 const PdfGenerator = require('./pdf-generator');
-const { openDb } = require('./database');
+const { getDb } = require('./database');
 
 const API_KEY = process.env.API_KEY;
 const PRINTER_EMAIL = process.env.PRINTER_EMAIL;
@@ -52,19 +52,60 @@ function handleApiError(error, context) {
 }
 
 /**
- * Checks the database for events that are due for printing, then fetches attendees and generates the PDF.
+ * Processes a single event: fetches attendees, creates a PDF, prints it, and updates the database.
+ * This function is designed to be called by the scheduler or the manual `process-schedule` command.
+ * @param {Object} event - The event object from the local database.
+ * @param {Object} finalConfig - The application's configuration object.
+ * @returns {Promise<void>}
+ */
+async function processSingleEvent(event, finalConfig) {
+  const { outputFilename, pdfLayout, printMode } = finalConfig;
+  try {
+    logger.info(`Processing event "${event.name}" (ID: ${event.id})...`);
+
+    // Get the full, up-to-date event details for the PDF header
+    const fullEvent = await getEventDetails(event.id);
+    const attendees = await getAllAttendees(event.id);
+
+    const db = getDb();
+    const updateStmt = db.prepare("UPDATE events SET status = 'processed' WHERE id = ?");
+
+    if (attendees && attendees.length > 0) {
+      await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode);
+      updateStmt.run(event.id);
+      logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
+    } else {
+      logger.warn(`No attendees found for event "${event.name}" (ID: ${event.id}). Skipping PDF generation.`);
+      updateStmt.run(event.id);
+      logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed to avoid retries.`);
+    }
+  } catch (error) {
+    logger.error(`Failed to process event ${event.id} ("${event.name}"). It will not be retried.`);
+    try {
+      const db = getDb();
+      db.prepare("UPDATE events SET status = 'processed' WHERE id = ?").run(event.id);
+      logger.warn(`Event ${event.id} marked as processed to prevent retries after error.`);
+    } catch (dbError) {
+      logger.error(`Additionally, failed to mark event ${event.id} as processed:`, dbError);
+    }
+  }
+}
+
+
+/**
+ * Checks the database for events that are due for printing and calls processSingleEvent for each.
  * @param {Object} finalConfig - The application's configuration object.
  * @returns {Promise<void>}
  */
 async function processScheduledEvents(finalConfig) {
-  const { preEventQueryMinutes, outputFilename, pdfLayout, printMode } = finalConfig;
-  let db;
+  const { preEventQueryMinutes } = finalConfig;
   try {
-    db = await openDb();
+    const db = getDb();
     const now = new Date();
     const queryTimeLimit = new Date(now.getTime() + preEventQueryMinutes * 60 * 1000);
 
-    const events = await db.all("SELECT * FROM events WHERE status = 'pending' AND startDate <= ?", [queryTimeLimit.toISOString()]);
+    const stmt = db.prepare("SELECT * FROM events WHERE status = 'pending' AND startDate <= ?");
+    const events = stmt.all(queryTimeLimit.toISOString());
 
     if (events.length === 0) {
       logger.info(`No events to process within the next ${preEventQueryMinutes} minutes.`);
@@ -74,37 +115,11 @@ async function processScheduledEvents(finalConfig) {
     logger.info(`Found ${events.length} event(s) to process.`);
 
     for (const event of events) {
-      try {
-        logger.info(`Processing event "${event.name}" (ID: ${event.id})...`);
-
-        // Get the full, up-to-date event details for the PDF header
-        const fullEvent = await getEventDetails(event.id);
-
-        const attendees = await getAllAttendees(event.id);
-        if (attendees && attendees.length > 0) {
-          await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode);
-          await db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id]);
-          logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
-        } else {
-          logger.warn(`No attendees found for event "${event.name}" (ID: ${event.id}). Skipping PDF generation.`);
-          await db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id]);
-          logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed to avoid retries.`);
-        }
-      } catch (error) {
-        // Error is already logged with context by handleApiError.
-        // We log that we are skipping the event and continue the loop.
-        logger.warn(`Skipping event ${event.id} ("${event.name}") due to a processing error.`);
-      }
+      await processSingleEvent(event, finalConfig);
     }
   } catch (err) {
-    // This will now only catch errors from openDb or the initial db.all query
     logger.error('A critical error occurred during processScheduledEvents:', err.message);
-    throw err; // Re-throw the error to ensure the process exits with a failure code
-  } finally {
-    if (db) {
-      await db.close();
-      logger.info('Database connection closed.');
-    }
+    throw err;
   }
 }
 
@@ -161,7 +176,7 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
   const { fetchWindowHours, allowedCategories } = finalConfig;
   const events = await getUpcomingEvents(fetchWindowHours);
 
-  if (events.length === 0) {
+  if (!events || events.length === 0) {
     return;
   }
 
@@ -177,18 +192,22 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     return;
   }
 
-  let db;
   try {
-    db = await openDb();
-    const stmt = await db.prepare("INSERT OR IGNORE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')");
-    let insertedCount = 0;
-    for (const event of filteredEvents) {
-      const result = await stmt.run(event.id, event.name, event.startDate);
-      if (result.changes > 0) {
-        insertedCount++;
+    const db = getDb();
+    const stmt = db.prepare("INSERT OR IGNORE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')");
+
+    const insertMany = db.transaction((events) => {
+      let insertedCount = 0;
+      for (const event of events) {
+        const result = stmt.run(event.id, event.name, event.startDate);
+        if (result.changes > 0) {
+          insertedCount++;
+        }
       }
-    }
-    await stmt.finalize();
+      return insertedCount;
+    });
+
+    const insertedCount = insertMany(filteredEvents);
 
     if (insertedCount > 0) {
       logger.info(`Successfully stored ${insertedCount} new events in the database.`);
@@ -197,12 +216,7 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     }
   } catch (err) {
     logger.error('An error occurred during fetchAndStoreUpcomingEvents:', err.message);
-    throw err; // Re-throw the error to ensure the process exits with a failure code
-  } finally {
-    if (db) {
-      await db.close();
-      logger.info('Database connection closed.');
-    }
+    throw err;
   }
 }
 
@@ -287,6 +301,7 @@ module.exports = {
   getUpcomingEvents,
   fetchAndStoreUpcomingEvents,
   processScheduledEvents,
+  processSingleEvent,
   getAllAttendees,
   createAndPrintPdf,
   api,

@@ -147,3 +147,45 @@ You would create two separate tasks.
     - Program/script: `C:\Program Files\nodejs\node.exe`
     - Add arguments: `index.js process-schedule`
     - Start in: `C:\path\to\your\project`
+
+## Running as a Service (Windows, macOS, & Linux)
+
+For a more robust, long-term solution, it is recommended to run the application as a background service. This ensures it's always running and will restart automatically if the server reboots. The best way to do this for a Node.js application is with a process manager called **PM2**.
+
+### 1. Install PM2
+If you don't have PM2 installed, open your terminal or command prompt and run:
+```bash
+npm install pm2 -g
+```
+
+### 2. Start the Service
+Navigate to the project directory and use the following command to start the application with PM2. This single command replaces the need for two separate scheduled tasks.
+
+```bash
+pm2 start index.js --name "hello-club-service" -- start-service
+```
+- `pm2 start index.js`: Tells PM2 to run the `index.js` file.
+- `--name "hello-club-service"`: Gives the process a memorable name.
+- `-- start-service`: This is a crucial part. The `--` tells `pm2` to pass the `start-service` argument to `index.js`.
+
+### 3. Enable Automatic Startup
+To ensure the service starts when your computer boots, run the following command and follow the on-screen instructions. PM2 will generate the necessary scripts for your specific operating system (Windows, macOS, or Linux).
+
+```bash
+pm2 startup
+```
+You may need to copy and paste a command that PM2 gives you.
+
+### 4. Saving the Process List
+After enabling startup, you need to save the current process list so PM2 knows what to restart.
+```bash
+pm2 save
+```
+
+### Managing the Service
+Here are some common commands for managing the service:
+- **Check status:** `pm2 status`
+- **View logs:** `pm2 logs hello-club-service`
+- **Stop the service:** `pm2 stop hello-club-service`
+- **Restart the service:** `pm2 restart hello-club-service`
+- **Delete the service:** `pm2 delete hello-club-service`
