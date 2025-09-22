@@ -1,37 +1,44 @@
-const sqlite3 = require('sqlite3');
-const { open } = require('sqlite');
+const Database = require('better-sqlite3');
 const logger = require('./logger');
 
+let db;
+
 /**
- * Opens a new connection to the SQLite database and ensures the schema is up to date.
- * Each call to this function will create a new connection. Connections must be
- * manually closed by the caller.
+ * Opens a persistent connection to the SQLite database using better-sqlite3
+ * and ensures the schema is up to date. This function returns a singleton
+ * instance of the database.
  *
- * @returns {Promise<import('sqlite').Database>} A promise that resolves to the database connection object.
+ * @returns {import('better-sqlite3').Database} The database connection object.
  */
-const openDb = async () => {
-  try {
-    // openDb creates a new database connection each time it is called.
-    const db = await open({
-      filename: './events.db',
-      driver: sqlite3.Database
-    });
+const getDb = () => {
+  if (!db) {
+    try {
+      // This creates a new database connection. better-sqlite3 is synchronous.
+      db = new Database('./events.db', { verbose: logger.info });
 
-    // Ensure the 'events' table exists.
-    await db.exec(`CREATE TABLE IF NOT EXISTS events (
-      id INTEGER PRIMARY KEY,
-      name TEXT NOT NULL,
-      startDate TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'pending'
-    )`);
+      // Ensure the 'events' table exists.
+      db.exec(`CREATE TABLE IF NOT EXISTS events (
+        id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        startDate TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending'
+      )`);
 
-    logger.info('Connected to the SQLite database and table is ready.');
-    return db;
-  } catch (err) {
-    logger.error('Failed to open or initialize the database:', err.message);
-    // Re-throw the error to be handled by the calling function.
-    throw err;
+      logger.info('Connected to the SQLite database and table is ready.');
+
+      // Gracefully close the connection on exit
+      process.on('exit', () => db.close());
+      process.on('SIGHUP', () => process.exit(128 + 1));
+      process.on('SIGINT', () => process.exit(128 + 2));
+      process.on('SIGTERM', () => process.exit(128 + 15));
+
+    } catch (err) {
+      logger.error('Failed to open or initialize the database:', err.message);
+      // Re-throw the error to be handled by the calling function.
+      throw err;
+    }
   }
+  return db;
 };
 
-module.exports = { openDb };
+module.exports = { getDb };

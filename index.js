@@ -4,6 +4,7 @@ const logger = require('./logger');
 const configSchema = require('./config-schema');
 const argv = require('./args-parser');
 const { fetchAndStoreUpcomingEvents, processScheduledEvents } = require('./functions');
+const { runService } = require('./service');
 
 // Check for required environment variables
 const requiredEnvVars = ['API_KEY'];
@@ -64,8 +65,11 @@ async function main() {
             }
         }
         await processScheduledEvents(finalConfig);
+    } else if (command === 'start-service') {
+        // The service runs indefinitely, so no need for await here in the same way.
+        runService(finalConfig);
     } else {
-        logger.error('Invalid command. Please use "fetch-events" or "process-schedule".');
+        logger.error('Invalid command. Please use "fetch-events", "process-schedule", or "start-service".');
     }
 }
 
