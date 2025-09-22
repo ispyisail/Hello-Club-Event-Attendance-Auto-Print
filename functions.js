@@ -235,6 +235,12 @@ async function getAllAttendees(eventId) {
       const response = await api.get('/eventAttendee', {
         params: { event: eventId, limit: limit, offset: offset }
       });
+
+      // If the API returns an empty page, stop fetching.
+      if (response.data.meta.count === 0) {
+        break;
+      }
+
       attendees = attendees.concat(response.data.attendees);
       total = response.data.meta.total;
       offset += response.data.meta.count;
