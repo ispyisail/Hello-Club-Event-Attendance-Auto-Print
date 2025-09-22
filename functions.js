@@ -184,7 +184,8 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     if (!allowedCategories || allowedCategories.length === 0) {
       return true; // No category filter, include all events
     }
-    return event.categories.some(category => allowedCategories.includes(category.name));
+    // Defensively check if categories is an array before trying to filter on it.
+    return Array.isArray(event.categories) && event.categories.some(category => allowedCategories.includes(category.name));
   });
 
   if (filteredEvents.length === 0) {
