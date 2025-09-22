@@ -89,7 +89,8 @@ class PdfGenerator {
       case 'phone':
         return attendee.phone || '';
       case 'signUpDate':
-        if (!attendee.signUpDate) {
+        // Allow for a signUpDate of 0 (unix epoch) but not null or undefined
+        if (attendee.signUpDate == null) {
           return '';
         }
         return new Date(attendee.signUpDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
