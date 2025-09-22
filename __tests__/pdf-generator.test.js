@@ -62,6 +62,13 @@ describe('PdfGenerator', () => {
         expect(result).toBe('');
     });
 
+    it('should correctly format a signUpDate of 0 (Unix epoch)', () => {
+        const attendee = { signUpDate: 0 };
+        const result = generator['_getAttendeeValue'](attendee, 'signUpDate');
+        const expectedDate = new Date(0).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+        expect(result).toBe(expectedDate); // Should be '01 Jan 1970'
+    });
+
     it('should return fee for an attendee with fee', () => {
         const attendee = { hasFee: true, rule: { fee: 15.5 } };
         const result = generator['_getAttendeeValue'](attendee, 'fee');
