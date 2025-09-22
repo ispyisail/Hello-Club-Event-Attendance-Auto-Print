@@ -22,6 +22,12 @@ python --version
 
 > **Important Note on Build Tools**
 > One of this project's dependencies (`sqlite3`) may need to be compiled from source. This requires a build toolchain (`node-gyp`) which depends on Python and a C++ compiler.
+>
+> **Python 3.12+ Users:** The `distutils` module has been removed from Python 3.12 and newer, which will cause an error when `node-gyp` tries to build `sqlite3`. To fix this, you must manually install `setuptools`:
+> ```bash
+> pip install setuptools
+> ```
+>
 > - **Windows:** Install Python from python.org. Install the "Desktop development with C++" workload from the [Visual Studio Installer](https://visualstudio.microsoft.com/downloads/).
 > - **macOS:** Install Python (if not already present). Install the Xcode Command Line Tools by running `xcode-select --install`.
 > - **Linux:** Install Python (e.g., `sudo apt install python3`). Install a compiler like GCC (e.g., `sudo apt install build-essential`).
