@@ -30,20 +30,25 @@ const api = axios.create({
  * @param {string} context - A string describing the context in which the error occurred.
  */
 function handleApiError(error, context) {
+  let message;
   if (error.response) {
     const { status, data } = error.response;
     if (status === 401) {
-      logger.error(`API Error: 401 Unauthorized while ${context}. Please check your API_KEY in the .env file.`);
+      message = `API Error: 401 Unauthorized while ${context}. Please check your API_KEY in the .env file.`;
+      logger.error(message);
     } else {
-      logger.error(`API Error: ${status} while ${context}.`, data);
+      message = `API Error: ${status} while ${context}.`;
+      logger.error(message, data);
     }
   } else if (error.request) {
-    logger.error(`Network Error: No response received while ${context}.`);
+    message = `Network Error: No response received while ${context}.`;
+    logger.error(message);
   } else {
-    logger.error(`An unexpected error occurred while ${context}:`, error.message);
+    message = `An unexpected error occurred while ${context}: ${error.message}`;
+    logger.error(message);
   }
-  // Exit with a failure code for any handled API error.
-  process.exit(1);
+  // Throw an error to be handled by the caller
+  throw new Error(message);
 }
 
 /**
@@ -69,28 +74,31 @@ async function processScheduledEvents(finalConfig) {
     logger.info(`Found ${events.length} event(s) to process.`);
 
     for (const event of events) {
-      logger.info(`Processing event "${event.name}" (ID: ${event.id})...`);
+      try {
+        logger.info(`Processing event "${event.name}" (ID: ${event.id})...`);
 
-      // Get the full, up-to-date event details for the PDF header
-      const fullEvent = await getEventDetails(event.id);
-      if (!fullEvent) {
-        // Error already logged by getEventDetails -> handleApiError
-        continue; // Skip to the next event
-      }
+        // Get the full, up-to-date event details for the PDF header
+        const fullEvent = await getEventDetails(event.id);
 
-      const attendees = await getAllAttendees(event.id);
-      if (attendees && attendees.length > 0) {
-        await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode);
-        await db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id]);
-        logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
-      } else {
-        logger.warn(`No attendees found for event "${event.name}" (ID: ${event.id}). Skipping PDF generation.`);
-        await db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id]);
-        logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed to avoid retries.`);
+        const attendees = await getAllAttendees(event.id);
+        if (attendees && attendees.length > 0) {
+          await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode);
+          await db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id]);
+          logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
+        } else {
+          logger.warn(`No attendees found for event "${event.name}" (ID: ${event.id}). Skipping PDF generation.`);
+          await db.run("UPDATE events SET status = 'processed' WHERE id = ?", [event.id]);
+          logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed to avoid retries.`);
+        }
+      } catch (error) {
+        // Error is already logged with context by handleApiError.
+        // We log that we are skipping the event and continue the loop.
+        logger.warn(`Skipping event ${event.id} ("${event.name}") due to a processing error.`);
       }
     }
   } catch (err) {
-    logger.error('An error occurred during processScheduledEvents:', err.message);
+    // This will now only catch errors from openDb or the initial db.all query
+    logger.error('A critical error occurred during processScheduledEvents:', err.message);
     throw err; // Re-throw the error to ensure the process exits with a failure code
   } finally {
     if (db) {
@@ -111,7 +119,6 @@ async function getEventDetails(eventId) {
     return response.data;
   } catch (error) {
     handleApiError(error, `fetching details for event ${eventId}`);
-    return null; // Return null on error
   }
 }
 
@@ -142,7 +149,6 @@ async function getUpcomingEvents(fetchWindowHours) {
     }
   } catch (error) {
     handleApiError(error, 'fetching upcoming events');
-    return [];
   }
 }
 
@@ -234,7 +240,6 @@ async function getAllAttendees(eventId) {
     return attendees;
   } catch (error) {
     handleApiError(error, `fetching attendees for event ${eventId}`);
-    return [];
   }
 }
 
