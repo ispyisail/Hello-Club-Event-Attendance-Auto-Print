@@ -89,6 +89,9 @@ class PdfGenerator {
       case 'phone':
         return attendee.phone || '';
       case 'signUpDate':
+        if (!attendee.signUpDate) {
+          return '';
+        }
         return new Date(attendee.signUpDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       case 'fee':
         return attendee.hasFee && attendee.rule && attendee.rule.fee ? `${attendee.rule.fee.toFixed(2)}` : '';
