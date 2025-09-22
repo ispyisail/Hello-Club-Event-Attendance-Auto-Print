@@ -25,7 +25,7 @@ const {
     handleApiError,
     createAndPrintPdf,
 } = require('../functions');
-const { openDb } = require('../database');
+const { getDb } = require('../database');
 const PdfGenerator = require('../pdf-generator');
 const logger = require('../logger');
 const { print } = require('pdf-to-printer');
@@ -34,36 +34,38 @@ const { sendEmailWithAttachment } = require('../email-service');
 
 describe('Event Processing Logic', () => {
     let mockDb;
+    let mockStmt;
     let mockExit;
 
     beforeEach(() => {
         // Reset mocks before each test
         jest.clearAllMocks();
-        mockApi.get.mockClear(); // Clear the history of the mockApi.get calls
 
         // Mock process.exit to prevent tests from stopping
         mockExit = jest.spyOn(process, 'exit').mockImplementation(() => {});
 
         // Setup a fresh mock database object for each test
-        mockDb = {
-            prepare: jest.fn().mockResolvedValue({
-                run: jest.fn().mockResolvedValue({ changes: 1 }),
-                finalize: jest.fn().mockResolvedValue(),
-            }),
-            all: jest.fn().mockResolvedValue([]),
-            run: jest.fn().mockResolvedValue(),
-            close: jest.fn().mockResolvedValue(),
+        mockStmt = {
+            run: jest.fn(() => ({ changes: 1 })),
+            all: jest.fn(() => []),
         };
 
-        // openDb will resolve to our mock database object
-        openDb.mockResolvedValue(mockDb);
+        mockDb = {
+            prepare: jest.fn(() => mockStmt),
+            run: jest.fn(),
+            close: jest.fn(),
+            // Mock transaction to just execute the function passed to it.
+            transaction: jest.fn((fn) => fn),
+        };
 
-        // Mock the PDF generator
+        getDb.mockReturnValue(mockDb);
         PdfGenerator.prototype.generate = jest.fn();
     });
 
     afterEach(() => {
         mockExit.mockRestore();
+        // Reset mocks to ensure test isolation
+        mockApi.get.mockReset();
     });
 
     describe('fetchAndStoreUpcomingEvents', () => {
@@ -87,16 +89,11 @@ describe('Event Processing Logic', () => {
 
             await fetchAndStoreUpcomingEvents(config);
 
-            // Verify API was called
             expect(mockApi.get).toHaveBeenCalledWith('/event', expect.any(Object));
-            // Verify database was opened
-            expect(openDb).toHaveBeenCalled();
-            // Verify data was inserted
+            expect(getDb).toHaveBeenCalled();
             expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT OR IGNORE'));
-            const mockStmt = await mockDb.prepare();
+            // The 'pending' status is hardcoded in the SQL, so only 3 args are passed to run()
             expect(mockStmt.run).toHaveBeenCalledWith(1, 'Test Event', expect.any(String));
-            // Verify database was closed
-            expect(mockDb.close).toHaveBeenCalled();
         });
 
         it('should filter events by category', async () => {
@@ -116,10 +113,9 @@ describe('Event Processing Logic', () => {
             };
 
             await fetchAndStoreUpcomingEvents(config);
-            const mockStmt = await mockDb.prepare();
 
-            // Only Event A should be stored
             expect(mockStmt.run).toHaveBeenCalledTimes(1);
+            // The 'pending' status is hardcoded in the SQL, so only 3 args are passed to run()
             expect(mockStmt.run).toHaveBeenCalledWith(1, 'Event A', '2025-01-01T10:00:00Z');
         });
 
@@ -127,7 +123,7 @@ describe('Event Processing Logic', () => {
             mockApi.get.mockResolvedValue({ data: { events: [] } });
             const config = { fetchWindowHours: 24, allowedCategories: [] };
             await fetchAndStoreUpcomingEvents(config);
-            expect(openDb).not.toHaveBeenCalled();
+            expect(getDb).not.toHaveBeenCalled();
         });
 
         it('should throw on API error', async () => {
@@ -141,7 +137,7 @@ describe('Event Processing Logic', () => {
     describe('processScheduledEvents', () => {
         it('should process a due event, generate a PDF, and update its status', async () => {
             const dueEvent = { id: 1, name: 'Due Event', startDate: new Date().toISOString() };
-            mockDb.all.mockResolvedValue([dueEvent]); // Simulate one event is due
+            mockStmt.all.mockReturnValue([dueEvent]); // Simulate one event is due
 
             // Mock the API call for getEventDetails
             const fullEventDetails = { data: { ...dueEvent, description: 'Full details' } };
@@ -156,12 +152,12 @@ describe('Event Processing Logic', () => {
             };
             mockApi.get.mockResolvedValueOnce(mockAttendees);
 
-
             const config = { preEventQueryMinutes: 5, outputFilename: 'test.pdf', pdfLayout: {}, printMode: 'local' };
             await processScheduledEvents(config);
 
             // Check that it queried for due events
-            expect(mockDb.all).toHaveBeenCalledWith(expect.stringContaining("SELECT * FROM events"), expect.any(Array));
+            expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining("SELECT * FROM events"));
+            expect(mockStmt.all).toHaveBeenCalledWith(expect.any(String));
 
             // Check that getEventDetails was called
             expect(mockApi.get).toHaveBeenCalledWith('/event/1');
@@ -172,14 +168,13 @@ describe('Event Processing Logic', () => {
             // Check that PDF was generated
             expect(PdfGenerator.prototype.generate).toHaveBeenCalledWith('test.pdf');
             // Check that the event status was updated to 'processed'
-            expect(mockDb.run).toHaveBeenCalledWith("UPDATE events SET status = 'processed' WHERE id = ?", [1]);
-            // Check that the database connection was closed
-            expect(mockDb.close).toHaveBeenCalled();
+            expect(mockDb.prepare).toHaveBeenCalledWith("UPDATE events SET status = 'processed' WHERE id = ?");
+            expect(mockStmt.run).toHaveBeenCalledWith(1);
         });
 
         it('should mark an event as processed even if it has no attendees', async () => {
             const dueEvent = { id: 2, name: 'Empty Event' };
-            mockDb.all.mockResolvedValue([dueEvent]);
+            mockStmt.all.mockReturnValue([dueEvent]);
 
             // Mock the API call for getEventDetails
             const fullEventDetails = { data: { ...dueEvent, description: 'Full details' } };
@@ -196,46 +191,35 @@ describe('Event Processing Logic', () => {
             // PDF should NOT be generated
             expect(PdfGenerator.prototype.generate).not.toHaveBeenCalled();
             // Status should still be updated
-            expect(mockDb.run).toHaveBeenCalledWith("UPDATE events SET status = 'processed' WHERE id = ?", [2]);
-            expect(mockDb.close).toHaveBeenCalled();
+            expect(mockStmt.run).toHaveBeenCalledWith(2);
         });
 
         it('should do nothing if no events are due', async () => {
-            // mockDb.all already defaults to an empty array
+            // mockStmt.all already defaults to an empty array
             const config = { preEventQueryMinutes: 5 };
             await processScheduledEvents(config);
-            expect(mockDb.all).toHaveBeenCalled();
+            expect(mockStmt.all).toHaveBeenCalled();
             // Nothing else should happen
             expect(mockApi.get).not.toHaveBeenCalled();
-            expect(mockDb.run).not.toHaveBeenCalled();
-            // The db should still be closed
-            expect(mockDb.close).toHaveBeenCalled();
+            expect(mockStmt.run).not.toHaveBeenCalled();
         });
 
-        it('should skip an event if fetching attendees fails and continue with the next', async () => {
+        it('should mark an event as processed even if fetching attendees fails, to prevent retries', async () => {
             const event1 = { id: 1, name: 'Event 1' };
-            const event2 = { id: 2, name: 'Event 2' };
-            mockDb.all.mockResolvedValue([event1, event2]);
+            mockStmt.all.mockReturnValue([event1]);
 
-            // Mock successful details for event 1
+            // Mock successful details for event 1, then failing attendees
             mockApi.get.mockResolvedValueOnce({ data: event1 });
-            // Mock failing attendees for event 1
             mockApi.get.mockRejectedValueOnce(new Error('Attendee Fetch Failed'));
-
-            // Mock successful details for event 2
-            mockApi.get.mockResolvedValueOnce({ data: event2 });
-            // Mock successful attendees for event 2
-            mockApi.get.mockResolvedValueOnce({ data: { attendees: [{ id: 101, name: 'Attendee' }], meta: { total: 1, count: 1 } } });
 
             const config = { preEventQueryMinutes: 5, outputFilename: 'test.pdf', pdfLayout: {}, printMode: 'local' };
             await processScheduledEvents(config);
 
-            // Verify that we did not try to mark event 1 as processed
-            expect(mockDb.run).not.toHaveBeenCalledWith("UPDATE events SET status = 'processed' WHERE id = ?", [1]);
-            // Verify that event 2 was successfully processed
-            expect(mockDb.run).toHaveBeenCalledWith("UPDATE events SET status = 'processed' WHERE id = ?", [2]);
-            // Verify the db connection is closed at the end
-            expect(mockDb.close).toHaveBeenCalled();
+            // Verify that we logged an error
+            expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to process event 1'));
+            // Verify that event 1 was still marked as processed to prevent retries
+            expect(mockDb.prepare).toHaveBeenCalledWith("UPDATE events SET status = 'processed' WHERE id = ?");
+            expect(mockStmt.run).toHaveBeenCalledWith(1);
         });
     });
 
@@ -281,6 +265,30 @@ describe('Event Processing Logic', () => {
             const attendees = await getAllAttendees(eventId);
 
             expect(attendees.map(a => a.firstName)).toEqual(['Charlie', 'Bob', 'Alice']);
+        });
+
+        it('should not enter an infinite loop if the API reports an incorrect total', async () => {
+            const eventId = 3;
+            // Mock page 1: returns 10 attendees, but claims there are 20 total.
+            mockApi.get.mockResolvedValueOnce({
+                data: {
+                    attendees: Array(10).fill({}).map((_, i) => ({ id: i, name: `Attendee ${i}` })),
+                    meta: { total: 20, count: 10 }
+                }
+            });
+            // Mock page 2: returns 0 attendees, but still claims there are 20 total.
+            mockApi.get.mockResolvedValueOnce({
+                data: {
+                    attendees: [],
+                    meta: { total: 20, count: 0 }
+                }
+            });
+
+            const attendees = await getAllAttendees(eventId);
+
+            // If the code is fixed, it should break the loop and return the 10 attendees it found.
+            expect(attendees.length).toBe(10);
+            expect(mockApi.get).toHaveBeenCalledTimes(2);
         });
     });
 
