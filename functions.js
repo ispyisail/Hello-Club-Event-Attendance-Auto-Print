@@ -236,15 +236,17 @@ async function getAllAttendees(eventId) {
         params: { event: eventId, limit: limit, offset: offset }
       });
 
+      const receivedAttendees = response.data.attendees;
+
       // If the API returns an empty page, stop fetching.
-      if (response.data.meta.count === 0) {
+      if (!receivedAttendees || receivedAttendees.length === 0) {
         break;
       }
 
-      attendees = attendees.concat(response.data.attendees);
+      attendees = attendees.concat(receivedAttendees);
       total = response.data.meta.total;
-      offset += response.data.meta.count;
-    } while (attendees.length < total);
+      offset += receivedAttendees.length;
+    } while (true); // We will break manually when the API returns an empty page.
 
     attendees.sort((a, b) => {
       const lastNameA = a.lastName || '';
