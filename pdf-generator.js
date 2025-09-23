@@ -38,6 +38,8 @@ class PdfGenerator {
       this.doc.moveDown();
     }
 
+    this.doc.font('Helvetica-Bold').fontSize(16).text('Hello Club', { align: 'center' });
+    this.doc.moveDown(0.5);
     this.doc.font('Helvetica-Bold').fontSize(14).text(this.event.name, { align: 'center' });
     this.doc.moveDown();
 
