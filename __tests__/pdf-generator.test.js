@@ -98,5 +98,11 @@ describe('PdfGenerator', () => {
         const result = generator['_getAttendeeValue'](attendee, 'status');
         expect(result).toBe('No Fee');
     });
+
+    it('should handle a string fee gracefully', () => {
+        const attendee = { hasFee: true, rule: { fee: "15.5" } };
+        const result = generator['_getAttendeeValue'](attendee, 'fee');
+        expect(result).toBe('15.50');
+    });
   });
 });

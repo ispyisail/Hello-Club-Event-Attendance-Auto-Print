@@ -95,7 +95,7 @@ class PdfGenerator {
         }
         return new Date(attendee.signUpDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
       case 'fee':
-        return attendee.hasFee && attendee.rule && attendee.rule.fee ? `${attendee.rule.fee.toFixed(2)}` : '';
+        return attendee.hasFee && attendee.rule && attendee.rule.fee ? `${parseFloat(attendee.rule.fee).toFixed(2)}` : '';
       case 'status':
         return attendee.isPaid ? 'Paid' : (attendee.hasFee ? 'Owing' : 'No Fee');
       default:
