@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js start-service",
     "test": "jest",
     "coverage": "jest --coverage"
   },
