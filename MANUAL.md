@@ -118,11 +118,30 @@ node index.js process-schedule [options]
 *   `--print-mode <mode>` or `-p <mode>`: Sets the print mode (`local` or `email`), overriding the config.
 *   `--help` or `-h`: Displays a list of all available commands and options.
 
+### 4.3. `start-service` Command
+
+This is the primary command for running the application as a continuous, long-running service. It combines the functionality of `fetch-events` and `process-schedule` into a single, automated process. The service will periodically fetch new events and constantly monitor the schedule to process and print attendee lists as they become due.
+
+**Usage:**
+```bash
+node index.js start-service [options]
+```
+
+**Options:**
+This command accepts all options available to the `fetch-events` and `process-schedule` commands. For example, you can start the service with a custom category and print mode like this:
+```bash
+node index.js start-service --category "My Events" -p email
+```
+
 ---
 
-## 5. Scheduling on Windows
+## 5. Running the Application as a Service
 
-To achieve full automation, you must create **two separate scheduled tasks**.
+To achieve full automation, the application must be run as a persistent service. The recommended way is to use the `start-service` command with a process manager like `pm2`. Alternatively, you can use the native task scheduler of your operating system.
+
+### 5.1. Method 1: Using Windows Task Scheduler
+
+To achieve automation on Windows without a process manager, you can create **two separate scheduled tasks** to run the `fetch-events` and `process-schedule` commands independently. Note that this method is less efficient than using the unified `start-service` command.
 
 ### Task 1: Fetch Events (Periodic)
 1.  Open **Task Scheduler** and **Create Task...** (not Basic Task).
@@ -141,6 +160,52 @@ To achieve full automation, you must create **two separate scheduled tasks**.
     *   **Program/script:** Full path to `node.exe`.
     *   **Add arguments:** `index.js process-schedule`
     *   **Start in:** Full path to your project directory.
+
+### 5.2. Method 2: Using PM2 (Recommended)
+
+PM2 is a production process manager for Node.js applications with a built-in load balancer. It allows you to keep applications alive forever, to reload them without downtime, and to facilitate common system admin tasks.
+
+**1. Install PM2**
+
+If you don't have PM2 installed, you can install it globally using `npm`:
+```bash
+npm install pm2 -g
+```
+
+**2. Start the Service**
+
+Navigate to the project directory and use the following command to start the application with PM2. This command uses the `start-service` instruction, which runs the entire fetch and process cycle continuously.
+```bash
+pm2 start npm --name "hello-club-service" -- run start
+```
+This command tells PM2 to use `npm` to run the `start` script from your `package.json` file. The `--name` flag assigns a custom name to your process, making it easier to manage.
+
+**3. Managing the Service**
+
+Here are some common commands for managing your service with PM2:
+
+*   **List all running processes:**
+    ```bash
+    pm2 list
+    ```
+*   **View logs for your service:**
+    ```bash
+    pm2 logs hello-club-service
+    ```
+*   **Restart the service:**
+    ```bash
+    pm2 restart hello-club-service
+    ```
+*   **Stop the service:**
+    ```bash
+    pm2 stop hello-club-service
+    ```
+*   **Delete the service from PM2's list:**
+    ```bash
+    pm2 delete hello-club-service
+    ```
+
+Using PM2 is the recommended way to run this application in a production environment as it provides robustness and easy management.
 
 ---
 
