@@ -29,6 +29,37 @@ The core logic is split into two stages to ensure efficiency and accuracy:
 
 For ease of use, the `start-service` command combines both stages into a single, long-running process. It will periodically fetch events and constantly monitor the schedule to process printouts automatically. This is the recommended way to run the application.
 
+## Getting Started
+
+This guide will get you up and running quickly. For more detailed information, please refer to the sections below.
+
+1.  **Clone the Repository**
+    ```bash
+    git clone https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git
+    cd Hello-Club-Event-Attendance-Auto-Print
+    ```
+
+2.  **Configure Environment**
+    Create a `.env` file in the project root. You can copy the example file to get started:
+    ```bash
+    cp .env.example .env
+    ```
+    Now, edit the `.env` file and add your Hello Club `API_KEY`.
+
+3.  **Install Dependencies**
+    ```bash
+    npm install
+    ```
+
+4.  **Run the Service**
+    The easiest way to run the application is to use the `start-service` command, which handles everything automatically.
+    ```bash
+    npm start
+    ```
+    The service will now be running in the foreground. For production use, it is recommended to run this as a background service using a process manager like PM2 (see "Running as a Service" below).
+
+---
+
 ## Installation
 
 ### Prerequisites
@@ -143,7 +174,7 @@ Finds and stores upcoming events. Should be run periodically if not using the `s
 
 **Usage:**
 ```bash
-node index.js fetch-events [options]
+node src/index.js fetch-events [options]
 ```
 
 **Options:**
@@ -156,7 +187,7 @@ Processes stored events that are about to start. Should be run frequently if not
 
 **Usage:**
 ```bash
-node index.js process-schedule [options]
+node src/index.js process-schedule [options]
 ```
 
 **Options:**
@@ -170,7 +201,7 @@ Runs the entire fetch and process cycle continuously. **This is the recommended 
 
 **Usage:**
 ```bash
-node index.js start-service [options]
+node src/index.js start-service [options]
 ```
 This command accepts all options available to `fetch-events` and `process-schedule`.
 
@@ -223,14 +254,14 @@ If you are on Windows and prefer not to use PM2, you can schedule two separate t
 - **Frequency:** Every 1 to 4 hours.
 - **Action:**
     - Program/script: `C:\Program Files\nodejs\node.exe`
-    - Add arguments: `index.js fetch-events`
+    - Add arguments: `src/index.js fetch-events`
     - Start in: `C:\path\to\your\project`
 
 **Task 2: Process Schedule (Run Frequently)
 - **Frequency:** Every 1 to 5 minutes.
 - **Action:**
     - Program/script: `C:\Program Files\nodejs\node.exe`
-    - Add arguments: `index.js process-schedule`
+    - Add arguments: `src/index.js process-schedule`
     - Start in: `C:\path\to\your\project`
 
 ## Testing
