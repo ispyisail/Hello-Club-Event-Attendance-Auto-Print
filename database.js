@@ -26,11 +26,7 @@ const getDb = () => {
 
       logger.info('Connected to the SQLite database and table is ready.');
 
-      // Gracefully close the connection on exit
-      process.on('exit', () => db.close());
-      process.on('SIGHUP', () => process.exit(128 + 1));
-      process.on('SIGINT', () => process.exit(128 + 2));
-      process.on('SIGTERM', () => process.exit(128 + 15));
+
 
     } catch (err) {
       logger.error('Failed to open or initialize the database:', err.message);

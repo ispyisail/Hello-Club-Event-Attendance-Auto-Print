@@ -81,16 +81,23 @@ async function runScheduler(config) {
  */
 function runService(config) {
     logger.info('Service starting...');
-
-    // Run the scheduler immediately on startup.
-    runScheduler(config);
-
-    // Then, run the scheduler periodically based on the fetch window.
-    // The interval is in milliseconds, so we convert hours to ms.
-    const runInterval = config.fetchWindowHours * 60 * 60 * 1000;
-    setInterval(() => runScheduler(config), runInterval);
-
     logger.info(`Service started successfully. The scheduler will run every ${config.fetchWindowHours} hours.`);
+
+    // Define the task to be run periodically, with proper error handling.
+    const task = async () => {
+        try {
+            await runScheduler(config);
+        } catch (error) {
+            logger.error('An error occurred during the scheduler execution:', error);
+        }
+    };
+
+    // Run the task immediately on startup.
+    task();
+
+    // Then, set up the interval to run the task periodically.
+    const runInterval = config.fetchWindowHours * 60 * 60 * 1000;
+    setInterval(task, runInterval);
 }
 
 module.exports = { runService };
