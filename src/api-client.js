@@ -4,10 +4,29 @@ const logger = require('./logger');
 const API_KEY = process.env.API_KEY;
 const BASE_URL = process.env.API_BASE_URL || 'https://api.helloclub.com';
 
+const axiosRetry = require('axios-retry');
+
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
     'Authorization': `Bearer ${API_KEY}`
+  }
+});
+
+// Apply the retry logic to the axios instance
+axiosRetry(api, {
+  retries: 3, // Number of retries
+  retryDelay: (retryCount, error) => {
+    // Add a small random factor to the delay to avoid thundering herd issues
+    const randomFactor = Math.random() * 1000;
+    return axiosRetry.exponentialDelay(retryCount, error) + randomFactor;
+  },
+  retryCondition: (error) => {
+    // Retry on 429 (Too Many Requests) and other network errors
+    return error.response?.status === 429 || axiosRetry.isNetworkOrIdempotentRequestError(error);
+  },
+  onRetry: (retryCount, error, requestConfig) => {
+    logger.warn(`Retrying request to ${requestConfig.url} due to ${error.response?.status || 'network error'}. Attempt ${retryCount} of 3.`);
   }
 });
 
@@ -107,9 +126,6 @@ async function getAllAttendees(eventId) {
       attendees = attendees.concat(receivedAttendees);
       total = response.data.meta.total;
       offset += receivedAttendees.length;
-
-      // Wait for 1 second before the next request to avoid hitting the rate limit.
-      await new Promise(resolve => setTimeout(resolve, 1000));
     } while (true);
 
     attendees.sort((a, b) => {
