@@ -1,4 +1,4 @@
-const PdfGenerator = require('../pdf-generator');
+const PdfGenerator = require('../src/pdf-generator');
 
 // Mock the entire pdfkit library
 jest.mock('pdfkit', () => {

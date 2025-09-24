@@ -2,9 +2,9 @@
   "name": "hello-club-next-event-automation",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node index.js start-service",
+    "start": "node src/index.js start-service",
     "test": "jest",
     "coverage": "jest --coverage"
   },
