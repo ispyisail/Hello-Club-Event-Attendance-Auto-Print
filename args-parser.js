@@ -56,26 +56,16 @@ const argv = yargs(hideBin(process.argv))
         type: 'array',
         description: 'Event category to filter by (can be used multiple times). Overrides config file.'
       })
-      .option('fetch-window-hours', {
-        alias: 'fwh',
-        type: 'number',
-        description: 'The time window in hours to look ahead for upcoming events. Overrides config file.'
-      })
-      .option('pre-event-query-minutes', {
-        alias: 'w',
-        type: 'number',
-        description: 'The time in minutes before an event starts to perform the final query. Overrides config file.'
-      })
-      .option('output', {
-        alias: 'o',
-        type: 'string',
-        description: 'The name of the output PDF file. Overrides config file.'
-      })
       .option('print-mode', {
         alias: 'p',
         type: 'string',
         choices: ['local', 'email'],
         description: 'The printing method to use (`local` or `email`). Overrides config file.'
+      })
+      .option('service-run-interval-hours', {
+        alias: 'srih',
+        type: 'number',
+        description: 'How often the service runs to fetch new events, in hours. Overrides config file.'
       });
   })
   .demandCommand(1, 'You must provide a valid command: fetch-events, process-schedule, or start-service')

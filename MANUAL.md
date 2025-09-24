@@ -129,8 +129,10 @@ node index.js start-service [options]
 
 **Options:**
 This command accepts all options available to the `fetch-events` and `process-schedule` commands. For example, you can start the service with a custom category and print mode like this:
+
+*   `--service-run-interval-hours <hours>` or `--srih <hours>`: Temporarily overrides the `serviceRunIntervalHours` in `config.json`.
 ```bash
-node index.js start-service --category "My Events" -p email
+node index.js start-service --category "My Events" -p email --srih 2
 ```
 
 ---

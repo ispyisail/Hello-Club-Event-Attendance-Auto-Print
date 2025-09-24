@@ -247,6 +247,9 @@ async function getAllAttendees(eventId) {
       attendees = attendees.concat(receivedAttendees);
       total = response.data.meta.total;
       offset += receivedAttendees.length;
+
+      // Wait for 1 second before the next request to avoid hitting the rate limit.
+      await new Promise(resolve => setTimeout(resolve, 1000));
     } while (true); // We will break manually when the API returns an empty page.
 
     attendees.sort((a, b) => {

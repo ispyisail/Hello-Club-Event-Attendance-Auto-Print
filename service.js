@@ -81,7 +81,7 @@ async function runScheduler(config) {
  */
 function runService(config) {
     logger.info('Service starting...');
-    logger.info(`Service started successfully. The scheduler will run every ${config.fetchWindowHours} hours.`);
+    logger.info(`Service started successfully. The scheduler will run every ${config.serviceRunIntervalHours} hours.`);
 
     // Define the task to be run periodically, with proper error handling.
     const task = async () => {
@@ -96,7 +96,7 @@ function runService(config) {
     task();
 
     // Then, set up the interval to run the task periodically.
-    const runInterval = config.fetchWindowHours * 60 * 60 * 1000;
+    const runInterval = config.serviceRunIntervalHours * 60 * 60 * 1000;
     setInterval(task, runInterval);
 }
 
