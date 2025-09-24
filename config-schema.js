@@ -21,14 +21,16 @@ const configSchema = Joi.object({
    * @type {number}
    */
   preEventQueryMinutes: Joi.number().integer().min(1).default(5),
-    // How often the service runs to fetch new events, in hours.
-    serviceRunIntervalHours: {
-      doc: 'How often the service runs to fetch new events, in hours.',
-      format: 'Number',
-      default: 1
-    },
-    // The time window in hours to look ahead for upcoming events.
-    fetchWindowHours: {
+  /**
+   * How often the service runs to fetch new events, in hours.
+   * @type {number}
+   */
+  serviceRunIntervalHours: Joi.number().integer().positive().default(1),
+  /**
+   * The time window in hours to look ahead for upcoming events.
+   * @type {number}
+   */
+  fetchWindowHours: Joi.number().integer().positive().default(24),
   outputFilename: Joi.string().default('attendees.pdf'),
   email: Joi.object({
     to: Joi.string().email().required(),
