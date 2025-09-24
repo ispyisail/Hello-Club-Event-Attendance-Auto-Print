@@ -32,6 +32,7 @@ const configSchema = Joi.object({
    */
   fetchWindowHours: Joi.number().integer().positive().default(24),
   outputFilename: Joi.string().default('attendees.pdf'),
+  printMode: Joi.string().valid('local', 'email').default('email'),
   email: Joi.object({
     to: Joi.string().email().required(),
     from: Joi.string().email().required(),

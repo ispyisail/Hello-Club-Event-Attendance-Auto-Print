@@ -47,7 +47,7 @@ async function main() {
         preEventQueryMinutes: argv.preEventQueryMinutes ?? validatedConfig.preEventQueryMinutes,
         outputFilename: argv.output ?? validatedConfig.outputFilename,
         pdfLayout: validatedConfig.pdfLayout,
-        printMode: argv.printMode ?? 'email'
+        printMode: argv.printMode ?? validatedConfig.printMode
     };
 
     logger.info(`Executing command: ${command}`);
