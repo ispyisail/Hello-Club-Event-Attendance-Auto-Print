@@ -222,10 +222,11 @@ npm install pm2 -g
 **2. Start the Service**
 Navigate to the project directory and use the following command to start the application with PM2.
 ```bash
-pm2 start npm --name "hello-club-service" -- run start
+pm2 start src/index.js --name "hello-club-service" -- -- start-service
 ```
-- `pm2 start npm`: Tells PM2 to use `npm` to execute the `start` script from `package.json`.
+- `pm2 start src/index.js`: Tells PM2 to execute the main script at `src/index.js`. Using the script file directly is more reliable than using `npm` across different platforms.
 - `--name "hello-club-service"`: Gives the process a memorable name.
+- `-- -- start-service`: The double dash (`--`) separates `pm2` options from your script's arguments. `start-service` is the command passed to your application.
 
 **3. Enable Automatic Startup**
 To ensure the service restarts when your computer reboots, run this command and follow the on-screen instructions:
