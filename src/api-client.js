@@ -4,7 +4,7 @@ const logger = require('./logger');
 const API_KEY = process.env.API_KEY;
 const BASE_URL = process.env.API_BASE_URL || 'https://api.helloclub.com';
 
-const axiosRetry = require('axios-retry');
+const axiosRetry = require('axios-retry').default;
 
 const api = axios.create({
   baseURL: BASE_URL,
