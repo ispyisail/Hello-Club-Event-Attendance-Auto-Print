@@ -32,11 +32,21 @@ const logger = winston.createLogger({
   ]
 });
 
-// If we're not in production then log to the `console` with the format: 
-// `${info.level}: ${info.message} ${JSON.stringify(info, null, 4)}`
-if (process.env.NODE_ENV !== 'production') {
+// Add console logging:
+// - Always enabled in development (NODE_ENV !== 'production')
+// - In production, can be enabled by setting LOG_TO_CONSOLE=true
+// This helps with debugging in production environments
+const shouldLogToConsole = process.env.NODE_ENV !== 'production' ||
+                           process.env.LOG_TO_CONSOLE === 'true';
+
+if (shouldLogToConsole) {
   logger.add(new winston.transports.Console({
-    format: winston.format.simple(),
+    format: winston.format.combine(
+      winston.format.colorize(),
+      winston.format.printf(({ level, message, timestamp }) => {
+        return `${timestamp} ${level}: ${message}`;
+      })
+    ),
   }));
 }
 

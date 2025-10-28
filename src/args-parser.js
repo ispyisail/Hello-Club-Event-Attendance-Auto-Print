@@ -68,7 +68,8 @@ const argv = yargs(hideBin(process.argv))
         description: 'How often the service runs to fetch new events, in hours. Overrides config file.'
       });
   })
-  .demandCommand(1, 'You must provide a valid command: fetch-events, process-schedule, or start-service')
+  .command('health-check', 'Check the health and status of the service')
+  .demandCommand(1, 'You must provide a valid command: fetch-events, process-schedule, start-service, or health-check')
   .help()
   .alias('help', 'h')
   .argv;

@@ -205,6 +205,54 @@ node src/index.js start-service [options]
 ```
 This command accepts all options available to `fetch-events` and `process-schedule`.
 
+### `health-check`
+
+Checks the health and status of the running service. This command is essential for monitoring and troubleshooting in production.
+
+**Usage:**
+```bash
+node src/index.js health-check
+```
+
+**What it checks:**
+- Service running status (heartbeat monitoring)
+- Database connectivity and event counts
+- Log file status and timestamps
+- Required environment variables
+- Last successful fetch and process operations
+- Recent errors (if any)
+- Current service configuration
+
+**Exit codes:**
+- `0` - Service is healthy
+- `1` - Service is unhealthy (errors detected)
+- `2` - Service is degraded (warnings detected)
+
+**Example output:**
+```
+========================================
+  Hello Club Service - Health Check
+========================================
+
+Overall Status: HEALTHY
+
+Check Time: 2024-01-15T10:30:00.000Z
+
+✓ serviceRunning: OK
+  Service is active (last heartbeat 45s ago)
+✓ database: OK
+  Total Events: 15
+  Pending: 3
+  Processed: 12
+✓ logFiles: OK
+  activity.log: 45231 bytes (modified: 2024-01-15T10:29:30.000Z)
+  error.log: 1024 bytes (modified: 2024-01-15T09:00:00.000Z)
+✓ environment: OK
+  All required environment variables are set
+
+========================================
+```
+
 ## Running as a Service (Automation)
 
 To achieve full automation, the application should be run as a persistent background service.
@@ -279,8 +327,104 @@ npm run coverage
 
 ## Troubleshooting
 
+### Service Not Working in Production
+
+If the service worked on your test bench but isn't working in production, follow these steps:
+
+**1. Run the Health Check**
+```bash
+node src/index.js health-check
+```
+This will show you the current status and identify any issues.
+
+**2. Check Log Files**
+The service creates two log files in the working directory:
+- `activity.log` - All operations and info messages
+- `error.log` - Only errors
+
+View the logs:
+```bash
+# View last 50 lines of activity log
+tail -n 50 activity.log
+
+# View error log
+cat error.log
+
+# For PM2 users
+pm2 logs hello-club-service
+```
+
+**3. Enable Console Logging in Production**
+By default, the service only logs to files in production. To see logs in the console:
+```bash
+# In your .env file, add:
+LOG_TO_CONSOLE=true
+```
+Then restart the service.
+
+**4. Check the Status File**
+The service creates a `status.json` file that tracks:
+- When the service last started
+- Last successful fetch and process times
+- Current configuration
+- Recent errors
+
+View the status file:
+```bash
+cat status.json
+```
+
+### Common Issues
+
 - **Error: "401 Unauthorized"**: Your `API_KEY` in the `.env` file is incorrect or has expired.
+
 - **Message: "No new events to store"**: The `fetch-events` command ran but did not find any new events that matched your category filters within the `fetchWindowHours`.
+
 - **Message: "No events to process"**: The `process-schedule` command ran but no stored events were scheduled to start within the `preEventQueryMinutes`.
-- **Database is never populated**: Ensure you are running the `fetch-events` command (or the `start-service` command) and that your category filters in `config.json` are correct.
-- **Events are not being printed**: Ensure you are running the `process-schedule` command frequently (or the `start-service` command). Check that `preEventQueryMinutes` is set to a reasonable value.
+
+- **Database is never populated**:
+  1. Run `health-check` to see if the service is actually running
+  2. Check `activity.log` for fetch operations
+  3. Ensure your category filters in `config.json` are correct
+  4. Verify your API key has proper permissions
+
+- **Events are not being printed**:
+  1. Check if events exist in the database: `node src/index.js health-check`
+  2. Verify `preEventQueryMinutes` allows enough time before event start
+  3. Check `activity.log` for processing attempts
+  4. If using email mode, verify SMTP settings are correct
+
+- **Service appears to stop after some time**:
+  1. Check `error.log` for any critical errors
+  2. Verify the server hasn't run out of disk space
+  3. Check system resources (memory, CPU)
+  4. If using PM2, check `pm2 logs` for crash reports
+
+- **Health check shows service is inactive**:
+  1. The service may have crashed - check `error.log`
+  2. Restart the service with PM2: `pm2 restart hello-club-service`
+  3. Check if the process is actually running: `pm2 status` or `ps aux | grep node`
+
+### Monitoring the Service
+
+For continuous monitoring, you can:
+
+1. **Set up a cron job to run health checks:**
+```bash
+# Check every 10 minutes and send email if unhealthy
+*/10 * * * * cd /path/to/project && node src/index.js health-check || mail -s "Service Unhealthy" you@example.com
+```
+
+2. **Use PM2's monitoring:**
+```bash
+pm2 monit hello-club-service
+```
+
+3. **Check service status regularly:**
+```bash
+# Quick status check
+node src/index.js health-check
+
+# View recent activity
+tail -f activity.log
+```

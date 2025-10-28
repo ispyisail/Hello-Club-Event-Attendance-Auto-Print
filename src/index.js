@@ -68,8 +68,12 @@ async function main() {
     } else if (command === 'start-service') {
         // The service runs indefinitely, so no need for await here in the same way.
         runService(finalConfig);
+    } else if (command === 'health-check') {
+        // Run health check and exit
+        const { displayHealthCheck } = require('./health-check');
+        displayHealthCheck();
     } else {
-        logger.error('Invalid command. Please use "fetch-events", "process-schedule", or "start-service".');
+        logger.error('Invalid command. Please use "fetch-events", "process-schedule", "start-service", or "health-check".');
     }
 }
 

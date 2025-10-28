@@ -4,6 +4,7 @@ const { sendEmailWithAttachment } = require('./email-service');
 const PdfGenerator = require('./pdf-generator');
 const { getDb } = require('./database');
 const { getEventDetails, getAllAttendees, getUpcomingEvents } = require('./api-client');
+const { recordFetch, recordProcess, recordError } = require('./status-tracker');
 
 /**
  * Processes a single event: fetches attendees, creates a PDF, prints it, and updates the database.
@@ -63,16 +64,27 @@ async function processScheduledEvents(finalConfig) {
 
     if (events.length === 0) {
       logger.info(`No events to process within the next ${preEventQueryMinutes} minutes.`);
+      recordProcess(0);
       return;
     }
 
     logger.info(`Found ${events.length} event(s) to process.`);
 
+    let processedCount = 0;
     for (const event of events) {
-      await processSingleEvent(event, finalConfig);
+      try {
+        await processSingleEvent(event, finalConfig);
+        processedCount++;
+      } catch (error) {
+        logger.error(`Failed to process event ${event.id}:`, error.message);
+        recordError('processEvent', `Event ${event.id}: ${error.message}`);
+      }
     }
+
+    recordProcess(processedCount);
   } catch (err) {
     logger.error('A critical error occurred during processScheduledEvents:', err.message);
+    recordError('processScheduledEvents', err.message);
     throw err;
   }
 }
@@ -84,26 +96,36 @@ async function processScheduledEvents(finalConfig) {
  */
 async function fetchAndStoreUpcomingEvents(finalConfig) {
   const { fetchWindowHours, allowedCategories } = finalConfig;
-  const events = await getUpcomingEvents(fetchWindowHours);
-
-  if (!events || events.length === 0) {
-    return;
-  }
-
-  const filteredEvents = events.filter(event => {
-    if (!allowedCategories || allowedCategories.length === 0) {
-      return true; // No category filter, include all events
-    }
-    // Defensively check if categories is an array before trying to filter on it.
-    return Array.isArray(event.categories) && event.categories.some(category => allowedCategories.includes(category.name));
-  });
-
-  if (filteredEvents.length === 0) {
-    logger.info('No events matched the specified categories.');
-    return;
-  }
 
   try {
+    const events = await getUpcomingEvents(fetchWindowHours);
+
+    if (!events || events.length === 0) {
+      logger.info('No upcoming events found from API.');
+      recordFetch(0);
+      return;
+    }
+
+    logger.info(`Fetched ${events.length} event(s) from API.`);
+
+    const filteredEvents = events.filter(event => {
+      if (!allowedCategories || allowedCategories.length === 0) {
+        return true; // No category filter, include all events
+      }
+      // Defensively check if categories is an array before trying to filter on it.
+      return Array.isArray(event.categories) && event.categories.some(category => allowedCategories.includes(category.name));
+    });
+
+    if (filteredEvents.length === 0) {
+      logger.info('No events matched the specified categories.');
+      recordFetch(0);
+      return;
+    }
+
+    if (filteredEvents.length < events.length) {
+      logger.info(`${filteredEvents.length} event(s) matched category filter (${events.length - filteredEvents.length} filtered out).`);
+    }
+
     const db = getDb();
     const stmt = db.prepare("INSERT OR IGNORE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')");
 
@@ -121,12 +143,15 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     const insertedCount = insertMany(filteredEvents);
 
     if (insertedCount > 0) {
-      logger.info(`Successfully stored ${insertedCount} new events in the database.`);
+      logger.info(`Successfully stored ${insertedCount} new event(s) in the database.`);
     } else {
-      logger.info('No new events to store.');
+      logger.info('No new events to store (all events already in database).');
     }
+
+    recordFetch(insertedCount);
   } catch (err) {
     logger.error('An error occurred during fetchAndStoreUpcomingEvents:', err.message);
+    recordError('fetchAndStoreUpcomingEvents', err.message);
     throw err;
   }
 }

@@ -1,6 +1,7 @@
 const logger = require('./logger');
 const { getDb } = require('./database');
 const { fetchAndStoreUpcomingEvents, processSingleEvent } = require('./functions');
+const { recordServiceStart, recordHeartbeat, recordError } = require('./status-tracker');
 
 // In-memory map to store references to our scheduled timeout jobs.
 // The key is the event ID, and the value is the timeout ID returned by setTimeout.
@@ -85,8 +86,27 @@ async function runScheduler(config) {
  * @param {Object} config - The application configuration.
  */
 function runService(config) {
-    logger.info('Service starting...');
-    logger.info(`Service started successfully. The scheduler will run every ${config.serviceRunIntervalHours} hours.`);
+    logger.info('='.repeat(50));
+    logger.info('Hello Club Service Starting...');
+    logger.info('='.repeat(50));
+    logger.info(`Configuration:`);
+    logger.info(`  - Fetch Window: ${config.fetchWindowHours} hours`);
+    logger.info(`  - Pre-Event Query: ${config.preEventQueryMinutes} minutes`);
+    logger.info(`  - Service Run Interval: ${config.serviceRunIntervalHours} hours`);
+    logger.info(`  - Print Mode: ${config.printMode}`);
+    if (config.allowedCategories && config.allowedCategories.length > 0) {
+        logger.info(`  - Categories Filter: ${config.allowedCategories.join(', ')}`);
+    } else {
+        logger.info(`  - Categories Filter: All categories (no filter)`);
+    }
+    logger.info(`Working Directory: ${process.cwd()}`);
+    logger.info(`Log Files: activity.log, error.log`);
+    logger.info(`Status File: status.json`);
+    logger.info('='.repeat(50));
+
+    // Record service start in status file
+    recordServiceStart(config);
+    logger.info('Service started successfully.');
 
     // Define the task to be run periodically, with proper error handling.
     const task = async () => {
@@ -94,6 +114,7 @@ function runService(config) {
             await runScheduler(config);
         } catch (error) {
             logger.error('An error occurred during the scheduler execution:', error);
+            recordError('scheduler', error.message);
         }
     };
 
@@ -103,6 +124,14 @@ function runService(config) {
     // Then, set up the interval to run the task periodically.
     const runInterval = config.serviceRunIntervalHours * 60 * 60 * 1000;
     setInterval(task, runInterval);
+
+    // Set up heartbeat logging every 5 minutes
+    const heartbeatInterval = 5 * 60 * 1000; // 5 minutes
+    setInterval(() => {
+        recordHeartbeat();
+        const scheduledCount = scheduledJobs.size;
+        logger.info(`Heartbeat: Service is running. ${scheduledCount} event(s) scheduled.`);
+    }, heartbeatInterval);
 }
 
 module.exports = { runService };
