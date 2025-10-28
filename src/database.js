@@ -37,4 +37,32 @@ const getDb = () => {
   return db;
 };
 
-module.exports = { getDb };
+/**
+ * Closes the database connection gracefully.
+ */
+const closeDb = () => {
+  if (db) {
+    try {
+      db.close();
+      logger.info('Database connection closed.');
+      db = null;
+    } catch (err) {
+      logger.error('Failed to close database connection:', err.message);
+    }
+  }
+};
+
+// Register cleanup handlers for graceful shutdown
+process.on('SIGINT', () => {
+  logger.info('Received SIGINT signal. Closing database...');
+  closeDb();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  logger.info('Received SIGTERM signal. Closing database...');
+  closeDb();
+  process.exit(0);
+});
+
+module.exports = { getDb, closeDb };

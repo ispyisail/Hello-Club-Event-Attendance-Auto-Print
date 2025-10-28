@@ -111,6 +111,7 @@ async function getAllAttendees(eventId) {
   let offset = 0;
   const limit = 100;
   let total = 0;
+  const MAX_ATTENDEES = 10000; // Safety limit to prevent infinite loops
   try {
     do {
       const response = await api.get('/eventAttendee', {
@@ -126,7 +127,12 @@ async function getAllAttendees(eventId) {
       attendees = attendees.concat(receivedAttendees);
       total = response.data.meta.total;
       offset += receivedAttendees.length;
-    } while (true);
+
+      // Safety: break if we've fetched more than the total or exceeded reasonable limit
+      if (offset >= total || attendees.length >= MAX_ATTENDEES) {
+        break;
+      }
+    } while (offset < total);
 
     attendees.sort((a, b) => {
       const lastNameA = a.lastName || '';

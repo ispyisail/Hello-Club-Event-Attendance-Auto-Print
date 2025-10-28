@@ -17,6 +17,9 @@ function scheduleEvent(event, config) {
         return;
     }
 
+    // Immediately reserve the slot to prevent race conditions
+    scheduledJobs.set(event.id, null);
+
     const { preEventQueryMinutes } = config;
     const now = new Date().getTime();
     const eventStartTime = new Date(event.startDate).getTime();
@@ -25,18 +28,20 @@ function scheduleEvent(event, config) {
     // Only schedule jobs that are in the future.
     if (processTime > now) {
         const delay = processTime - now;
-        const timeoutId = setTimeout(() => {
+        const timeoutId = setTimeout(async () => {
             logger.info(`Scheduled job triggered for event: ${event.name} (ID: ${event.id})`);
             // The job is done, so remove it from the map.
             scheduledJobs.delete(event.id);
             // Process the event.
-            processSingleEvent(event, config);
+            await processSingleEvent(event, config);
         }, delay);
 
         // Store the timeout ID so we can manage it.
         scheduledJobs.set(event.id, timeoutId);
         logger.info(`Scheduled job for event: "${event.name}" (ID: ${event.id}) in ${Math.round(delay / 1000 / 60)} minutes.`);
     } else {
+        // Event is in the past, remove the reservation
+        scheduledJobs.delete(event.id);
         logger.info(`Event "${event.name}" (ID: ${event.id}) is in the past and will not be scheduled.`);
     }
 }

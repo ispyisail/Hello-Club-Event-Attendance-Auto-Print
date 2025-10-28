@@ -159,7 +159,7 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
     // Get email settings from environment variables
     const PRINTER_EMAIL = process.env.PRINTER_EMAIL;
     const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
-    const SMTP_PORT = process.env.SMTP_PORT || 587;
+    const SMTP_PORT = parseInt(process.env.SMTP_PORT, 10) || 587;
     const SMTP_USER = process.env.SMTP_USER;
     const SMTP_PASS = process.env.SMTP_PASS;
     const EMAIL_FROM = process.env.EMAIL_FROM || SMTP_USER;
@@ -167,7 +167,7 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
     const transportOptions = {
       host: SMTP_HOST,
       port: SMTP_PORT,
-      secure: SMTP_PORT == 465, // true for 465, false for other ports
+      secure: SMTP_PORT === 465, // true for 465, false for other ports
       auth: {
         user: SMTP_USER,
         pass: SMTP_PASS,
