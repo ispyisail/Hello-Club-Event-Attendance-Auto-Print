@@ -40,6 +40,17 @@ The GUI will automatically:
 
 ## 📋 Features Overview
 
+### ⭐ **FIRST-TIME SETUP MADE EASY!**
+
+**No more manual file editing!** Create and configure everything in the GUI:
+
+1. Go to **Configuration** tab
+2. Click **"Create from Example"** for config.json → Edit → Save
+3. Click **"Create from Example"** for .env → Edit API_KEY → Save
+4. **Done!** No text editors, no command line needed!
+
+---
+
 ### **1. 📊 Dashboard**
 The main overview page showing:
 - **Service Status** - Current state of Windows service
@@ -67,14 +78,26 @@ Full Windows service management:
 
 ---
 
-### **3. 🔧 Configuration**
+### **3. 🔧 Configuration** ⭐ NEW!
+
+**Edit everything in the browser - no external editors needed!**
 
 #### **Application Settings (config.json)**
-Visual JSON editor with:
-- Syntax highlighting (monospace font)
-- Validation before saving
-- Immediate feedback on errors
-- Formatted output (2-space indentation)
+Full JSON editor with:
+- ✅ **Create from Example** - One-click file creation
+- ✅ **Direct Editing** - Edit JSON in browser
+- ✅ **Syntax Validation** - Real-time validation before saving
+- ✅ **Immediate Feedback** - Shows errors instantly
+- ✅ **Auto-Format** - Beautiful 2-space indentation
+- ✅ **File Status Indicator** - Visual confirmation of file existence
+
+#### **Environment Variables (.env)** ⭐ NEW!
+Full text editor with:
+- ✅ **Create from Example** - One-click file creation
+- ✅ **Direct Editing** - Edit API_KEY and all variables in browser
+- ✅ **No More Masking** - See and edit actual values (not ********)
+- ✅ **Save Directly** - Changes saved immediately to .env file
+- ✅ **File Status Indicator** - Visual confirmation of file existence
 
 **Editable settings:**
 ```json

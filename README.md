@@ -65,6 +65,23 @@ Perfect for organizations, clubs, and event venues that need reliable, hands-fre
 - ✅ **Category Filtering** - Process only specific event categories
 - ✅ **Highly Configurable** - Customize everything via config.json and .env
 
+### 🖥️ GUI Control Center (NEW!)
+
+**Unified web-based interface - No more command line!**
+
+- 🎨 **Modern Web Interface** - Professional, responsive design accessible from any browser
+- 🔄 **Real-Time Updates** - Socket.io WebSocket for live status updates (auto-refresh every 5 seconds)
+- ⚙️ **Service Control** - Start/stop/restart Windows service from GUI
+- 📝 **Configuration Editor** - Edit config.json and .env files directly in browser
+- ✨ **One-Click Setup** - Create config.json and .env from examples with single button
+- 📊 **Live Monitoring** - Circuit breakers, dead letter queue, metrics dashboard
+- 📄 **Log Viewer** - Real-time log streaming with syntax highlighting
+- 🛠️ **Tools & Utilities** - Fetch events, process schedule, create backups from GUI
+- 📱 **Mobile Responsive** - Works on desktop, tablet, and mobile devices
+- 🚀 **Setup Wizard** - Step-by-step guide for first-time configuration
+
+**Access:** http://localhost:3000 (when GUI server is running)
+
 ### 🛡️ Enterprise Features
 
 #### **Reliability & Resilience**
@@ -87,7 +104,8 @@ Perfect for organizations, clubs, and event venues that need reliable, hands-fre
 
 #### **Observability**
 - 📈 **Prometheus Metrics** - HTTP server exposing standard metrics
-- 📊 **Web Dashboard** - Real-time status, events, and health checks
+- 🌐 **GUI Control Center** - Unified interface with real-time updates
+- 📊 **Web Dashboard** - Legacy real-time status, events, and health checks
 - 📝 **Structured Logging** - Winston logger with file rotation
 - 🔍 **Distributed Tracing** - Request ID propagation
 - ❤️ **Health Checks** - Component-level status reporting
@@ -121,7 +139,35 @@ Perfect for organizations, clubs, and event venues that need reliable, hands-fre
 
 ## 🚀 Quick Start
 
-### **Option 1: Node.js** (For Developers)
+### **Option 1: GUI Control Center** (Recommended - Easiest!)
+
+```bash
+# 1. Clone repository
+git clone https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git
+cd Hello-Club-Event-Attendance-Auto-Print
+
+# 2. Install dependencies
+npm install
+
+# 3. Start GUI
+node src/index.js gui
+# OR: Double-click "Start GUI Control Center.bat" (Windows)
+```
+
+**✅ You're running!** Open http://localhost:3000 in your browser
+
+Then in the GUI:
+1. Go to **Configuration** tab
+2. Click **"Create from Example"** for config.json and .env
+3. Edit your API_KEY directly in the browser
+4. Click **Save**
+5. Done!
+
+**No command line needed - everything in the GUI!**
+
+---
+
+### **Option 2: Node.js CLI** (For Developers)
 
 ```bash
 # 1. Clone repository
@@ -142,11 +188,11 @@ cp config.json.example config.json
 npm start
 ```
 
-**✅ You're running!** Check the web dashboard at http://localhost:3030
+**✅ You're running!** Check the legacy dashboard at http://localhost:3030
 
 ---
 
-### **Option 2: Windows Service** (For Production)
+### **Option 3: Windows Service** (For Production)
 
 ```cmd
 # 1. Install dependencies
@@ -571,6 +617,22 @@ SMTP_PASS=your_app_password
 
 ## 💻 Commands
 
+### **GUI Control Center** ⭐ NEW!
+
+```bash
+# Start unified GUI Control Center (RECOMMENDED!)
+node src/index.js gui [--port 3000]
+
+# Features:
+# - Real-time service monitoring
+# - Configuration file editing (config.json and .env)
+# - Service control (start/stop/restart)
+# - Live log viewer with auto-refresh
+# - Circuit breakers and DLQ management
+# - Tools and utilities
+# Access at: http://localhost:3000
+```
+
 ### **Service Management**
 
 ```bash
@@ -579,7 +641,7 @@ node src/index.js start-service
 # OR
 npm start
 
-# Start web dashboard (monitoring GUI)
+# Start legacy web dashboard (monitoring only)
 node src/index.js dashboard [--port 3030]
 ```
 
@@ -841,18 +903,28 @@ HelloClub-Portable/
 
 ### **For End Users** (No Node.js Required!)
 
+**Option 1: Using GUI (Easiest!)**
 ```cmd
 # 1. Extract HelloClub-Portable.zip
+# 2. Double-click "Start GUI.bat"
+# 3. Open browser to http://localhost:3000
+# 4. In Configuration tab:
+#    - Click "Create from Example" for config.json
+#    - Click "Create from Example" for .env
+#    - Edit your API_KEY directly in browser
+#    - Click Save
+# Done! All configuration in browser - no manual file editing!
+```
 
+**Option 2: Manual Configuration (Traditional)**
+```cmd
+# 1. Extract HelloClub-Portable.zip
 # 2. Copy .env.example to .env
 # Edit .env and add your API_KEY
-
 # 3. Copy config.json.example to config.json
 # Customize settings if needed
-
 # 4. Double-click "Start Service.bat"
-
-# Done! No Node.js installation needed!
+# Done!
 ```
 
 ### **All Commands Work**
@@ -1128,6 +1200,10 @@ Comprehensive documentation included:
 | Document | Purpose |
 |----------|---------|
 | **README.md** | Main documentation (this file) |
+| **GUI-README.md** | ⭐ Complete GUI Control Center user guide (900+ lines) |
+| **GUI-WITH-EXE.md** | ⭐ GUI and executable integration guide |
+| **GUI-CONTROL-CENTER.md** | ⭐ GUI design and architecture documentation |
+| **BUILDING-ON-WINDOWS.md** | ⭐ Building Windows executable (updated) |
 | **WINDOWS-SERVICE-SETUP.md** | Complete Windows service guide |
 | **NSSM-QUICK-START.md** | NSSM installation and management |
 | **BUILDING-EXECUTABLE.md** | Building standalone .exe |
@@ -1138,9 +1214,11 @@ Comprehensive documentation included:
 
 ### **Quick Links**
 
+- ⭐ [GUI Control Center Guide](GUI-README.md) - **START HERE!**
+- ⭐ [GUI with Executable](GUI-WITH-EXE.md)
 - [Windows Service Setup](WINDOWS-SERVICE-SETUP.md)
 - [NSSM Guide](NSSM-QUICK-START.md)
-- [Building Executable](BUILDING-EXECUTABLE.md)
+- [Building on Windows](BUILDING-ON-WINDOWS.md)
 - [Feature Implementation](IMPROVEMENTS-FEATURES-1-6.md)
 
 ---
