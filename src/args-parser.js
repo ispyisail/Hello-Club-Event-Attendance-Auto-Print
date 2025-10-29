@@ -46,6 +46,11 @@ const argv = yargs(hideBin(process.argv))
         type: 'string',
         choices: ['local', 'email'],
         description: 'The printing method to use (`local` or `email`). Overrides config file.'
+      })
+      .option('dry-run', {
+        type: 'boolean',
+        default: false,
+        description: 'Show what would be processed without actually printing'
       });
   })
   .command('start-service', 'Run the application as a long-running service to automatically fetch and process events', (yargs) => {

@@ -6,6 +6,7 @@ const { getDb } = require('./database');
 const { getEventDetails, getAllAttendees, getUpcomingEvents } = require('./api-client');
 const { recordFetch, recordProcess, recordError } = require('./status-tracker');
 const { retryWithBackoff } = require('./retry-util');
+const { incrementCounter, recordTiming } = require('./metrics');
 
 /**
  * Processes a single event: fetches attendees, creates a PDF, prints it, and updates the database.
@@ -15,25 +16,34 @@ const { retryWithBackoff } = require('./retry-util');
  * @returns {Promise<void>}
  */
 async function processSingleEvent(event, finalConfig) {
-  const { outputFilename, pdfLayout, printMode } = finalConfig;
+  const { outputFilename, pdfLayout, printMode, dryRun } = finalConfig;
   try {
-    logger.info(`Processing event "${event.name}" (ID: ${event.id})...`);
+    logger.info(`${dryRun ? '[DRY RUN] ' : ''}Processing event "${event.name}" (ID: ${event.id})...`);
 
     // Get the full, up-to-date event details for the PDF header
     const fullEvent = await getEventDetails(event.id);
     const attendees = await getAllAttendees(event.id);
 
-    const db = getDb();
-    const updateStmt = db.prepare("UPDATE events SET status = 'processed' WHERE id = ?");
-
     if (attendees && attendees.length > 0) {
-      await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode);
-      updateStmt.run(event.id);
-      logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
+      if (dryRun) {
+        logger.info(`[DRY RUN] Would print PDF for event "${event.name}" with ${attendees.length} attendees`);
+        logger.info(`[DRY RUN] Print mode: ${printMode}`);
+        logger.info(`[DRY RUN] Output file: ${outputFilename}`);
+      } else {
+        await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode, dryRun);
+        const db = getDb();
+        const updateStmt = db.prepare("UPDATE events SET status = 'processed' WHERE id = ?");
+        updateStmt.run(event.id);
+        logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
+      }
     } else {
       logger.warn(`No attendees found for event "${event.name}" (ID: ${event.id}). Skipping PDF generation.`);
-      updateStmt.run(event.id);
-      logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed to avoid retries.`);
+      if (!dryRun) {
+        const db = getDb();
+        const updateStmt = db.prepare("UPDATE events SET status = 'processed' WHERE id = ?");
+        updateStmt.run(event.id);
+        logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed to avoid retries.`);
+      }
     }
   } catch (error) {
     logger.error(`Failed to process event ${event.id} ("${event.name}"). It will not be retried.`);
@@ -97,6 +107,7 @@ async function processScheduledEvents(finalConfig) {
  */
 async function fetchAndStoreUpcomingEvents(finalConfig) {
   const { fetchWindowHours, allowedCategories } = finalConfig;
+  const startTime = Date.now();
 
   try {
     const events = await getUpcomingEvents(fetchWindowHours);
@@ -150,9 +161,14 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     }
 
     recordFetch(insertedCount);
+
+    // Record metrics
+    incrementCounter('eventsFetched', insertedCount);
+    recordTiming('fetch', Date.now() - startTime);
   } catch (err) {
     logger.error('An error occurred during fetchAndStoreUpcomingEvents:', err.message);
     recordError('fetchAndStoreUpcomingEvents', err.message);
+    incrementCounter('errors');
     throw err;
   }
 }

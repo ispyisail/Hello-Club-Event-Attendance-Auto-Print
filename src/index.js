@@ -47,8 +47,29 @@ async function main() {
         preEventQueryMinutes: argv.preEventQueryMinutes ?? validatedConfig.preEventQueryMinutes,
         outputFilename: argv.output ?? validatedConfig.outputFilename,
         pdfLayout: validatedConfig.pdfLayout,
-        printMode: argv.printMode ?? validatedConfig.printMode
+        printMode: argv.printMode ?? validatedConfig.printMode,
+        dryRun: argv.dryRun ?? false,
+        serviceRunIntervalHours: argv.serviceRunIntervalHours ?? validatedConfig.serviceRunIntervalHours
     };
+
+    // Validate CLI arguments
+    const { validateArguments } = require('./validation');
+    const validation = validateArguments(argv, finalConfig);
+    if (!validation.valid) {
+        logger.error('Invalid arguments:');
+        validation.errors.forEach(err => logger.error(`  - ${err}`));
+        process.exit(1);
+    }
+
+    // Run startup validation for start-service command
+    if (command === 'start-service') {
+        const { runStartupValidation } = require('./validation');
+        const startupCheck = await runStartupValidation(finalConfig);
+        if (!startupCheck.allValid) {
+            logger.error('Startup validation failed. Please fix the errors above before starting the service.');
+            process.exit(1);
+        }
+    }
 
     logger.info(`Executing command: ${command}`);
 
