@@ -123,6 +123,12 @@ async function main() {
         process.env.DASHBOARD_PORT = argv.port || 3030;
         const { startDashboard } = require('./web-dashboard');
         startDashboard();
+    } else if (command === 'gui') {
+        const { startGuiServer } = require('./gui-server');
+        const port = argv.port || 3000;
+        await startGuiServer(port);
+        // Keep process alive
+        await new Promise(() => {});
     } else if (command === 'metrics') {
         const { displayMetrics } = require('./metrics');
         displayMetrics();

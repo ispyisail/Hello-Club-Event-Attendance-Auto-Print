@@ -139,6 +139,14 @@ const argv = yargs(hideBin(process.argv))
         description: 'Port to run the dashboard on'
       });
   })
+  .command('gui', 'Start the unified GUI Control Center with real-time updates', (yargs) => {
+    return yargs
+      .option('port', {
+        type: 'number',
+        default: 3000,
+        description: 'Port to run the GUI server on'
+      });
+  })
   .command('metrics', 'Display performance metrics and statistics')
   .command('metrics-reset', 'Reset all metrics data')
   .command('api-stats', 'Display API rate limiting statistics', (yargs) => {

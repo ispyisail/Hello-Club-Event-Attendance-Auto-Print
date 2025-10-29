@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello Club - Control Center</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <h1>🎉 Hello Club - Control Center</h1>
+            <div class="header-status">
+                <span id="connection-status" class="status-indicator status-connecting">Connecting...</span>
+                <span id="service-status-badge" class="status-badge">Unknown</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="tabs">
+        <button class="tab-button active" data-tab="dashboard">📊 Dashboard</button>
+        <button class="tab-button" data-tab="service">⚙️ Service Control</button>
+        <button class="tab-button" data-tab="config">🔧 Configuration</button>
+        <button class="tab-button" data-tab="logs">📄 Logs</button>
+        <button class="tab-button" data-tab="monitoring">📈 Monitoring</button>
+        <button class="tab-button" data-tab="tools">🛠️ Tools</button>
+        <button class="tab-button" data-tab="setup">🚀 Setup Wizard</button>
+        <button class="tab-button" data-tab="about">ℹ️ About</button>
+    </nav>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <!-- Dashboard Tab -->
+        <div id="dashboard" class="tab-content active">
+            <h2>System Dashboard</h2>
+
+            <div class="dashboard-grid">
+                <!-- Service Status Card -->
+                <div class="card">
+                    <h3>🔄 Service Status</h3>
+                    <div id="dashboard-service-status">
+                        <p>Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Database Stats Card -->
+                <div class="card">
+                    <h3>🗄️ Database</h3>
+                    <div id="dashboard-db-stats">
+                        <p>Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Health Status Card -->
+                <div class="card">
+                    <h3>💚 Health Status</h3>
+                    <div id="dashboard-health">
+                        <p>Loading...</p>
+                    </div>
+                </div>
+
+                <!-- Recent Activity Card -->
+                <div class="card">
+                    <h3>📋 Recent Activity</h3>
+                    <div id="dashboard-activity">
+                        <p>Loading...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="quick-actions">
+                <h3>Quick Actions</h3>
+                <div class="button-group">
+                    <button class="btn btn-primary" onclick="fetchEvents()">📥 Fetch Events</button>
+                    <button class="btn btn-primary" onclick="processSchedule()">▶️ Process Schedule</button>
+                    <button class="btn btn-warning" onclick="createBackup()">💾 Create Backup</button>
+                    <button class="btn btn-info" onclick="switchTab('logs')">📄 View Logs</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Service Control Tab -->
+        <div id="service" class="tab-content">
+            <h2>Service Control</h2>
+
+            <div class="card">
+                <h3>Windows Service Management</h3>
+
+                <div id="service-status-detail">
+                    <p>Loading service status...</p>
+                </div>
+
+                <div class="button-group">
+                    <button class="btn btn-success" onclick="startService()">▶️ Start Service</button>
+                    <button class="btn btn-danger" onclick="stopService()">⏹️ Stop Service</button>
+                    <button class="btn btn-warning" onclick="restartService()">🔄 Restart Service</button>
+                </div>
+
+                <div id="service-operation-result" class="operation-result"></div>
+            </div>
+
+            <div class="card">
+                <h3>Service Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <strong>Service Name:</strong> HelloClubAttendance
+                    </div>
+                    <div class="info-item">
+                        <strong>Display Name:</strong> Hello Club Event Attendance
+                    </div>
+                    <div class="info-item">
+                        <strong>Description:</strong> Automatically prints event attendance lists
+                    </div>
+                    <div class="info-item">
+                        <strong>Startup Type:</strong> <span id="service-startup-type">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Tab -->
+        <div id="config" class="tab-content">
+            <h2>Configuration</h2>
+
+            <div class="card">
+                <h3>Application Settings (config.json)</h3>
+                <div id="config-editor">
+                    <textarea id="config-json" rows="20" class="config-textarea"></textarea>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="saveConfig()">💾 Save Configuration</button>
+                        <button class="btn btn-secondary" onclick="loadConfig()">🔄 Reload</button>
+                        <button class="btn btn-info" onclick="validateConfig()">✓ Validate JSON</button>
+                    </div>
+                    <div id="config-result" class="operation-result"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Environment Variables (.env)</h3>
+                <div id="env-editor">
+                    <div class="env-warning">
+                        ⚠️ Warning: Sensitive values like API_KEY are masked for security.
+                        To change them, edit the .env file directly.
+                    </div>
+                    <div id="env-variables"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Logs Tab -->
+        <div id="logs" class="tab-content">
+            <h2>Application Logs</h2>
+
+            <div class="card">
+                <div class="log-controls">
+                    <div class="button-group">
+                        <button class="btn btn-sm" onclick="loadLogs('activity')">📝 Activity Log</button>
+                        <button class="btn btn-sm btn-danger" onclick="loadLogs('error')">❌ Error Log</button>
+                        <button class="btn btn-sm btn-success" onclick="toggleAutoRefresh()">
+                            <span id="auto-refresh-indicator">🔄 Auto-Refresh: ON</span>
+                        </button>
+                    </div>
+                    <div>
+                        <label for="log-lines">Lines:</label>
+                        <select id="log-lines" onchange="loadLogs()">
+                            <option value="50">50</option>
+                            <option value="100" selected>100</option>
+                            <option value="200">200</option>
+                            <option value="500">500</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="log-viewer">
+                    <div id="log-content"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monitoring Tab -->
+        <div id="monitoring" class="tab-content">
+            <h2>System Monitoring</h2>
+
+            <!-- Circuit Breakers -->
+            <div class="card">
+                <h3>⚡ Circuit Breakers</h3>
+                <div id="circuit-breakers">
+                    <p>Loading circuit breaker states...</p>
+                </div>
+            </div>
+
+            <!-- Dead Letter Queue -->
+            <div class="card">
+                <h3>💀 Dead Letter Queue</h3>
+                <div id="dead-letter-queue">
+                    <p>Loading failed jobs...</p>
+                </div>
+            </div>
+
+            <!-- Metrics -->
+            <div class="card">
+                <h3>📊 Performance Metrics</h3>
+                <div id="metrics">
+                    <p>Loading metrics...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tools Tab -->
+        <div id="tools" class="tab-content">
+            <h2>Tools & Utilities</h2>
+
+            <div class="tools-grid">
+                <div class="card">
+                    <h3>📥 Event Management</h3>
+                    <p>Manually fetch and process events</p>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="fetchEvents()">Fetch Events</button>
+                        <button class="btn btn-primary" onclick="processSchedule()">Process Schedule</button>
+                    </div>
+                    <div id="event-tools-result" class="operation-result"></div>
+                </div>
+
+                <div class="card">
+                    <h3>💾 Backup Management</h3>
+                    <p>Create and manage database backups</p>
+                    <div class="button-group">
+                        <button class="btn btn-warning" onclick="createBackup()">Create Backup Now</button>
+                    </div>
+                    <div id="backup-result" class="operation-result"></div>
+                </div>
+
+                <div class="card">
+                    <h3>🗑️ Cache Management</h3>
+                    <p>Clear PDF cache to force regeneration</p>
+                    <div class="button-group">
+                        <button class="btn btn-danger" onclick="clearCache()">Clear PDF Cache</button>
+                    </div>
+                    <div id="cache-result" class="operation-result"></div>
+                </div>
+
+                <div class="card">
+                    <h3>🔧 System Commands</h3>
+                    <p>Access to all CLI commands</p>
+                    <div class="command-list">
+                        <code>node src/index.js --help</code>
+                        <code>node src/index.js health-check</code>
+                        <code>node src/index.js metrics-server</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Setup Wizard Tab -->
+        <div id="setup" class="tab-content">
+            <h2>Setup Wizard</h2>
+
+            <div class="setup-wizard">
+                <div class="card">
+                    <h3>🎯 Step 1: Install Windows Service</h3>
+                    <p>Choose your preferred service installation method:</p>
+
+                    <div class="setup-option">
+                        <h4>Option A: NSSM (Recommended)</h4>
+                        <ol>
+                            <li>Run: <code>NSSM - Step 1 - Download NSSM.bat</code></li>
+                            <li>Run: <code>NSSM - Step 2 - Install Service.bat</code></li>
+                            <li>Service will start automatically</li>
+                        </ol>
+                    </div>
+
+                    <div class="setup-option">
+                        <h4>Option B: node-windows</h4>
+                        <ol>
+                            <li>Run: <code>Install Service.bat</code></li>
+                            <li>Service will start automatically</li>
+                        </ol>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>🔑 Step 2: Configure API Key</h3>
+                    <ol>
+                        <li>Copy <code>.env.example</code> to <code>.env</code></li>
+                        <li>Edit <code>.env</code> and add your <code>API_KEY</code></li>
+                        <li>Restart the service</li>
+                    </ol>
+                    <p><a href="#" onclick="switchTab('config'); return false;">→ Go to Configuration</a></p>
+                </div>
+
+                <div class="card">
+                    <h3>⚙️ Step 3: Configure Settings</h3>
+                    <ol>
+                        <li>Go to Configuration tab</li>
+                        <li>Edit <code>config.json</code> settings</li>
+                        <li>Save and restart service</li>
+                    </ol>
+                    <p><a href="#" onclick="switchTab('config'); return false;">→ Go to Configuration</a></p>
+                </div>
+
+                <div class="card">
+                    <h3>✅ Step 4: Test the Service</h3>
+                    <ol>
+                        <li>Go to Tools tab</li>
+                        <li>Click "Fetch Events"</li>
+                        <li>Click "Process Schedule"</li>
+                        <li>Check logs for results</li>
+                    </ol>
+                    <p><a href="#" onclick="switchTab('tools'); return false;">→ Go to Tools</a></p>
+                </div>
+            </div>
+        </div>
+
+        <!-- About Tab -->
+        <div id="about" class="tab-content">
+            <h2>About Hello Club Event Attendance Auto-Print</h2>
+
+            <div class="card">
+                <h3>ℹ️ System Information</h3>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <strong>Application:</strong> Hello Club Event Attendance Auto-Print
+                    </div>
+                    <div class="info-item">
+                        <strong>Version:</strong> 1.0.0
+                    </div>
+                    <div class="info-item">
+                        <strong>GUI Server:</strong> Running on port 3000
+                    </div>
+                    <div class="info-item">
+                        <strong>Dashboard:</strong> Running on port 3030
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>🚀 Features</h3>
+                <ul class="feature-list">
+                    <li>✅ Automated event fetching from Hello Club API</li>
+                    <li>✅ Scheduled PDF generation and printing</li>
+                    <li>✅ Windows Service support (NSSM + node-windows)</li>
+                    <li>✅ Real-time web-based monitoring</li>
+                    <li>✅ Circuit breaker pattern for resilience</li>
+                    <li>✅ Dead letter queue for failed jobs</li>
+                    <li>✅ Automated database backups</li>
+                    <li>✅ PDF caching for performance</li>
+                    <li>✅ Comprehensive logging and metrics</li>
+                    <li>✅ Email integration (optional)</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>📚 Documentation</h3>
+                <ul>
+                    <li><a href="../../../README.md" target="_blank">README.md</a> - Complete documentation</li>
+                    <li><a href="../../../WINDOWS-SERVICE-SETUP.md" target="_blank">WINDOWS-SERVICE-SETUP.md</a> - Service installation guide</li>
+                    <li><a href="../../../NSSM-QUICK-START.md" target="_blank">NSSM-QUICK-START.md</a> - NSSM setup guide</li>
+                    <li><a href="../../../BUILDING-EXECUTABLE.md" target="_blank">BUILDING-EXECUTABLE.md</a> - Executable build guide</li>
+                    <li><a href="../../../GUI-CONTROL-CENTER.md" target="_blank">GUI-CONTROL-CENTER.md</a> - GUI documentation</li>
+                </ul>
+            </div>
+
+            <div class="card">
+                <h3>🔗 Quick Links</h3>
+                <ul>
+                    <li><a href="http://localhost:3030" target="_blank">📊 Legacy Dashboard (Port 3030)</a></li>
+                    <li><a href="http://localhost:9090/metrics" target="_blank">📈 Prometheus Metrics (Port 9090)</a></li>
+                    <li><a href="#" onclick="switchTab('logs'); return false;">📄 View Logs</a></li>
+                    <li><a href="#" onclick="switchTab('monitoring'); return false;">📈 Monitoring</a></li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Hello Club Event Attendance Auto-Print &copy; 2024 | Last Update: <span id="last-update">Never</span></p>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="/js/app.js"></script>
+</body>
+</html>
