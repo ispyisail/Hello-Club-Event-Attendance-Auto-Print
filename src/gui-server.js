@@ -22,14 +22,22 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
+// Configuration
+const GUI_PORT = process.env.GUI_PORT || 3000;
+
+// Detect if running as executable or Node.js
+// When running as exe, use process.cwd() instead of __dirname
+const IS_PKG = typeof process.pkg !== 'undefined';
+const BASE_PATH = IS_PKG ? process.cwd() : __dirname;
+const PROJECT_ROOT = IS_PKG ? process.cwd() : path.join(__dirname, '..');
+const GUI_PUBLIC_PATH = IS_PKG
+    ? path.join(process.cwd(), 'src', 'gui', 'public')
+    : path.join(__dirname, 'gui', 'public');
+
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(__dirname, 'gui', 'public')));
-
-// Configuration
-const GUI_PORT = process.env.GUI_PORT || 3000;
-const PROJECT_ROOT = path.join(__dirname, '..');
+app.use(express.static(GUI_PUBLIC_PATH));
 
 // ============================================================================
 // Helper Functions
@@ -310,7 +318,7 @@ function getDeadLetterQueue() {
  * GET / - Main dashboard
  */
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'gui', 'public', 'index.html'));
+    res.sendFile(path.join(GUI_PUBLIC_PATH, 'index.html'));
 });
 
 /**

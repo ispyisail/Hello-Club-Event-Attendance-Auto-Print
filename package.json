@@ -23,8 +23,13 @@
     "outputPath": "dist",
     "assets": [
       "src/**/*.js",
+      "src/gui/public/**/*",
       "node_modules/better-sqlite3/**/*",
-      "node_modules/node-windows/**/*"
+      "node_modules/node-windows/**/*",
+      "node_modules/socket.io/**/*",
+      "node_modules/socket.io-parser/**/*",
+      "node_modules/engine.io/**/*",
+      "node_modules/engine.io-parser/**/*"
     ],
     "scripts": [
       "src/**/*.js"

@@ -31,10 +31,20 @@ if exist "%DIST_FOLDER%" (
 echo Creating folder structure...
 mkdir "%DIST_FOLDER%"
 mkdir "%DIST_FOLDER%\backups"
+mkdir "%DIST_FOLDER%\src"
 
 REM Copy executable
 echo Copying executable...
 copy "dist\hello-club.exe" "%DIST_FOLDER%\hello-club.exe" >nul
+
+REM Copy GUI assets (needed for GUI functionality)
+echo Copying GUI assets...
+if exist "src\gui" (
+    xcopy "src\gui" "%DIST_FOLDER%\src\gui" /E /I /Q >nul
+    echo - GUI assets copied
+) else (
+    echo - Warning: GUI assets not found, GUI command will not work
+)
 
 REM Create example configuration files
 echo Creating example configuration files...
@@ -85,6 +95,9 @@ echo Copying documentation...
 if exist "README.md" copy "README.md" "%DIST_FOLDER%\README.md" >nul
 if exist "WINDOWS-SERVICE-SETUP.md" copy "WINDOWS-SERVICE-SETUP.md" "%DIST_FOLDER%\WINDOWS-SERVICE-SETUP.md" >nul
 if exist "NSSM-QUICK-START.md" copy "NSSM-QUICK-START.md" "%DIST_FOLDER%\NSSM-QUICK-START.md" >nul
+if exist "GUI-README.md" copy "GUI-README.md" "%DIST_FOLDER%\GUI-README.md" >nul
+if exist "GUI-WITH-EXE.md" copy "GUI-WITH-EXE.md" "%DIST_FOLDER%\GUI-WITH-EXE.md" >nul
+if exist "BUILDING-EXECUTABLE.md" copy "BUILDING-EXECUTABLE.md" "%DIST_FOLDER%\BUILDING-EXECUTABLE.md" >nul
 
 REM Create quick start guide for exe
 (
@@ -112,8 +125,11 @@ echo.
 echo # Process events
 echo hello-club.exe process-schedule
 echo.
-echo # Start web dashboard
+echo # Start legacy web dashboard
 echo hello-club.exe dashboard
+echo.
+echo # Start GUI Control Center ^(Recommended^)
+echo hello-club.exe gui
 echo.
 echo # View all commands
 echo hello-club.exe --help
@@ -196,9 +212,19 @@ echo pause
 
 (
 echo @echo off
+echo echo Starting GUI Control Center...
+echo echo.
+echo echo Open your browser to: http://localhost:3000
+echo echo.
+echo hello-club.exe gui
+echo pause
+) > "%DIST_FOLDER%\Start GUI.bat"
+
+(
+echo @echo off
 echo hello-club.exe dashboard
 echo pause
-) > "%DIST_FOLDER%\Start Dashboard.bat"
+) > "%DIST_FOLDER%\Start Dashboard (Legacy).bat"
 
 (
 echo @echo off
@@ -221,13 +247,14 @@ echo Location: %DIST_FOLDER%
 echo.
 echo Package contents:
 echo   - hello-club.exe (standalone executable)
+echo   - src\gui\ (GUI Control Center assets)
 echo   - .env.example (configuration template)
 echo   - config.json.example (settings template)
 echo   - QUICK-START-EXE.md (getting started guide)
 echo   - README.md (full documentation)
 echo   - WINDOWS-SERVICE-SETUP.md (service installation guide)
 echo   - NSSM-QUICK-START.md (NSSM guide)
-echo   - Batch file shortcuts (Start Service, Dashboard, etc.)
+echo   - Batch file shortcuts (Start GUI, Start Service, Dashboard, etc.)
 echo   - backups\ folder (for automated backups)
 echo.
 echo This folder can be:
