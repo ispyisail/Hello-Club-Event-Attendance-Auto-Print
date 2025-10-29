@@ -5,6 +5,7 @@
 
 const nodemailer = require('nodemailer');
 const logger = require('./logger');
+const { getCircuitBreaker } = require('./circuit-breaker');
 
 /**
  * Sends an email with a file attachment.
@@ -18,19 +19,22 @@ const logger = require('./logger');
  * @throws {Error} Throws an error if the email fails to send.
  */
 async function sendEmailWithAttachment(transportOptions, to, from, subject, body, attachmentPath) {
+  const emailCircuitBreaker = getCircuitBreaker('email');
   const transporter = nodemailer.createTransport(transportOptions);
 
   try {
-    const info = await transporter.sendMail({
-      from: from,
-      to: to,
-      subject: subject,
-      text: body,
-      attachments: [
-        {
-          path: attachmentPath,
-        },
-      ],
+    const info = await emailCircuitBreaker.execute(async () => {
+      return await transporter.sendMail({
+        from: from,
+        to: to,
+        subject: subject,
+        text: body,
+        attachments: [
+          {
+            path: attachmentPath,
+          },
+        ],
+      });
     });
 
     logger.info('Email sent: ' + info.response);

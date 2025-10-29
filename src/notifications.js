@@ -5,6 +5,8 @@
 
 const axios = require('axios');
 const logger = require('./logger');
+const { getCircuitBreaker } = require('./circuit-breaker');
+const { validateWebhookUrl } = require('./secrets-manager');
 
 /**
  * Sends a webhook notification.
@@ -13,12 +15,22 @@ const logger = require('./logger');
  * @returns {Promise<boolean>} Whether the webhook succeeded.
  */
 async function sendWebhook(webhookUrl, payload) {
+  // Validate webhook URL for security
+  if (!validateWebhookUrl(webhookUrl)) {
+    logger.error(`Invalid or potentially unsafe webhook URL: ${webhookUrl}`);
+    return false;
+  }
+
+  const webhookCircuitBreaker = getCircuitBreaker('webhook');
+
   try {
-    await axios.post(webhookUrl, payload, {
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      timeout: 5000
+    await webhookCircuitBreaker.execute(async () => {
+      await axios.post(webhookUrl, payload, {
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        timeout: 5000
+      });
     });
     logger.info(`Webhook sent successfully to ${webhookUrl}`);
     return true;

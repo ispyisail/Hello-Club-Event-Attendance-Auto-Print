@@ -9,6 +9,10 @@ const { retryWithBackoff } = require('./retry-util');
 const { incrementCounter, recordTiming } = require('./metrics');
 const { notifyEventProcessed, notifyError } = require('./notifications');
 const { applyFilters } = require('./event-filters');
+const { getCircuitBreaker } = require('./circuit-breaker');
+const { addToQueue } = require('./dead-letter-queue');
+const { generateCacheKey, getCachedPdf, savePdfToCache } = require('./pdf-cache');
+const fs = require('fs');
 
 /**
  * Processes a single event: fetches attendees, creates a PDF, prints it, and updates the database.
@@ -51,7 +55,18 @@ async function processSingleEvent(event, finalConfig) {
       }
     }
   } catch (error) {
-    logger.error(`Failed to process event ${event.id} ("${event.name}"). It will not be retried.`);
+    logger.error(`Failed to process event ${event.id} ("${event.name}"). Adding to dead letter queue.`);
+
+    // Add to dead letter queue for manual retry
+    addToQueue({
+      type: 'print',
+      data: {
+        event: event,
+        config: finalConfig
+      },
+      error: error,
+      attempts: 1
+    });
 
     // Send error notification
     await notifyError('Event Processing Failed', `Failed to process event "${event.name}" (ID: ${event.id}): ${error.message}`);
@@ -203,14 +218,27 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
  * @returns {Promise<void>}
  */
 async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode, config) {
-  // Generate PDF with proper error handling
-  try {
-    const generator = new PdfGenerator(event, attendees, pdfLayout);
-    generator.generate(outputFileName);
-    logger.info(`Successfully created ${outputFileName}`);
-  } catch (err) {
-    logger.error(`Failed to generate PDF for event ${event.id}:`, err.message);
-    throw new Error(`PDF generation failed: ${err.message}`);
+  // Check PDF cache first
+  const cacheKey = generateCacheKey(event, attendees);
+  const cachedPdf = getCachedPdf(cacheKey);
+
+  if (cachedPdf) {
+    // Use cached PDF - copy to output location
+    logger.info(`Using cached PDF for event ${event.id}`);
+    fs.copyFileSync(cachedPdf, outputFileName);
+  } else {
+    // Generate PDF with proper error handling
+    try {
+      const generator = new PdfGenerator(event, attendees, pdfLayout);
+      generator.generate(outputFileName);
+      logger.info(`Successfully created ${outputFileName}`);
+
+      // Save to cache
+      savePdfToCache(cacheKey, outputFileName);
+    } catch (err) {
+      logger.error(`Failed to generate PDF for event ${event.id}:`, err.message);
+      throw new Error(`PDF generation failed: ${err.message}`);
+    }
   }
 
   // Determine printer routing based on event category (if multiple printers configured)
@@ -237,16 +265,19 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
     }
   }
 
-  // Print with retry logic
+  // Print with retry logic and circuit breaker
   if (routedPrintMode === 'local') {
+    const printerCircuitBreaker = getCircuitBreaker('printer');
     const printerInfo = targetPrinter ? ` to printer "${targetPrinter}"` : '';
     logger.info(`Printing PDF locally${printerInfo}...`);
     await retryWithBackoff(
       async () => {
-        const printOptions = targetPrinter ? { printer: targetPrinter } : {};
-        const msg = await print(outputFileName, printOptions);
-        logger.info(msg);
-        return msg;
+        return await printerCircuitBreaker.execute(async () => {
+          const printOptions = targetPrinter ? { printer: targetPrinter } : {};
+          const msg = await print(outputFileName, printOptions);
+          logger.info(msg);
+          return msg;
+        });
       },
       {
         maxAttempts: 3,

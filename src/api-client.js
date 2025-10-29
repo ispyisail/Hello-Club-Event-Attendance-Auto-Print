@@ -1,6 +1,7 @@
 const axios = require('axios');
 const logger = require('./logger');
 const { recordApiCall } = require('./api-rate-limiter');
+const { getCircuitBreaker } = require('./circuit-breaker');
 
 const API_KEY = process.env.API_KEY;
 const BASE_URL = process.env.API_BASE_URL || 'https://api.helloclub.com';
@@ -97,8 +98,12 @@ function handleApiError(error, context) {
  * @returns {Promise<Object|null>} A promise that resolves to the event object or null if not found.
  */
 async function getEventDetails(eventId) {
+  const apiCircuitBreaker = getCircuitBreaker('api');
+
   try {
-    const response = await api.get(`/event/${eventId}`);
+    const response = await apiCircuitBreaker.execute(async () => {
+      return await api.get(`/event/${eventId}`);
+    });
     return response.data;
   } catch (error) {
     handleApiError(error, `fetching details for event ${eventId}`);
@@ -111,16 +116,20 @@ async function getEventDetails(eventId) {
  * @returns {Promise<Array<Object>>} A promise that resolves to an array of event objects.
  */
 async function getUpcomingEvents(fetchWindowHours) {
+  const apiCircuitBreaker = getCircuitBreaker('api');
+
   try {
     const fromDate = new Date();
     const toDate = new Date(fromDate.getTime() + fetchWindowHours * 60 * 60 * 1000);
 
-    const response = await api.get('/event', {
-      params: {
-        fromDate: fromDate.toISOString(),
-        toDate: toDate.toISOString(),
-        sort: 'startDate'
-      }
+    const response = await apiCircuitBreaker.execute(async () => {
+      return await api.get('/event', {
+        params: {
+          fromDate: fromDate.toISOString(),
+          toDate: toDate.toISOString(),
+          sort: 'startDate'
+        }
+      });
     });
 
     if (response.data.events.length > 0) {
@@ -141,6 +150,8 @@ async function getUpcomingEvents(fetchWindowHours) {
  * @returns {Promise<Array<Object>>} A promise that resolves to an array of attendee objects, sorted by last name then first name.
  */
 async function getAllAttendees(eventId) {
+  const apiCircuitBreaker = getCircuitBreaker('api');
+
   let attendees = [];
   let offset = 0;
   const limit = 100;
@@ -148,8 +159,10 @@ async function getAllAttendees(eventId) {
   const MAX_ATTENDEES = 10000; // Safety limit to prevent infinite loops
   try {
     do {
-      const response = await api.get('/eventAttendee', {
-        params: { event: eventId, limit: limit, offset: offset }
+      const response = await apiCircuitBreaker.execute(async () => {
+        return await api.get('/eventAttendee', {
+          params: { event: eventId, limit: limit, offset: offset }
+        });
       });
 
       const receivedAttendees = response.data.attendees;

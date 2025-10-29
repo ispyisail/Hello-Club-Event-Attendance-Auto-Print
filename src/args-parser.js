@@ -196,6 +196,8 @@ const argv = yargs(hideBin(process.argv))
         description: 'Keep backups newer than this many days'
       });
   })
+  .command('cache-stats', 'Display PDF cache statistics')
+  .command('cache-clear', 'Clear all cached PDFs')
   .demandCommand(1, 'You must provide a valid command. Run with --help to see available commands.')
   .help()
   .alias('help', 'h')

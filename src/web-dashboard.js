@@ -11,6 +11,7 @@ const { performHealthCheck } = require('./health-check');
 const { readStatus } = require('./status-tracker');
 const { getDb } = require('./database');
 const logger = require('./logger');
+const { sanitizeEventName } = require('./secrets-manager');
 
 const PORT = process.env.DASHBOARD_PORT || 3030;
 
@@ -211,7 +212,7 @@ function generateDashboardHTML() {
       <h2 style="margin-bottom: 15px;">Recent Events</h2>
       ${recentEvents.length > 0 ? recentEvents.map(event => `
         <div class="event-item">
-          <div class="event-name">${event.name}</div>
+          <div class="event-name">${sanitizeEventName(event.name)}</div>
           <div class="event-date">
             ${new Date(event.startDate).toLocaleString()}
             <span class="event-status status-${event.status}">${event.status.toUpperCase()}</span>

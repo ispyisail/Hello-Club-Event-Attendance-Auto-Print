@@ -133,6 +133,119 @@ async function main() {
     } else if (command === 'api-stats') {
         const { displayApiStats } = require('./api-rate-limiter');
         displayApiStats(argv.minutes || 60);
+    } else if (command === 'metrics-server') {
+        const { startMetricsServer } = require('./metrics-server');
+        const port = argv.port || 9090;
+        startMetricsServer(port);
+        logger.info('Metrics server is running. Press Ctrl+C to stop.');
+        // Keep process alive
+        await new Promise(() => {});
+    } else if (command === 'dlq') {
+        const { displayQueue } = require('./dead-letter-queue');
+        displayQueue();
+    } else if (command === 'dlq-retry') {
+        const { retryJob } = require('./dead-letter-queue');
+        const { processScheduledEvents } = require('./functions');
+
+        const jobId = argv.id;
+        if (!jobId) {
+            logger.error('Error: Job ID is required. Use: dlq-retry <id>');
+            process.exit(1);
+        }
+
+        const success = await retryJob(jobId, async (jobData) => {
+            // Retry the failed operation based on job type
+            if (jobData.type === 'print') {
+                await processScheduledEvents(finalConfig);
+            } else if (jobData.type === 'email') {
+                const { sendEmailWithAttachment } = require('./email-service');
+                await sendEmailWithAttachment(jobData.recipient, jobData.subject, jobData.body, jobData.attachment);
+            }
+        });
+
+        if (success) {
+            console.log(`Job ${jobId} retried successfully`);
+        } else {
+            console.log(`Job ${jobId} retry failed`);
+            process.exit(1);
+        }
+    } else if (command === 'dlq-cleanup') {
+        const { cleanup } = require('./dead-letter-queue');
+        const days = argv.days || 30;
+        const removed = cleanup(days);
+        console.log(`Removed ${removed} old dead letter queue entries (older than ${days} days)`);
+    } else if (command === 'circuit-breaker-status') {
+        const { getAllStats } = require('./circuit-breaker');
+        const stats = getAllStats();
+
+        console.log('='.repeat(80));
+        console.log('Circuit Breaker Status');
+        console.log('='.repeat(80));
+
+        for (const [name, stat] of Object.entries(stats)) {
+            console.log(`\n${name}:`);
+            console.log(`  State: ${stat.state}`);
+            console.log(`  Total Calls: ${stat.totalCalls}`);
+            console.log(`  Successful: ${stat.successfulCalls}`);
+            console.log(`  Failed: ${stat.failedCalls}`);
+            console.log(`  Rejected: ${stat.rejectedCalls}`);
+
+            if (stat.state === 'OPEN') {
+                const timeRemaining = Math.round((stat.nextAttempt - Date.now()) / 1000);
+                console.log(`  Next attempt in: ${timeRemaining}s`);
+            }
+        }
+        console.log('\n' + '='.repeat(80));
+    } else if (command === 'circuit-breaker-reset') {
+        const { getCircuitBreaker } = require('./circuit-breaker');
+        const name = argv.name;
+
+        if (!name) {
+            logger.error('Error: Circuit breaker name is required. Use: circuit-breaker-reset <name>');
+            logger.error('Available circuit breakers: api, email, printer, webhook');
+            process.exit(1);
+        }
+
+        try {
+            const breaker = getCircuitBreaker(name);
+            breaker.reset();
+            console.log(`Circuit breaker '${name}' has been reset`);
+        } catch (error) {
+            logger.error(`Error: Circuit breaker '${name}' not found`);
+            logger.error('Available circuit breakers: api, email, printer, webhook');
+            process.exit(1);
+        }
+    } else if (command === 'backup-schedule') {
+        const { scheduleBackups } = require('./backup-scheduler');
+        const interval = argv.interval || 24;
+        scheduleBackups(interval);
+        console.log(`Backup scheduler started (interval: ${interval} hours). Press Ctrl+C to stop.`);
+        // Keep process alive
+        await new Promise(() => {});
+    } else if (command === 'backup-list') {
+        const { displayBackups } = require('./backup-scheduler');
+        displayBackups();
+    } else if (command === 'backup-rotate') {
+        const { rotateBackups } = require('./backup-scheduler');
+        const days = argv.days || 30;
+        const removed = rotateBackups(days);
+        console.log(`Removed ${removed} old backups (older than ${days} days)`);
+    } else if (command === 'cache-stats') {
+        const { getCacheStats } = require('./pdf-cache');
+        const stats = getCacheStats();
+
+        console.log('='.repeat(80));
+        console.log('PDF Cache Statistics');
+        console.log('='.repeat(80));
+        console.log(`Total Entries: ${stats.totalEntries}`);
+        console.log(`Valid Entries: ${stats.validEntries}`);
+        console.log(`Expired Entries: ${stats.expiredEntries}`);
+        console.log(`Total Size: ${(stats.totalSize / 1024 / 1024).toFixed(2)} MB`);
+        console.log('='.repeat(80));
+    } else if (command === 'cache-clear') {
+        const { clearCache } = require('./pdf-cache');
+        clearCache();
+        console.log('PDF cache cleared successfully');
     } else {
         logger.error('Invalid command. Run with --help to see available commands.');
         process.exit(1);

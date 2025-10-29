@@ -6,6 +6,24 @@
  */
 
 const winston = require('winston');
+const { maskSensitiveData } = require('./secrets-manager');
+
+/**
+ * Custom format to mask sensitive data in log messages
+ */
+const maskSecretsFormat = winston.format((info) => {
+  // Mask sensitive data in the message
+  if (typeof info.message === 'string') {
+    info.message = maskSensitiveData(info.message);
+  }
+
+  // Mask sensitive data in the stack trace if present
+  if (typeof info.stack === 'string') {
+    info.stack = maskSensitiveData(info.stack);
+  }
+
+  return info;
+});
 
 /**
  * The Winston logger instance.
@@ -19,6 +37,7 @@ const logger = winston.createLogger({
     }),
     winston.format.errors({ stack: true }),
     winston.format.splat(),
+    maskSecretsFormat(), // Mask sensitive data before logging
     winston.format.printf(({ level, message, timestamp, stack }) => {
       if (stack) {
         return `${timestamp} ${level}: ${message} - ${stack}`;

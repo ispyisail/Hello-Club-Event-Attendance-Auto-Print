@@ -3,6 +3,7 @@ const { getDb } = require('./database');
 const { fetchAndStoreUpcomingEvents, processSingleEvent } = require('./functions');
 const { recordServiceStart, recordHeartbeat, recordError } = require('./status-tracker');
 const { watchConfig } = require('./config-watcher');
+const { scheduleBackups } = require('./backup-scheduler');
 
 // In-memory map to store references to our scheduled timeout jobs.
 // The key is the event ID, and the value is the timeout ID returned by setTimeout.
@@ -108,6 +109,10 @@ function runService(config) {
     // Record service start in status file
     recordServiceStart(config);
     logger.info('Service started successfully.');
+
+    // Start automated backup scheduler (every 24 hours by default)
+    scheduleBackups(24);
+    logger.info('Automated backup scheduler started (interval: 24 hours)');
 
     // Define the task to be run periodically, with proper error handling.
     const task = async () => {
