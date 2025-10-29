@@ -11,7 +11,24 @@
     "test:integration": "jest __tests__/integration",
     "test:verbose": "jest --verbose",
     "coverage": "jest --coverage",
-    "coverage:report": "jest --coverage && open coverage/lcov-report/index.html"
+    "coverage:report": "jest --coverage && open coverage/lcov-report/index.html",
+    "build": "pkg . --targets node18-win-x64 --output dist/hello-club.exe",
+    "build:all": "pkg . --targets node18-win-x64,node18-linux-x64,node18-macos-x64 --out-path dist"
+  },
+  "bin": "src/index.js",
+  "pkg": {
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "dist",
+    "assets": [
+      "src/**/*.js",
+      "node_modules/better-sqlite3/**/*",
+      "node_modules/node-windows/**/*"
+    ],
+    "scripts": [
+      "src/**/*.js"
+    ]
   },
   "keywords": [],
   "author": "",

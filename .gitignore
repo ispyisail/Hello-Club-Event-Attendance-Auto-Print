@@ -3,6 +3,8 @@
 
 # Build output
 /dist
+*.exe
+HelloClub-Portable.zip
 
 # Logs
 *.log
