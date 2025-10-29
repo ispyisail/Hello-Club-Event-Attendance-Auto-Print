@@ -253,6 +253,109 @@ Check Time: 2024-01-15T10:30:00.000Z
 ========================================
 ```
 
+### NEW: Additional Commands
+
+The application now includes many additional commands for database management, testing, and monitoring.
+
+#### `dashboard` - Web-Based GUI (Windows-Friendly!)
+
+Start a web-based dashboard for monitoring the service status. Perfect for Windows users who prefer a GUI!
+
+**Usage:**
+```bash
+node src/index.js dashboard [--port 3030]
+
+# Or on Windows, just double-click:
+start-dashboard.bat
+```
+
+Opens a browser-based dashboard at `http://localhost:3030` showing:
+- Real-time service status
+- Event counts (total/pending/processed)
+- System health checks
+- Recent events
+- Configuration details
+- Auto-refreshes every 30 seconds
+
+#### `list-events` - View Database Contents
+
+List all events in the database with optional filtering.
+
+**Usage:**
+```bash
+node src/index.js list-events [--status all|pending|processed] [--limit 50]
+```
+
+#### `cleanup` - Database Maintenance
+
+Remove old processed events to keep database size manageable.
+
+**Usage:**
+```bash
+# Preview what would be deleted
+node src/index.js cleanup --days 30 --dry-run
+
+# Actually delete
+node src/index.js cleanup --days 30
+```
+
+#### `preview-event` - Preview Event Details
+
+See event details and attendee information before processing.
+
+**Usage:**
+```bash
+node src/index.js preview-event <event-id>
+```
+
+Shows:
+- Event details (name, date, location, categories)
+- Attendee count
+- Payment summary
+- First 10 attendees
+
+#### `test-email` - Test Email Configuration
+
+Verify your email/SMTP settings by sending a test message.
+
+**Usage:**
+```bash
+node src/index.js test-email [recipient@example.com]
+```
+
+Sends a test email with a PDF attachment to verify your setup.
+
+#### `test-printer` - Test Printer Configuration
+
+Verify your local printer setup.
+
+**Usage:**
+```bash
+node src/index.js test-printer [printer-name]
+```
+
+Sends a test document to your printer.
+
+#### `backup` - Create Database Backup
+
+Create a timestamped backup of your database.
+
+**Usage:**
+```bash
+node src/index.js backup [path/to/backup.db]
+```
+
+#### `restore` - Restore from Backup
+
+Restore your database from a backup file.
+
+**Usage:**
+```bash
+node src/index.js restore path/to/backup.db
+```
+
+**Note:** Creates an emergency backup before restoring.
+
 ## Running as a Service (Automation)
 
 To achieve full automation, the application should be run as a persistent background service.
@@ -312,6 +415,59 @@ If you are on Windows and prefer not to use PM2, you can schedule two separate t
     - Program/script: `C:\Program Files\nodejs\node.exe`
     - Add arguments: `src/index.js process-schedule`
     - Start in: `C:\path\to\your\project`
+
+### Method 3: Using Docker (Modern Deployment)
+
+Docker provides isolated, reproducible deployments perfect for production servers.
+
+**1. Build and Start with Docker Compose**
+```bash
+# Create .env file with your configuration
+cp .env.example .env
+# Edit .env with your API keys and settings
+
+# Start the service
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the service
+docker-compose down
+```
+
+**2. Or Build and Run Manually**
+```bash
+# Build the image
+docker build -t hello-club-service .
+
+# Run the container
+docker run -d \
+  --name hello-club \
+  --restart unless-stopped \
+  -v $(pwd)/events.db:/app/events.db \
+  -v $(pwd)/config.json:/app/config.json:ro \
+  -e API_KEY=your_api_key \
+  -e PRINTER_EMAIL=printer@example.com \
+  -e SMTP_USER=your_email \
+  -e SMTP_PASS=your_password \
+  -p 3030:3030 \
+  hello-club-service
+```
+
+**3. Run Dashboard as Separate Container**
+```bash
+# Start with dashboard profile
+docker-compose --profile dashboard up -d
+```
+
+**Docker Features:**
+- Built-in health checks
+- Automatic restarts
+- Volume persistence
+- Environment-based configuration
+- Small Alpine-based image
+- Production-ready logging
 
 ## Testing
 
