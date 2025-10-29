@@ -1,727 +1,1437 @@
-# Hello Club - Event Attendee Printout
+# Hello Club - Event Attendance Auto-Print
 
-## Description
+<div align="center">
 
-This command-line tool provides a robust, automated solution for generating and printing attendee lists for upcoming events from the Hello Club API. It is designed to be efficient by minimizing API calls while ensuring the final attendee list is as up-to-date as possible.
+**🎯 Enterprise-Grade Event Attendance List Automation**
 
-## Features
+[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)]()
 
-### Core Features
-- **Automated Event Fetching**: Automatically finds upcoming events within a configurable time window.
-- **Just-in-Time Attendee Lists**: Fetches the final attendee list moments before an event starts to capture last-minute sign-ups.
-- **Efficient API Usage**: A two-stage process reduces the load on the Hello Club API with built-in rate limiting.
-- **PDF Generation**: Creates a clean, printable PDF of the attendee list with customizable layout.
-- **Flexible Printing**: Supports printing to local printers or sending the PDF to a printer's email address.
-- **Highly Configurable**: Customize event categories, time windows, PDF layout, and more.
-- **Run as a Service**: Designed to run continuously in the background using a process manager like PM2.
+*Automatically fetch, generate, and print event attendance lists from Hello Club API with enterprise-level reliability*
 
-### Advanced Features
-- **Web Dashboard**: Windows-friendly GUI for monitoring service status and events.
-- **Webhook Notifications**: Send alerts to Slack, Discord, or custom webhooks on success/error.
-- **Multiple Printers**: Route different event categories to different printers.
-- **Advanced Filtering**: Filter events by keywords, attendee count, and payment status.
-- **Performance Metrics**: Track API usage, processing times, and service health.
-- **Configuration Hot-Reload**: Update config.json without restarting the service.
-- **Database Management**: Built-in commands for backup, restore, cleanup, and preview.
-- **Health Monitoring**: Comprehensive health checks with detailed status reporting.
-- **Docker Support**: Container-ready with docker-compose for easy deployment.
+[Features](#-features) • [Quick Start](#-quick-start) • [Installation](#-installation-options) • [Documentation](#-documentation) • [Windows Service](#-windows-service) • [Building .exe](#-standalone-executable)
 
-## How It Works
-
-The tool can be run as a continuous service or as two separate, scheduled commands.
-
-### The Two-Stage Process
-
-The core logic is split into two stages to ensure efficiency and accuracy:
-
-1.  **`fetch-events`**: This command queries the Hello Club API for all upcoming events within a configurable time window (e.g., the next 24 hours). It then stores these events in a local database. This command is designed to be run periodically (e.g., once every hour).
-2.  **`process-schedule`**: This command checks the local database for stored events that are about to start. When an event is within a configurable time window (e.g., 5 minutes from its start time), it makes one final API call to get the latest attendee list and generates a printable PDF. This command is designed to be run frequently (e.g., once every minute).
-
-### The `start-service` Command
-
-For ease of use, the `start-service` command combines both stages into a single, long-running process. It will periodically fetch events and constantly monitor the schedule to process printouts automatically. This is the recommended way to run the application.
-
-## Getting Started
-
-This guide will get you up and running quickly. For more detailed information, please refer to the sections below.
-
-1.  **Clone the Repository**
-    ```bash
-    git clone https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git
-    cd Hello-Club-Event-Attendance-Auto-Print
-    ```
-
-2.  **Configure Environment**
-    Create a `.env` file in the project root. You can copy the example file to get started:
-    ```bash
-    cp .env.example .env
-    ```
-    Now, edit the `.env` file and add your Hello Club `API_KEY`.
-
-3.  **Install Dependencies**
-    ```bash
-    npm install
-    ```
-
-4.  **Run the Service**
-    The easiest way to run the application is to use the `start-service` command, which handles everything automatically.
-    ```bash
-    npm start
-    ```
-    The service will now be running in the foreground. For production use, it is recommended to run this as a background service using a process manager like PM2 (see "Running as a Service" below).
+</div>
 
 ---
 
-## Installation
+## 📋 Table of Contents
 
-### Prerequisites
+- [Overview](#-overview)
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Installation Options](#-installation-options)
+- [How It Works](#-how-it-works)
+- [Configuration](#-configuration)
+- [Commands](#-commands)
+- [Windows Service](#-windows-service)
+- [Standalone Executable](#-standalone-executable)
+- [Monitoring & Observability](#-monitoring--observability)
+- [Production Features](#-production-features)
+- [Documentation](#-documentation)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [License](#-license)
 
-Before you begin, ensure you have the following installed on your system:
+---
 
-- **Node.js**: This project is built on Node.js. You can download it from [https://nodejs.org/](https://nodejs.org/).
-- **npm**: The Node Package Manager is included with Node.js and is used to manage the project's dependencies.
-- **Git**: You will need Git to clone the repository. You can download it from [https://git-scm.com/](https://git-scm.com/).
+## 🎯 Overview
 
-### Build Tools for `sqlite3`
+Hello Club Event Attendance Auto-Print is a production-ready automation tool that:
 
-One of this project's dependencies (`sqlite3`) may need to be compiled from source, which requires a build toolchain.
+- **Fetches** upcoming events from Hello Club API
+- **Generates** professional PDF attendance lists
+- **Prints** automatically via local printer or email
+- **Runs** as a Windows service with auto-start and auto-recovery
+- **Monitors** system health with web dashboard and Prometheus metrics
+- **Protects** against failures with circuit breakers and retry logic
+- **Backs up** data automatically with configurable retention
 
-- **Python**: Required by the `node-gyp` build tool. You can download it from [https://www.python.org/](https://www.python.org/).
-- **C++ Compiler**:
-    - **Windows:** Install the "Desktop development with C++" workload from the [Visual Studio Installer](https://visualstudio.microsoft.com/downloads/).
-    - **macOS:** Install the Xcode Command Line Tools by running `xcode-select --install`.
-    - **Linux:** Install a compiler like GCC (e.g., `sudo apt install build-essential`).
+Perfect for organizations, clubs, and event venues that need reliable, hands-free attendance list printing.
 
-> **Important for Python 3.12+ Users:** The `distutils` module has been removed from Python 3.12 and newer, which can cause an error when `node-gyp` tries to build `sqlite3`. To fix this, you must manually install `setuptools`:
->
-> ```bash
-> pip install setuptools
-> ```
+---
 
-### Local Printing Requirements
+## ✨ Features
 
-To print PDFs directly to a physical printer (`--print-mode local`), you may need additional software:
+### 🚀 Core Features
 
--   **Windows:** You must install **SumatraPDF**. You can download it from [https://www.sumatrapdfreader.org/free-pdf-reader](https://www.sumatrapdfreader.org/free-pdf-reader).
--   **macOS/Linux:** A printer must be configured through the system's printing service (e.g., CUPS).
+- ✅ **Automated Event Fetching** - Automatically discovers upcoming events within configurable time window
+- ✅ **Just-in-Time Processing** - Fetches final attendee list moments before event starts
+- ✅ **Smart API Usage** - Two-stage process minimizes API calls while maximizing data freshness
+- ✅ **Professional PDFs** - Clean, customizable PDF layouts with event details and attendee lists
+- ✅ **Flexible Printing** - Local printer support OR email-to-printer delivery
+- ✅ **SQLite Database** - Efficient local storage with WAL mode for better performance
+- ✅ **Category Filtering** - Process only specific event categories
+- ✅ **Highly Configurable** - Customize everything via config.json and .env
 
-### Installation Steps
+### 🛡️ Enterprise Features
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git
-    ```
+#### **Reliability & Resilience**
+- 🔄 **Circuit Breakers** - Automatic failure protection for API, email, printer, webhooks
+- 📬 **Dead Letter Queue** - Failed jobs stored for manual retry and investigation
+- ♻️ **Retry Logic** - Exponential backoff for transient failures
+- 🔐 **Auto-Recovery** - Service restarts automatically on crashes
 
-2.  **Navigate to the project directory:**
-    ```bash
-    cd Hello-Club-Event-Attendance-Auto-Print
-    ```
+#### **Security**
+- 🔒 **Secrets Masking** - Automatic masking of API keys, passwords, tokens in logs
+- 🛡️ **URL Validation** - SSRF attack prevention for webhooks
+- 🚫 **XSS Protection** - HTML escaping for web dashboard
+- 🔑 **Input Validation** - Comprehensive validation with Joi schemas
 
-3.  **Install the dependencies:**
-    ```bash
-    npm install
-    ```
+#### **Performance**
+- ⚡ **PDF Caching** - 5-minute TTL cache prevents redundant generation
+- 🗄️ **WAL Mode** - SQLite Write-Ahead Logging for better concurrency
+- 📊 **Database Optimization** - Tuned cache sizes and pragma settings
+- 🚀 **Connection Pooling** - Efficient resource utilization
 
-## Configuration
+#### **Observability**
+- 📈 **Prometheus Metrics** - HTTP server exposing standard metrics
+- 📊 **Web Dashboard** - Real-time status, events, and health checks
+- 📝 **Structured Logging** - Winston logger with file rotation
+- 🔍 **Distributed Tracing** - Request ID propagation
+- ❤️ **Health Checks** - Component-level status reporting
 
-The tool is configured using two files: `.env` for secrets and `config.json` for settings.
+#### **Data Protection**
+- 💾 **Automated Backups** - Scheduled backups with configurable intervals
+- 🔄 **Backup Rotation** - Age-based retention (default 30 days)
+- 📁 **Multi-File Backup** - Database, config, status, metrics, DLQ
+- 🆘 **Emergency Backup** - Before restore operations
 
-### 1. API Key & Email (`.env` file)
+### 🎛️ Advanced Features
 
-This file stores your Hello Club API key and email settings for the email print mode.
+- 🪝 **Webhook Notifications** - Slack, Discord, or custom webhooks for events
+- 🖨️ **Multi-Printer Routing** - Route categories to specific printers
+- 🔍 **Advanced Filtering** - Keywords, attendee count, payment status
+- 🔥 **Hot-Reload Config** - Update config.json without restart
+- 🐳 **Docker Support** - Container-ready with docker-compose
+- 🪟 **Windows Service** - Auto-start with Windows, GUI management
+- 📦 **Standalone Executable** - No Node.js required for end users
 
-1.  Create a file named `.env` in the root of the project directory.
-2.  Add your configuration to the file. `API_KEY` is always required. The other variables are only needed if you use the `email` print mode.
+### 🛠️ Developer Features
 
-    ```
-    # Required for API access
-    API_KEY=your_hello_club_api_key
+- ✅ **Comprehensive Tests** - Unit and integration test coverage
+- 🔄 **CI/CD Ready** - GitHub Actions workflow included
+- 📝 **TypeScript-Ready** - JSDoc comments for IntelliSense
+- 🔍 **Linting Support** - ESLint configuration ready
+- 📊 **Code Coverage** - Jest coverage reporting
+- 🔒 **Security Scanning** - npm audit, Snyk, TruffleHog, Trivy
 
-    # Required for Email Printing Mode (Defaults are for Gmail)
-    PRINTER_EMAIL=your_printer_email_address@domain.com
-    SMTP_USER=your_gmail_username_or_app_password
-    SMTP_PASS=your_gmail_app_password
-    EMAIL_FROM=sender_address@example.com
-    ```
+---
 
-### 2. Event & Print Settings (`config.json` file)
+## 🚀 Quick Start
 
-This file allows you to specify the default behavior for the script. Command-line options will always override the settings in this file.
+### **Option 1: Node.js** (For Developers)
 
-Example `config.json`:
-```json
+```bash
+# 1. Clone repository
+git clone https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git
+cd Hello-Club-Event-Attendance-Auto-Print
+
+# 2. Install dependencies
+npm install
+
+# 3. Configure
+cp .env.example .env
+# Edit .env and add your API_KEY
+
+cp config.json.example config.json
+# Edit config.json to customize settings
+
+# 4. Start service
+npm start
+```
+
+**✅ You're running!** Check the web dashboard at http://localhost:3030
+
+---
+
+### **Option 2: Windows Service** (For Production)
+
+```cmd
+# 1. Install dependencies
+npm install
+
+# 2. Configure .env and config.json (see above)
+
+# 3. Install as Windows service (NSSM - Recommended)
+Double-click "NSSM - Step 1 - Download NSSM.bat"
+Right-click "NSSM - Step 2 - Install Service.bat" → Run as administrator
+
+# OR use node-windows
+Right-click "Install Service.bat" → Run as administrator
+```
+
+**✅ Service installed!** Auto-starts with Windows, runs in background
+
+See [Windows Service](#-windows-service) for details
+
+---
+
+### **Option 3: Standalone Executable** (For Non-Technical Users)
+
+```cmd
+# For developers: Build the executable
+Double-click "Build Executable.bat"            # Builds hello-club.exe
+Double-click "Build Distribution Package.bat"  # Creates portable package
+
+# For end users: Run the executable
+1. Extract HelloClub-Portable.zip
+2. Copy .env.example to .env, add API_KEY
+3. Copy config.json.example to config.json
+4. Double-click "Start Service.bat"
+```
+
+**✅ Running without Node.js!** Perfect for distribution
+
+See [Standalone Executable](#-standalone-executable) for details
+
+---
+
+## 📦 Installation Options
+
+Choose the installation method that fits your needs:
+
+| Method | Best For | Requires Node.js | Complexity | Auto-Start |
+|--------|----------|------------------|------------|------------|
+| **Node.js** | Developers, testing | ✅ Yes | ⭐ Easy | ❌ No |
+| **Windows Service (NSSM)** | Production, servers | ✅ Yes | ⭐⭐ Medium | ✅ Yes |
+| **Windows Service (node-windows)** | Quick production setup | ✅ Yes | ⭐ Easy | ✅ Yes |
+| **Standalone .exe** | End users, distribution | ❌ No | ⭐⭐⭐ Advanced | ⚙️ Optional |
+| **Docker** | Containers, cloud | ❌ No | ⭐⭐ Medium | ✅ Yes |
+
+### **Detailed Installation**
+
+#### **Prerequisites**
+
+- **Node.js** v16+ (except for standalone .exe)
+- **npm** (comes with Node.js)
+- **API Key** from Hello Club
+- **Windows 10+**, Linux, or macOS
+
+For building from source:
+- **Python 3.x** (for native modules)
+- **C++ Compiler** (Windows: Visual Studio, Mac: Xcode, Linux: GCC)
+
+#### **Step-by-Step Installation**
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git
+cd Hello-Club-Event-Attendance-Auto-Print
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up environment variables
+cp .env.example .env
+```
+
+Edit `.env`:
+```env
+# Required
+API_KEY=your_hello_club_api_key_here
+
+# Optional - API Configuration
+API_BASE_URL=https://api.helloclub.com
+
+# Optional - Email Printing (if using printMode: "email")
+PRINTER_EMAIL=printer@example.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+EMAIL_FROM=your_email@gmail.com
+
+# Optional - Logging
+LOG_TO_CONSOLE=true
+NODE_ENV=production
+```
+
+```bash
+# 4. Set up configuration
+cp config.json.example config.json
+```
+
+Edit `config.json` (see [Configuration](#-configuration))
+
+```bash
+# 5. Test the installation
+node src/index.js health-check
+
+# 6. Start the service
+npm start
+```
+
+---
+
+## ⚙️ How It Works
+
+### **Architecture Overview**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Hello Club Auto-Print                        │
+└─────────────────────────────────────────────────────────────────────┘
+                                   │
+                    ┌──────────────┼──────────────┐
+                    │                             │
+         ┌──────────▼──────────┐      ┌──────────▼──────────┐
+         │   fetch-events      │      │  process-schedule   │
+         │  (Hourly/Daily)     │      │   (Every minute)    │
+         └──────────┬──────────┘      └──────────┬──────────┘
+                    │                             │
+         ┌──────────▼──────────┐      ┌──────────▼──────────┐
+         │  Hello Club API     │      │  SQLite Database    │
+         │  ┌──────────────┐   │      │  ┌──────────────┐   │
+         │  │ GET /event   │   │      │  │SELECT events │   │
+         │  │ GET /attend. │   │      │  │WHERE pending │   │
+         │  └──────────────┘   │      │  └──────────────┘   │
+         └──────────┬──────────┘      └──────────┬──────────┘
+                    │                             │
+         ┌──────────▼──────────┐      ┌──────────▼──────────┐
+         │  Circuit Breaker    │      │   PDF Generator     │
+         │  ┌──────────────┐   │      │  ┌──────────────┐   │
+         │  │ API Circuit  │   │      │  │ PDFKit       │   │
+         │  └──────────────┘   │      │  └──────────────┘   │
+         └──────────┬──────────┘      └──────────┬──────────┘
+                    │                             │
+         ┌──────────▼──────────┐      ┌──────────▼──────────┐
+         │  Store in Database  │      │    PDF Cache        │
+         │  events.db (SQLite) │      │  ┌──────────────┐   │
+         └─────────────────────┘      │  │ 5-min TTL    │   │
+                                      │  └──────────────┘   │
+                                      └──────────┬──────────┘
+                                                 │
+                                      ┌──────────▼──────────┐
+                                      │   Print/Email       │
+                                      │  ┌──────────────┐   │
+                                      │  │Local Printer │   │
+                                      │  │  OR Email    │   │
+                                      │  └──────────────┘   │
+                                      └──────────┬──────────┘
+                                                 │
+                                      ┌──────────▼──────────┐
+                                      │  Circuit Breaker    │
+                                      │  ┌──────────────┐   │
+                                      │  │Printer/Email │   │
+                                      │  └──────────────┘   │
+                                      └─────────────────────┘
+```
+
+### **Two-Stage Process**
+
+#### **Stage 1: Event Discovery** (`fetch-events`)
+- Runs periodically (hourly/daily)
+- Queries Hello Club API for upcoming events
+- Applies category filters
+- Stores events in SQLite database
+- **Protected by:** API circuit breaker, rate limiting
+
+#### **Stage 2: Just-in-Time Processing** (`process-schedule`)
+- Runs frequently (every minute)
+- Checks database for upcoming events
+- When event is near (e.g., 60 min before):
+  - Fetches latest attendee list
+  - Generates PDF (or uses cache)
+  - Prints via local printer or email
+- **Protected by:** Circuit breakers, DLQ, retry logic
+
+### **Service Mode** (`start-service`)
+
+Combines both stages into one continuous process:
+- Runs `fetch-events` on schedule (e.g., every 24 hours)
+- Continuously monitors for events to process
+- Auto-recovers from failures
+- Logs everything to files
+- Provides web dashboard for monitoring
+
+---
+
+## 🔧 Configuration
+
+### **Environment Variables** (`.env`)
+
+```env
+# ============================================================================
+# REQUIRED
+# ============================================================================
+
+# Your Hello Club API key (REQUIRED)
+API_KEY=your_api_key_here
+
+# ============================================================================
+# OPTIONAL - API Configuration
+# ============================================================================
+
+# API base URL (default: https://api.helloclub.com)
+# API_BASE_URL=https://api.helloclub.com
+
+# ============================================================================
+# OPTIONAL - Email Printing Configuration
+# Only needed if printMode is set to "email" in config.json
+# ============================================================================
+
+# Printer's email address
+PRINTER_EMAIL=printer@example.com
+
+# SMTP server settings
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password_here
+
+# Email "from" address
+EMAIL_FROM=your_email@gmail.com
+
+# ============================================================================
+# OPTIONAL - Logging Configuration
+# ============================================================================
+
+# Enable console logging in production (default: false)
+LOG_TO_CONSOLE=true
+
+# Environment (development or production)
+NODE_ENV=production
+```
+
+### **Application Configuration** (`config.json`)
+
+```jsonc
 {
-  "categories": ["NBA - Junior Events", "Pickleball"],
-  "fetchWindowHours": 24,
-  "preEventQueryMinutes": 5,
-  "serviceRunIntervalHours": 1,
-  "outputFilename": "attendees.pdf",
+  // ========================================================================
+  // Event Filtering
+  // ========================================================================
+
+  // Event categories to process (empty array = all categories)
+  "categories": ["Sports", "Social"],
+
+  // ========================================================================
+  // Timing Configuration
+  // ========================================================================
+
+  // How far ahead to fetch events (in hours)
+  // Default: 168 hours (7 days)
+  "fetchWindowHours": 168,
+
+  // How many minutes before event to fetch attendees and print
+  // Default: 60 minutes
+  "preEventQueryMinutes": 60,
+
+  // How often to fetch new events (in hours)
+  // Only used in service mode
+  // Default: 24 hours
+  "serviceRunIntervalHours": 24,
+
+  // ========================================================================
+  // Printing Configuration
+  // ========================================================================
+
+  // Print mode: "local" or "email"
+  "printMode": "local",
+
+  // PDF filename (default: "attendance.pdf")
+  "outputFilename": "attendance.pdf",
+
+  // PDF layout customization
   "pdfLayout": {
-    "logo": null,
+    "title": "Event Attendance List",
     "fontSize": 10,
-    "columns": [
-      { "id": "name", "header": "Name", "width": 140 },
-      { "id": "phone", "header": "Phone", "width": 100 },
-      { "id": "signUpDate", "header": "Signed up", "width": 100 },
-      { "id": "fee", "header": "Fee", "width": 60 },
-      { "id": "status", "header": "Status", "width": 90 }
-    ]
-  }
-}
-```
-- `categories`: A list of event category names to process. An empty list `[]` processes all categories.
-- `fetchWindowHours`: How many hours to look ahead for upcoming events. (Default: 24)
-- `preEventQueryMinutes`: How many minutes before an event starts to perform the final query for attendees. (Default: 5)
-- `serviceRunIntervalHours`: How often (in hours) the `start-service` command should re-fetch the list of upcoming events. (Default: 1)
-- `outputFilename`: The default name for the generated PDF file. (Default: "attendees.pdf")
-- `pdfLayout`: Configuration for the PDF's appearance. The `"id"` for a column must match a data field from the Hello Club API.
+    "margin": 50,
+    "headerColor": "#333333"
+  },
 
-### 3. Advanced Configuration (Optional)
+  // ========================================================================
+  // Multi-Printer Routing (Optional)
+  // Route specific event categories to specific printers
+  // ========================================================================
 
-The following advanced features can be added to your `config.json`:
-
-#### Webhooks & Notifications
-
-Send notifications to Slack, Discord, or custom webhooks when events are processed or errors occur:
-
-```json
-{
-  "webhooks": {
-    "onSuccess": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
-    "onError": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
-    "onWarning": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL"
-  }
-}
-```
-
-Supports Slack, Discord, and generic webhooks.
-
-#### Multiple Printers
-
-Route events to different printers based on category:
-
-```json
-{
   "printers": {
-    "NBA - Junior Events": {
+    "Sports": {
       "type": "local",
-      "name": "HP LaserJet Pro"
+      "name": "HP_LaserJet_Sports"
     },
-    "Pickleball": {
+    "Social": {
       "type": "email",
-      "email": "pickleball-printer@example.com"
+      "email": "social-printer@example.com"
     }
-  }
-}
-```
+  },
 
-#### Event Filters
+  // ========================================================================
+  // Advanced Filtering (Optional)
+  // ========================================================================
 
-Apply advanced filtering beyond categories:
-
-```json
-{
   "filters": {
-    "includeKeywords": ["tournament", "championship"],
-    "excludeKeywords": ["cancelled", "test"],
-    "onlyPaidEvents": false,
-    "onlyFreeEvents": false,
-    "minAttendees": 5,
-    "maxAttendees": 100
-  }
-}
-```
+    // Keyword filtering
+    "keywords": {
+      "include": ["tournament", "championship"],
+      "exclude": ["cancelled", "postponed"]
+    },
 
-**Note:** `minAttendees` and `maxAttendees` are expensive to evaluate and should be used sparingly.
+    // Attendee count filtering
+    "attendeeCount": {
+      "min": 5,
+      "max": 100
+    },
 
-#### PDF Layout Extensions
+    // Payment status filtering
+    "paymentStatus": ["paid", "pending"]
+  },
 
-Customize PDF appearance with watermarks, headers, and footers:
+  // ========================================================================
+  // Webhook Notifications (Optional)
+  // ========================================================================
 
-```json
-{
-  "pdfLayout": {
-    "logo": null,
-    "fontSize": 10,
-    "columns": [...],
-    "headerText": "Hello Club Events",
-    "footerText": "Generated by Hello Club Auto-Print",
-    "watermark": "DRAFT"
-  }
-}
-```
+  "webhooks": {
+    // Fired when event is processed successfully
+    "onSuccess": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
 
-#### Configuration Hot-Reload
+    // Fired when an error occurs
+    "onError": "https://hooks.slack.com/services/YOUR/ERROR/URL",
 
-Enable automatic configuration reloading without restart:
+    // Fired when service starts
+    "onStart": "https://hooks.slack.com/services/YOUR/START/URL",
 
-```json
-{
+    // Fired on health warnings
+    "onWarning": "https://hooks.slack.com/services/YOUR/WARNING/URL"
+  },
+
+  // ========================================================================
+  // Configuration Hot-Reload (Optional)
+  // ========================================================================
+
+  // Watch config.json for changes and reload without restart
   "watchConfig": true
 }
 ```
 
-When enabled, the service will automatically detect changes to `config.json` and reload the configuration. Note that some changes (like intervals) require a service restart.
+### **Example Configurations**
 
-## Usage
+#### **Minimal Configuration**
+```json
+{
+  "categories": [],
+  "fetchWindowHours": 168,
+  "preEventQueryMinutes": 60,
+  "printMode": "local",
+  "serviceRunIntervalHours": 24
+}
+```
 
-The application can be run using one of three commands.
+#### **Email Printing**
+```json
+{
+  "categories": [],
+  "fetchWindowHours": 168,
+  "preEventQueryMinutes": 60,
+  "printMode": "email",
+  "serviceRunIntervalHours": 24
+}
+```
 
-### `fetch-events`
+Also set in `.env`:
+```env
+PRINTER_EMAIL=printer@example.com
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+```
 
-Finds and stores upcoming events. Should be run periodically if not using the `start-service` command.
+#### **Multi-Printer with Webhooks**
+```json
+{
+  "categories": ["Sports", "Social", "Arts"],
+  "fetchWindowHours": 168,
+  "preEventQueryMinutes": 60,
+  "printMode": "local",
+  "serviceRunIntervalHours": 24,
+  "printers": {
+    "Sports": {
+      "type": "local",
+      "name": "Sports_Printer"
+    },
+    "Social": {
+      "type": "local",
+      "name": "Social_Printer"
+    },
+    "Arts": {
+      "type": "email",
+      "email": "arts-printer@example.com"
+    }
+  },
+  "webhooks": {
+    "onSuccess": "https://hooks.slack.com/services/YOUR/WEBHOOK/URL",
+    "onError": "https://hooks.slack.com/services/YOUR/ERROR/URL"
+  }
+}
+```
 
-**Usage:**
+---
+
+## 💻 Commands
+
+### **Service Management**
+
 ```bash
-node src/index.js fetch-events [options]
-```
+# Start as continuous service (recommended)
+node src/index.js start-service
+# OR
+npm start
 
-**Options:**
-- `--category "Category Name"` (`-c`): Overrides the `categories` in `config.json`. Use the flag multiple times for multiple categories.
-- `--fetch-window-hours <hours>` (`--fwh`): Overrides the `fetchWindowHours` in `config.json`.
-
-### `process-schedule`
-
-Processes stored events that are about to start. Should be run frequently if not using the `start-service` command.
-
-**Usage:**
-```bash
-node src/index.js process-schedule [options]
-```
-
-**Options:**
-- `--pre-event-query-minutes <minutes>` (`-w`): Overrides the `preEventQueryMinutes` in `config.json`.
-- `--output <filename>` (`-o`): Overrides the `outputFilename` in `config.json`.
-- `--print-mode <mode>` (`-p`): Sets the print mode (`local` or `email`).
-
-### `start-service`
-
-Runs the entire fetch and process cycle continuously. **This is the recommended command for automation.**
-
-**Usage:**
-```bash
-node src/index.js start-service [options]
-```
-This command accepts all options available to `fetch-events` and `process-schedule`.
-
-### `health-check`
-
-Checks the health and status of the running service. This command is essential for monitoring and troubleshooting in production.
-
-**Usage:**
-```bash
-node src/index.js health-check
-```
-
-**What it checks:**
-- Service running status (heartbeat monitoring)
-- Database connectivity and event counts
-- Log file status and timestamps
-- Required environment variables
-- Last successful fetch and process operations
-- Recent errors (if any)
-- Current service configuration
-
-**Exit codes:**
-- `0` - Service is healthy
-- `1` - Service is unhealthy (errors detected)
-- `2` - Service is degraded (warnings detected)
-
-**Example output:**
-```
-========================================
-  Hello Club Service - Health Check
-========================================
-
-Overall Status: HEALTHY
-
-Check Time: 2024-01-15T10:30:00.000Z
-
-✓ serviceRunning: OK
-  Service is active (last heartbeat 45s ago)
-✓ database: OK
-  Total Events: 15
-  Pending: 3
-  Processed: 12
-✓ logFiles: OK
-  activity.log: 45231 bytes (modified: 2024-01-15T10:29:30.000Z)
-  error.log: 1024 bytes (modified: 2024-01-15T09:00:00.000Z)
-✓ environment: OK
-  All required environment variables are set
-
-========================================
-```
-
-### NEW: Additional Commands
-
-The application now includes many additional commands for database management, testing, and monitoring.
-
-#### `dashboard` - Web-Based GUI (Windows-Friendly!)
-
-Start a web-based dashboard for monitoring the service status. Perfect for Windows users who prefer a GUI!
-
-**Usage:**
-```bash
+# Start web dashboard (monitoring GUI)
 node src/index.js dashboard [--port 3030]
-
-# Or on Windows, just double-click:
-start-dashboard.bat
 ```
 
-Opens a browser-based dashboard at `http://localhost:3030` showing:
-- Real-time service status
-- Event counts (total/pending/processed)
-- System health checks
-- Recent events
-- Configuration details
-- Auto-refreshes every 30 seconds
+### **Manual Operations**
 
-#### `list-events` - View Database Contents
-
-List all events in the database with optional filtering.
-
-**Usage:**
 ```bash
+# Fetch upcoming events from API
+node src/index.js fetch-events
+
+# Process events that are due for printing
+node src/index.js process-schedule
+
+# Preview a specific event
+node src/index.js preview-event <eventId>
+```
+
+### **Database Management**
+
+```bash
+# List events in database
 node src/index.js list-events [--status all|pending|processed] [--limit 50]
+
+# Clean up old processed events
+node src/index.js cleanup [--days 30] [--dry-run]
+
+# Backup database
+node src/index.js backup [path]
+
+# Restore database from backup
+node src/index.js restore <path>
 ```
 
-#### `cleanup` - Database Maintenance
+### **Testing & Diagnostics**
 
-Remove old processed events to keep database size manageable.
-
-**Usage:**
 ```bash
-# Preview what would be deleted
-node src/index.js cleanup --days 30 --dry-run
+# Health check (checks all components)
+node src/index.js health-check
 
-# Actually delete
-node src/index.js cleanup --days 30
-```
+# Test email configuration
+node src/index.js test-email [recipient]
 
-#### `preview-event` - Preview Event Details
-
-See event details and attendee information before processing.
-
-**Usage:**
-```bash
-node src/index.js preview-event <event-id>
-```
-
-Shows:
-- Event details (name, date, location, categories)
-- Attendee count
-- Payment summary
-- First 10 attendees
-
-#### `test-email` - Test Email Configuration
-
-Verify your email/SMTP settings by sending a test message.
-
-**Usage:**
-```bash
-node src/index.js test-email [recipient@example.com]
-```
-
-Sends a test email with a PDF attachment to verify your setup.
-
-#### `test-printer` - Test Printer Configuration
-
-Verify your local printer setup.
-
-**Usage:**
-```bash
+# Test local printer
 node src/index.js test-printer [printer-name]
-```
 
-Sends a test document to your printer.
-
-#### `backup` - Create Database Backup
-
-Create a timestamped backup of your database.
-
-**Usage:**
-```bash
-node src/index.js backup [path/to/backup.db]
-```
-
-#### `restore` - Restore from Backup
-
-Restore your database from a backup file.
-
-**Usage:**
-```bash
-node src/index.js restore path/to/backup.db
-```
-
-**Note:** Creates an emergency backup before restoring.
-
-#### `metrics` - Performance Metrics Dashboard
-
-Display performance metrics and statistics about the service.
-
-**Usage:**
-```bash
-node src/index.js metrics
-```
-
-Shows:
-- Total events processed, fetched, and errors
-- API call statistics
-- Average processing times
-- Uptime and last reset time
-- Per-operation metrics
-
-#### `metrics-reset` - Reset Metrics
-
-Reset all performance metrics data to start fresh.
-
-**Usage:**
-```bash
-node src/index.js metrics-reset
-```
-
-#### `api-stats` - API Rate Limiting Dashboard
-
-Display API usage statistics and rate limit information.
-
-**Usage:**
-```bash
+# View API statistics
 node src/index.js api-stats [--minutes 60]
 ```
 
-Shows:
-- API rate limit status (remaining requests, reset time)
-- Visual progress bar of rate limit usage
-- Total API calls in time window
-- Calls per minute
-- Recent call history
-- Per-endpoint statistics
+### **Monitoring & Metrics**
 
-## Running as a Service (Automation)
-
-To achieve full automation, the application should be run as a persistent background service.
-
-### Method 1: Using PM2 (Recommended)
-
-PM2 is a production process manager for Node.js applications that keeps your service alive.
-
-**1. Install PM2**
-If you don't have PM2 installed, install it globally using `npm`:
 ```bash
-npm install pm2 -g
+# Start Prometheus metrics server
+node src/index.js metrics-server [--port 9090]
+
+# View application metrics
+node src/index.js metrics
+
+# Reset metrics
+node src/index.js metrics-reset
+
+# View/manage circuit breakers
+node src/index.js circuit-breaker-status
+node src/index.js circuit-breaker-reset <name>
+
+# View/manage dead letter queue
+node src/index.js dlq
+node src/index.js dlq-retry <id>
+node src/index.js dlq-cleanup [--days 30]
 ```
 
-**2. Start the Service**
-Navigate to the project directory and use the following command to start the application with PM2.
-```bash
-pm2 start src/index.js --name "hello-club-service" -- -- start-service
-```
-- `pm2 start src/index.js`: Tells PM2 to execute the main script at `src/index.js`. Using the script file directly is more reliable than using `npm` across different platforms.
-- `--name "hello-club-service"`: Gives the process a memorable name.
-- `-- -- start-service`: The double dash (`--`) separates `pm2` options from your script's arguments. `start-service` is the command passed to your application.
+### **Backup Management**
 
-**3. Enable Automatic Startup**
-To ensure the service restarts when your computer reboots, run this command and follow the on-screen instructions:
 ```bash
-pm2 startup
+# Schedule automated backups
+node src/index.js backup-schedule [--interval 24]
+
+# List all backups
+node src/index.js backup-list
+
+# Rotate old backups
+node src/index.js backup-rotate [--days 30]
 ```
 
-**4. Save the Process List**
-Save the current process list so PM2 knows what to restart on boot:
+### **Cache Management**
+
 ```bash
-pm2 save
+# View PDF cache statistics
+node src/index.js cache-stats
+
+# Clear PDF cache
+node src/index.js cache-clear
 ```
 
-**5. Managing the Service**
-- **Check status:** `pm2 status`
-- **View logs:** `pm2 logs hello-club-service`
-- **Stop the service:** `pm2 stop hello-club-service`
-- **Restart the service:** `pm2 restart hello-club-service`
-- **Delete the service:** `pm2 delete hello-club-service`
+### **Help**
 
-### Method 2: Using Windows Task Scheduler (Alternative)
-
-If you are on Windows and prefer not to use PM2, you can schedule two separate tasks.
-
-**Task 1: Fetch Events (Run Periodically)**
-- **Frequency:** Every 1 to 4 hours.
-- **Action:**
-    - Program/script: `C:\Program Files\nodejs\node.exe`
-    - Add arguments: `src/index.js fetch-events`
-    - Start in: `C:\path\to\your\project`
-
-**Task 2: Process Schedule (Run Frequently)
-- **Frequency:** Every 1 to 5 minutes.
-- **Action:**
-    - Program/script: `C:\Program Files\nodejs\node.exe`
-    - Add arguments: `src/index.js process-schedule`
-    - Start in: `C:\path\to\your\project`
-
-### Method 3: Using Docker (Modern Deployment)
-
-Docker provides isolated, reproducible deployments perfect for production servers.
-
-**1. Build and Start with Docker Compose**
 ```bash
-# Create .env file with your configuration
+# Show all available commands
+node src/index.js --help
+
+# Show version
+node src/index.js --version
+```
+
+---
+
+## 🪟 Windows Service
+
+Run Hello Club as a Windows service that starts automatically with Windows and restarts on failure.
+
+### **Option 1: NSSM** (Recommended - Most Reliable)
+
+**Why NSSM:**
+- ✅ Production-grade reliability
+- ✅ Full GUI configuration
+- ✅ Built-in log rotation
+- ✅ Easy updates (just restart, no reinstall)
+- ✅ Industry standard
+
+**Installation:**
+
+```cmd
+# Step 1: Download NSSM
+Double-click "NSSM - Step 1 - Download NSSM.bat"
+
+# Step 2: Install Service (as Administrator)
+Right-click "NSSM - Step 2 - Install Service.bat"
+Select "Run as administrator"
+
+# Step 3: Verify
+Double-click "Start Dashboard.bat"
+Open http://localhost:3030
+```
+
+**Management:**
+
+```cmd
+# GUI Management Menu
+Double-click "NSSM - Manage Service.bat"
+
+# Options:
+# 1. Start Service
+# 2. Stop Service
+# 3. Restart Service
+# 4. View Status
+# 5. Edit Configuration (opens GUI)
+# 6. View Logs
+# 7. Uninstall Service
+# 8. Open Windows Services
+```
+
+**Service Details:**
+- **Name:** HelloClubAttendance
+- **Display Name:** Hello Club Event Attendance
+- **Startup:** Automatic
+- **Restart:** On failure (5 second delay)
+- **Logs:** activity.log, error.log (10MB rotation)
+
+See [NSSM-QUICK-START.md](NSSM-QUICK-START.md) for full guide.
+
+---
+
+### **Option 2: node-windows** (Quick Setup)
+
+**Why node-windows:**
+- ✅ Quick installation
+- ✅ No downloads needed
+- ✅ Good for testing
+
+**Installation:**
+
+```cmd
+# Install (as Administrator)
+Right-click "Install Service.bat"
+Select "Run as administrator"
+
+# Uninstall (as Administrator)
+Right-click "Uninstall Service.bat"
+Select "Run as administrator"
+```
+
+See [WINDOWS-SERVICE-SETUP.md](WINDOWS-SERVICE-SETUP.md) for details.
+
+---
+
+### **Managing Windows Service**
+
+**Windows Services GUI:**
+```cmd
+# Open Services
+Press Win+R → type "services.msc" → Enter
+
+# Find "HelloClubAttendance" or "Hello Club Event Attendance"
+# Right-click for Start/Stop/Restart/Properties
+```
+
+**Command Line:**
+```cmd
+# Start
+net start HelloClubAttendance
+
+# Stop
+net stop HelloClubAttendance
+
+# Restart
+net stop HelloClubAttendance && net start HelloClubAttendance
+
+# Check status
+sc query HelloClubAttendance
+```
+
+**Updating the Application:**
+```cmd
+# 1. Stop service
+net stop HelloClubAttendance
+
+# 2. Update code
+git pull
+npm install
+
+# 3. Start service
+net start HelloClubAttendance
+
+# No reinstall needed!
+```
+
+---
+
+## 📦 Standalone Executable
+
+Build Hello Club as a standalone `.exe` that **does NOT require Node.js** on end-user machines.
+
+### **Building the Executable**
+
+```cmd
+# Step 1: Build executable (~2-5 minutes)
+Double-click "Build Executable.bat"
+# Creates: dist/hello-club.exe (~80-100MB)
+
+# Step 2: Create distribution package
+Double-click "Build Distribution Package.bat"
+# Creates: dist/HelloClub-Portable/ and dist/HelloClub-Portable.zip
+```
+
+### **Distribution Package Contents**
+
+```
+HelloClub-Portable/
+├── hello-club.exe              # Standalone executable
+├── .env.example                # Configuration template
+├── config.json.example         # Settings template
+├── QUICK-START-EXE.md         # User guide
+├── README.md                   # Full documentation
+├── Start Service.bat           # Launch service
+├── Start Dashboard.bat         # Open dashboard
+├── Show Commands.bat           # List commands
+├── Health Check.bat            # Check status
+└── backups/                    # Backup folder
+```
+
+### **For End Users** (No Node.js Required!)
+
+```cmd
+# 1. Extract HelloClub-Portable.zip
+
+# 2. Copy .env.example to .env
+# Edit .env and add your API_KEY
+
+# 3. Copy config.json.example to config.json
+# Customize settings if needed
+
+# 4. Double-click "Start Service.bat"
+
+# Done! No Node.js installation needed!
+```
+
+### **All Commands Work**
+
+```cmd
+# Use exe instead of node
+hello-club.exe start-service
+hello-club.exe dashboard
+hello-club.exe health-check
+hello-club.exe --help
+# ... all commands supported
+```
+
+### **Installing as Windows Service** (with exe)
+
+```cmd
+# Using NSSM (recommended)
+nssm install HelloClubAttendance
+# In GUI:
+#   Path: C:\path\to\hello-club.exe
+#   Arguments: start-service
+
+# Using sc command
+sc create HelloClubAttendance binPath= "C:\path\to\hello-club.exe start-service" start= auto
+sc start HelloClubAttendance
+```
+
+See [BUILDING-EXECUTABLE.md](BUILDING-EXECUTABLE.md) for complete guide.
+
+---
+
+## 📊 Monitoring & Observability
+
+### **Web Dashboard**
+
+Real-time monitoring interface:
+
+```bash
+# Start dashboard
+node src/index.js dashboard
+# OR
+Double-click "Start Dashboard.bat"
+
+# Open browser
+http://localhost:3030
+```
+
+**Features:**
+- ✅ Real-time service status
+- ✅ Event statistics (total, pending, processed)
+- ✅ System health checks
+- ✅ Configuration display
+- ✅ Recent events list
+- ✅ Auto-refresh (30 seconds)
+
+### **Prometheus Metrics**
+
+Expose metrics in Prometheus format:
+
+```bash
+# Start metrics server
+node src/index.js metrics-server --port 9090
+
+# Access metrics
+curl http://localhost:9090/metrics
+
+# Health endpoint
+curl http://localhost:9090/health
+```
+
+**Available Metrics:**
+- Circuit breaker states and statistics
+- Dead letter queue metrics
+- Backup status
+- Database metrics
+- Node.js process metrics (memory, uptime)
+- Custom application metrics
+
+**Configure Prometheus:**
+```yaml
+scrape_configs:
+  - job_name: 'hello-club'
+    static_configs:
+      - targets: ['localhost:9090']
+```
+
+### **Logging**
+
+**Log Files:**
+- `activity.log` - All operations (info level)
+- `error.log` - Errors only
+- `status.json` - Service status snapshot
+- `metrics.json` - Application metrics
+
+**Features:**
+- ✅ Winston logger with structured logging
+- ✅ Automatic secrets masking (API keys, passwords hidden)
+- ✅ Timestamp, log level, context
+- ✅ Stack traces for errors
+- ✅ Console output (development)
+
+**View Logs:**
+```cmd
+# GUI
+Double-click "View Logs.bat"
+
+# Command line
+type activity.log
+type error.log
+
+# Live tail
+powershell -command "Get-Content activity.log -Tail 50 -Wait"
+```
+
+### **Health Checks**
+
+```bash
+# Run health check
+node src/index.js health-check
+```
+
+**Checks:**
+- ✅ Database connectivity
+- ✅ API reachability
+- ✅ Configuration validity
+- ✅ Disk space
+- ✅ Email configuration (if used)
+- ✅ Printer availability (if local)
+- ✅ Circuit breaker states
+- ✅ Dead letter queue size
+
+**Output:**
+```
+OVERALL STATUS: HEALTHY
+
+Database:        OK
+API Connection:  OK
+Email Config:    OK (or N/A)
+Printer:         OK (or N/A)
+Disk Space:      OK
+Config Valid:    OK
+API Circuit:     CLOSED (healthy)
+Email Circuit:   CLOSED (healthy)
+```
+
+---
+
+## 🛡️ Production Features
+
+### **Circuit Breakers**
+
+Protect against cascading failures:
+
+```javascript
+// Automatically wraps:
+// - API calls (getEventDetails, getUpcomingEvents, getAllAttendees)
+// - Email sending
+// - Printer operations
+// - Webhook calls
+```
+
+**States:**
+- **CLOSED** - Normal operation
+- **OPEN** - Too many failures, rejecting calls
+- **HALF_OPEN** - Testing recovery
+
+**Management:**
+```bash
+# View circuit breaker status
+node src/index.js circuit-breaker-status
+
+# Reset circuit breaker
+node src/index.js circuit-breaker-reset api
+node src/index.js circuit-breaker-reset email
+node src/index.js circuit-breaker-reset printer
+node src/index.js circuit-breaker-reset webhook
+```
+
+### **Dead Letter Queue**
+
+Failed jobs stored for investigation:
+
+```bash
+# View failed jobs
+node src/index.js dlq
+
+# Retry specific job
+node src/index.js dlq-retry <job-id>
+
+# Cleanup old entries
+node src/index.js dlq-cleanup --days 30
+```
+
+**Storage:** `dead-letter-queue.json`
+
+**Contains:**
+- Job type (print, email, etc.)
+- Failed data
+- Error message and stack trace
+- Retry count
+- Timestamp
+
+### **Automated Backups**
+
+```bash
+# Schedule backups (in service mode)
+# Runs automatically every 24 hours
+
+# Manual commands
+node src/index.js backup-schedule --interval 24
+node src/index.js backup-list
+node src/index.js backup-rotate --days 30
+```
+
+**Backs up:**
+- events.db (SQLite database)
+- status.json (service status)
+- metrics.json (metrics data)
+- dead-letter-queue.json (failed jobs)
+- config.json (configuration)
+
+**Location:** `backups/` folder
+**Naming:** `<filename>_backup_YYYY-MM-DD_HH-mm-ss.<ext>`
+**Retention:** Configurable (default 30 days)
+
+### **PDF Caching**
+
+Prevents redundant PDF generation:
+
+- **Cache Key:** MD5 hash of event + attendees
+- **TTL:** 5 minutes
+- **Location:** `.pdf-cache/`
+- **Auto-cleanup:** Every minute
+
+```bash
+# View cache statistics
+node src/index.js cache-stats
+
+# Clear cache
+node src/index.js cache-clear
+```
+
+### **Retry Logic**
+
+Exponential backoff for transient failures:
+
+- **Initial delay:** 2 seconds
+- **Max attempts:** 3
+- **Backoff:** Exponential with jitter
+- **Applies to:** API calls, email, printing
+
+### **Rate Limiting**
+
+API rate limiting and tracking:
+
+```bash
+# View API statistics
+node src/index.js api-stats --minutes 60
+```
+
+**Tracks:**
+- Request count per endpoint
+- Response times
+- Rate limit headers
+- Error rates
+
+---
+
+## 📚 Documentation
+
+Comprehensive documentation included:
+
+| Document | Purpose |
+|----------|---------|
+| **README.md** | Main documentation (this file) |
+| **WINDOWS-SERVICE-SETUP.md** | Complete Windows service guide |
+| **NSSM-QUICK-START.md** | NSSM installation and management |
+| **BUILDING-EXECUTABLE.md** | Building standalone .exe |
+| **IMPROVEMENTS-FEATURES-1-6.md** | Enterprise features implementation |
+| **QUICK-START-EXE.md** | End-user guide for .exe version |
+| **.env.example** | Environment variable template |
+| **config.json.example** | Configuration template |
+
+### **Quick Links**
+
+- [Windows Service Setup](WINDOWS-SERVICE-SETUP.md)
+- [NSSM Guide](NSSM-QUICK-START.md)
+- [Building Executable](BUILDING-EXECUTABLE.md)
+- [Feature Implementation](IMPROVEMENTS-FEATURES-1-6.md)
+
+---
+
+## 🐛 Troubleshooting
+
+### **Common Issues**
+
+#### **"API_KEY not found"**
+```bash
+# Solution: Create .env file
 cp .env.example .env
-# Edit .env with your API keys and settings
+# Edit .env and add your API_KEY
+```
 
-# Start the service
+#### **"config.json not found"**
+```bash
+# Solution: Create config.json
+cp config.json.example config.json
+```
+
+#### **"Cannot find module 'better-sqlite3'"**
+```bash
+# Solution: Rebuild native modules
+npm rebuild better-sqlite3
+```
+
+#### **"Permission denied" on Windows**
+```cmd
+# Solution: Run as Administrator
+Right-click Command Prompt → "Run as administrator"
+```
+
+#### **Service won't start**
+```bash
+# Check logs
+type error.log
+
+# Run health check
+node src/index.js health-check
+
+# Test manually
+node src/index.js start-service
+```
+
+#### **PDF not printing**
+```bash
+# Test printer
+node src/index.js test-printer
+
+# Check circuit breaker
+node src/index.js circuit-breaker-status
+
+# Check dead letter queue
+node src/index.js dlq
+```
+
+#### **Email not sending**
+```bash
+# Test email
+node src/index.js test-email your@email.com
+
+# Verify .env has:
+# PRINTER_EMAIL, SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS
+```
+
+### **Debug Mode**
+
+```bash
+# Enable debug logging
+set LOG_TO_CONSOLE=true
+set NODE_ENV=development
+
+# Run with verbose output
+node src/index.js start-service
+```
+
+### **Getting Help**
+
+1. **Check logs:** `error.log`, `activity.log`
+2. **Run health check:** `node src/index.js health-check`
+3. **View dashboard:** `node src/index.js dashboard`
+4. **Check circuit breakers:** `node src/index.js circuit-breaker-status`
+5. **Review DLQ:** `node src/index.js dlq`
+
+---
+
+## 🚢 Deployment Options
+
+### **Local Development**
+```bash
+npm start
+```
+
+### **Windows Service** (Production)
+```cmd
+# NSSM (recommended)
+NSSM - Step 2 - Install Service.bat
+
+# OR node-windows
+Install Service.bat
+```
+
+### **Docker**
+```bash
+# Using docker-compose
 docker-compose up -d
 
-# View logs
-docker-compose logs -f
-
-# Stop the service
-docker-compose down
-```
-
-**2. Or Build and Run Manually**
-```bash
-# Build the image
-docker build -t hello-club-service .
-
-# Run the container
-docker run -d \
-  --name hello-club \
-  --restart unless-stopped \
+# Using Dockerfile
+docker build -t hello-club .
+docker run -d --name hello-club \
   -v $(pwd)/events.db:/app/events.db \
-  -v $(pwd)/config.json:/app/config.json:ro \
-  -e API_KEY=your_api_key \
-  -e PRINTER_EMAIL=printer@example.com \
-  -e SMTP_USER=your_email \
-  -e SMTP_PASS=your_password \
-  -p 3030:3030 \
-  hello-club-service
+  -v $(pwd)/.env:/app/.env \
+  -v $(pwd)/config.json:/app/config.json \
+  hello-club
 ```
 
-**3. Run Dashboard as Separate Container**
-```bash
-# Start with dashboard profile
-docker-compose --profile dashboard up -d
+### **Standalone Executable**
+```cmd
+# Build
+Build Executable.bat
+
+# Distribute
+dist/HelloClub-Portable.zip
 ```
 
-**Docker Features:**
-- Built-in health checks
-- Automatic restarts
-- Volume persistence
-- Environment-based configuration
-- Small Alpine-based image
-- Production-ready logging
-
-## Testing
-
-To run the automated tests, use the following command:
+### **PM2** (Linux/Mac)
 ```bash
+# Install PM2
+npm install -g pm2
+
+# Start
+pm2 start src/index.js --name hello-club -- start-service
+
+# Auto-start on boot
+pm2 startup
+pm2 save
+
+# Monitor
+pm2 monit
+```
+
+---
+
+## 🧪 Testing
+
+```bash
+# Run all tests
 npm test
-```
 
-To see the test coverage, run:
-```bash
+# Run unit tests only
+npm run test:unit
+
+# Run integration tests only
+npm run test:integration
+
+# Watch mode
+npm run test:watch
+
+# Coverage
 npm run coverage
 ```
 
-## Troubleshooting
+---
 
-### Service Not Working in Production
+## 🏗️ Project Structure
 
-If the service worked on your test bench but isn't working in production, follow these steps:
-
-**1. Run the Health Check**
-```bash
-node src/index.js health-check
 ```
-This will show you the current status and identify any issues.
-
-**2. Check Log Files**
-The service creates two log files in the working directory:
-- `activity.log` - All operations and info messages
-- `error.log` - Only errors
-
-View the logs:
-```bash
-# View last 50 lines of activity log
-tail -n 50 activity.log
-
-# View error log
-cat error.log
-
-# For PM2 users
-pm2 logs hello-club-service
-```
-
-**3. Enable Console Logging in Production**
-By default, the service only logs to files in production. To see logs in the console:
-```bash
-# In your .env file, add:
-LOG_TO_CONSOLE=true
-```
-Then restart the service.
-
-**4. Check the Status File**
-The service creates a `status.json` file that tracks:
-- When the service last started
-- Last successful fetch and process times
-- Current configuration
-- Recent errors
-
-View the status file:
-```bash
-cat status.json
-```
-
-### Common Issues
-
-- **Error: "401 Unauthorized"**: Your `API_KEY` in the `.env` file is incorrect or has expired.
-
-- **Message: "No new events to store"**: The `fetch-events` command ran but did not find any new events that matched your category filters within the `fetchWindowHours`.
-
-- **Message: "No events to process"**: The `process-schedule` command ran but no stored events were scheduled to start within the `preEventQueryMinutes`.
-
-- **Database is never populated**:
-  1. Run `health-check` to see if the service is actually running
-  2. Check `activity.log` for fetch operations
-  3. Ensure your category filters in `config.json` are correct
-  4. Verify your API key has proper permissions
-
-- **Events are not being printed**:
-  1. Check if events exist in the database: `node src/index.js health-check`
-  2. Verify `preEventQueryMinutes` allows enough time before event start
-  3. Check `activity.log` for processing attempts
-  4. If using email mode, verify SMTP settings are correct
-
-- **Service appears to stop after some time**:
-  1. Check `error.log` for any critical errors
-  2. Verify the server hasn't run out of disk space
-  3. Check system resources (memory, CPU)
-  4. If using PM2, check `pm2 logs` for crash reports
-
-- **Health check shows service is inactive**:
-  1. The service may have crashed - check `error.log`
-  2. Restart the service with PM2: `pm2 restart hello-club-service`
-  3. Check if the process is actually running: `pm2 status` or `ps aux | grep node`
-
-### Monitoring the Service
-
-For continuous monitoring, you can:
-
-1. **Set up a cron job to run health checks:**
-```bash
-# Check every 10 minutes and send email if unhealthy
-*/10 * * * * cd /path/to/project && node src/index.js health-check || mail -s "Service Unhealthy" you@example.com
+Hello-Club-Event-Attendance-Auto-Print/
+├── src/
+│   ├── index.js                 # Main entry point
+│   ├── api-client.js            # Hello Club API client (with circuit breaker)
+│   ├── api-rate-limiter.js      # Rate limiting and tracking
+│   ├── args-parser.js           # CLI argument parsing
+│   ├── backup-scheduler.js      # Automated backup system
+│   ├── circuit-breaker.js       # Circuit breaker implementation
+│   ├── commands.js              # CLI command implementations
+│   ├── config-schema.js         # Joi configuration validation
+│   ├── config-watcher.js        # Hot-reload configuration
+│   ├── database.js              # SQLite database (WAL mode)
+│   ├── dead-letter-queue.js     # Failed job queue
+│   ├── email-service.js         # Email sending (with circuit breaker)
+│   ├── event-filters.js         # Advanced event filtering
+│   ├── functions.js             # Core business logic
+│   ├── health-check.js          # Health check system
+│   ├── logger.js                # Winston logger (with secrets masking)
+│   ├── metrics.js               # Application metrics
+│   ├── metrics-server.js        # Prometheus metrics HTTP server
+│   ├── notifications.js         # Webhook notifications (with validation)
+│   ├── pdf-cache.js             # PDF caching system
+│   ├── pdf-generator.js         # PDF creation
+│   ├── retry-util.js            # Retry logic with exponential backoff
+│   ├── secrets-manager.js       # Security utilities
+│   ├── service.js               # Service mode orchestration
+│   ├── status-tracker.js        # Status file management
+│   ├── validation.js            # Input validation
+│   └── web-dashboard.js         # Web GUI (with XSS protection)
+│
+├── __tests__/                   # Test files
+│   ├── unit/                    # Unit tests
+│   └── integration/             # Integration tests
+│
+├── .github/                     # GitHub configuration
+│   └── workflows/               # CI/CD workflows
+│       └── ci.yml.example       # Example GitHub Actions workflow
+│
+├── nssm/                        # NSSM Windows service manager
+│   ├── download-nssm.ps1        # NSSM download script
+│   └── README.txt               # NSSM info
+│
+├── backups/                     # Automated backups (created at runtime)
+├── .pdf-cache/                  # PDF cache (created at runtime)
+│
+├── Build Executable.bat         # Build standalone .exe
+├── Build Distribution Package.bat  # Create portable distribution
+├── Install Service.bat          # Install node-windows service
+├── Uninstall Service.bat        # Uninstall node-windows service
+├── NSSM - Step 1 - Download NSSM.bat  # Download NSSM
+├── NSSM - Step 2 - Install Service.bat  # Install NSSM service
+├── NSSM - Manage Service.bat    # NSSM management menu
+├── Start Dashboard.bat          # Launch web dashboard
+├── View Logs.bat                # Log viewer
+│
+├── install-service.js           # node-windows installer script
+├── uninstall-service.js         # node-windows uninstaller script
+│
+├── .env.example                 # Environment variables template
+├── config.json.example          # Configuration template
+├── package.json                 # Dependencies and scripts
+├── .gitignore                   # Git ignore rules
+│
+├── README.md                    # Main documentation (this file)
+├── WINDOWS-SERVICE-SETUP.md     # Windows service guide
+├── NSSM-QUICK-START.md          # NSSM quick start
+├── BUILDING-EXECUTABLE.md       # Executable build guide
+├── IMPROVEMENTS-FEATURES-1-6.md # Feature implementation docs
+│
+├── activity.log                 # Application log (created at runtime)
+├── error.log                    # Error log (created at runtime)
+├── events.db                    # SQLite database (created at runtime)
+├── status.json                  # Service status (created at runtime)
+├── metrics.json                 # Metrics data (created at runtime)
+└── dead-letter-queue.json       # Failed jobs (created at runtime)
 ```
 
-2. **Use PM2's monitoring:**
-```bash
-pm2 monit hello-club-service
-```
+---
 
-3. **Check service status regularly:**
-```bash
-# Quick status check
-node src/index.js health-check
+## 🤝 Contributing
 
-# View recent activity
-tail -f activity.log
-```
+Contributions welcome! Please:
+
+1. Fork the repository
+2. Create a feature branch
+3. Add tests for new features
+4. Ensure all tests pass
+5. Submit a pull request
+
+---
+
+## 📄 License
+
+MIT License - see [LICENSE](LICENSE) file for details
+
+---
+
+## 🙏 Acknowledgments
+
+- **Hello Club** - For the API
+- **pkg** - For executable building
+- **NSSM** - For Windows service management
+- **Winston** - For logging
+- **Better-SQLite3** - For database
+- **PDFKit** - For PDF generation
+
+---
+
+## 📞 Support
+
+For issues, questions, or feature requests:
+
+1. **Check documentation** - See [Documentation](#-documentation)
+2. **Check logs** - `error.log`, `activity.log`
+3. **Run health check** - `node src/index.js health-check`
+4. **Open an issue** - GitHub Issues
+
+---
+
+<div align="center">
+
+**Built with ❤️ for automated event management**
+
+[⬆ Back to Top](#hello-club---event-attendance-auto-print)
+
+</div>
