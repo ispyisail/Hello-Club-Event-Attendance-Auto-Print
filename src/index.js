@@ -72,8 +72,30 @@ async function main() {
         // Run health check and exit
         const { displayHealthCheck } = require('./health-check');
         displayHealthCheck();
+    } else if (command === 'list-events') {
+        const { listEvents } = require('./commands');
+        listEvents({ status: argv.status, limit: argv.limit });
+    } else if (command === 'cleanup') {
+        const { cleanupDatabase } = require('./commands');
+        cleanupDatabase({ days: argv.days, dryRun: argv.dryRun });
+    } else if (command === 'preview-event') {
+        const { previewEvent } = require('./commands');
+        await previewEvent(argv.eventId);
+    } else if (command === 'test-email') {
+        const { testEmail } = require('./commands');
+        await testEmail(argv.recipient);
+    } else if (command === 'test-printer') {
+        const { testPrinter } = require('./commands');
+        await testPrinter(argv.name);
+    } else if (command === 'backup') {
+        const { backupDatabase } = require('./commands');
+        backupDatabase(argv.path);
+    } else if (command === 'restore') {
+        const { restoreDatabase } = require('./commands');
+        restoreDatabase(argv.path);
     } else {
-        logger.error('Invalid command. Please use "fetch-events", "process-schedule", "start-service", or "health-check".');
+        logger.error('Invalid command. Run with --help to see available commands.');
+        process.exit(1);
     }
 }
 

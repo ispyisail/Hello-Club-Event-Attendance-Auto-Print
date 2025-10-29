@@ -5,6 +5,7 @@ const PdfGenerator = require('./pdf-generator');
 const { getDb } = require('./database');
 const { getEventDetails, getAllAttendees, getUpcomingEvents } = require('./api-client');
 const { recordFetch, recordProcess, recordError } = require('./status-tracker');
+const { retryWithBackoff } = require('./retry-util');
 
 /**
  * Processes a single event: fetches attendees, creates a PDF, prints it, and updates the database.
@@ -166,19 +167,31 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
  * @returns {Promise<void>}
  */
 async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode) {
-  const generator = new PdfGenerator(event, attendees, pdfLayout);
-  generator.generate(outputFileName);
-  logger.info(`Successfully created ${outputFileName}`);
+  // Generate PDF with proper error handling
+  try {
+    const generator = new PdfGenerator(event, attendees, pdfLayout);
+    generator.generate(outputFileName);
+    logger.info(`Successfully created ${outputFileName}`);
+  } catch (err) {
+    logger.error(`Failed to generate PDF for event ${event.id}:`, err.message);
+    throw new Error(`PDF generation failed: ${err.message}`);
+  }
 
+  // Print with retry logic
   if (printMode === 'local') {
     logger.info(`Printing PDF locally...`);
-    try {
-      const msg = await print(outputFileName);
-      logger.info(msg);
-    } catch (err) {
-      logger.error('Failed to print locally:', err);
-      throw err;
-    }
+    await retryWithBackoff(
+      async () => {
+        const msg = await print(outputFileName);
+        logger.info(msg);
+        return msg;
+      },
+      {
+        maxAttempts: 3,
+        baseDelay: 2000,
+        operationName: 'Local print'
+      }
+    );
   } else if (printMode === 'email') {
     logger.info(`Sending PDF to printer via email...`);
     // Get email settings from environment variables
@@ -200,7 +213,17 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
     };
     const subject = `Print Job: ${event.name}`;
     const body = `Attached is the attendee list for the event: ${event.name}.`;
-    await sendEmailWithAttachment(transportOptions, PRINTER_EMAIL, EMAIL_FROM, subject, body, outputFileName);
+
+    await retryWithBackoff(
+      async () => {
+        await sendEmailWithAttachment(transportOptions, PRINTER_EMAIL, EMAIL_FROM, subject, body, outputFileName);
+      },
+      {
+        maxAttempts: 3,
+        baseDelay: 2000,
+        operationName: 'Email print'
+      }
+    );
   }
 }
 

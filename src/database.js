@@ -24,6 +24,10 @@ const getDb = () => {
         status TEXT NOT NULL DEFAULT 'pending'
       )`);
 
+      // Create index for better query performance on the main query
+      db.exec(`CREATE INDEX IF NOT EXISTS idx_events_status_start
+               ON events(status, startDate)`);
+
       logger.info('Connected to the SQLite database and table is ready.');
 
 

@@ -69,7 +69,64 @@ const argv = yargs(hideBin(process.argv))
       });
   })
   .command('health-check', 'Check the health and status of the service')
-  .demandCommand(1, 'You must provide a valid command: fetch-events, process-schedule, start-service, or health-check')
+  .command('list-events', 'List events from the database', (yargs) => {
+    return yargs
+      .option('status', {
+        type: 'string',
+        choices: ['all', 'pending', 'processed'],
+        default: 'all',
+        description: 'Filter events by status'
+      })
+      .option('limit', {
+        type: 'number',
+        default: 50,
+        description: 'Maximum number of events to display'
+      });
+  })
+  .command('cleanup', 'Remove old processed events from the database', (yargs) => {
+    return yargs
+      .option('days', {
+        type: 'number',
+        default: 30,
+        description: 'Delete events older than this many days'
+      })
+      .option('dry-run', {
+        type: 'boolean',
+        default: false,
+        description: 'Show what would be deleted without actually deleting'
+      });
+  })
+  .command('preview-event <eventId>', 'Preview event details and attendee list', (yargs) => {
+    return yargs.positional('eventId', {
+      describe: 'The ID of the event to preview',
+      type: 'string'
+    });
+  })
+  .command('test-email [recipient]', 'Test email configuration by sending a test message', (yargs) => {
+    return yargs.positional('recipient', {
+      describe: 'Optional recipient email (defaults to PRINTER_EMAIL from .env)',
+      type: 'string'
+    });
+  })
+  .command('test-printer [name]', 'Test local printer configuration', (yargs) => {
+    return yargs.positional('name', {
+      describe: 'Optional printer name (uses default if not specified)',
+      type: 'string'
+    });
+  })
+  .command('backup [path]', 'Create a backup of the database', (yargs) => {
+    return yargs.positional('path', {
+      describe: 'Optional path for backup file',
+      type: 'string'
+    });
+  })
+  .command('restore <path>', 'Restore database from a backup file', (yargs) => {
+    return yargs.positional('path', {
+      describe: 'Path to the backup file',
+      type: 'string'
+    });
+  })
+  .demandCommand(1, 'You must provide a valid command. Run with --help to see available commands.')
   .help()
   .alias('help', 'h')
   .argv;

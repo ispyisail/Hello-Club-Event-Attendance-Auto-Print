@@ -43,9 +43,11 @@ class PdfGenerator {
     this.doc.font('Helvetica-Bold').fontSize(14).text(this.event.name, { align: 'center' });
     this.doc.moveDown();
 
-    const eventStartDate = new Date(this.event.startDate).toLocaleString('en-US', { timeZone: this.event.timezone, hour: '2-digit', minute: '2-digit', hour12: true });
-    const eventEndDate = new Date(this.event.endDate).toLocaleString('en-US', { timeZone: this.event.timezone, hour: '2-digit', minute: '2-digit', hour12: true });
-    const eventDate = new Date(this.event.startDate).toLocaleDateString('en-US', { timeZone: this.event.timezone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+    // Use event timezone if available, otherwise fall back to UTC
+    const timezone = this.event.timezone || 'UTC';
+    const eventStartDate = new Date(this.event.startDate).toLocaleString('en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: true });
+    const eventEndDate = new Date(this.event.endDate).toLocaleString('en-US', { timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: true });
+    const eventDate = new Date(this.event.startDate).toLocaleDateString('en-US', { timeZone: timezone, weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
 
     this.doc.font('Helvetica').fontSize(this.layout.fontSize).text(`${eventDate}, ${eventStartDate} - ${eventEndDate}`, { align: 'center' });
     this.doc.moveDown();
