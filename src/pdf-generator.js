@@ -30,6 +30,11 @@ class PdfGenerator {
    * @private
    */
   _generateHeader() {
+    // Add watermark if configured
+    if (this.layout.watermark) {
+      this._addWatermark(this.layout.watermark);
+    }
+
     if (this.layout.logo && fs.existsSync(this.layout.logo)) {
       this.doc.image(this.layout.logo, {
         fit: [100, 50],
@@ -38,7 +43,9 @@ class PdfGenerator {
       this.doc.moveDown();
     }
 
-    this.doc.font('Helvetica-Bold').fontSize(16).text('Hello Club', { align: 'center' });
+    // Use custom header text if provided, otherwise default
+    const headerText = this.layout.headerText || 'Hello Club';
+    this.doc.font('Helvetica-Bold').fontSize(16).text(headerText, { align: 'center' });
     this.doc.moveDown(0.5);
     this.doc.font('Helvetica-Bold').fontSize(14).text(this.event.name, { align: 'center' });
     this.doc.moveDown();
@@ -164,12 +171,58 @@ class PdfGenerator {
   }
 
   /**
+   * Adds a watermark to the page.
+   * @param {string} text - Watermark text.
+   * @private
+   */
+  _addWatermark(text) {
+    const pageWidth = this.doc.page.width;
+    const pageHeight = this.doc.page.height;
+
+    this.doc.save();
+    this.doc.rotate(45, { origin: [pageWidth / 2, pageHeight / 2] });
+    this.doc.font('Helvetica-Bold')
+      .fontSize(60)
+      .fillColor('gray', 0.1)
+      .text(text, 0, pageHeight / 2 - 30, {
+        align: 'center',
+        width: pageWidth
+      });
+    this.doc.restore();
+    this.doc.fillColor('black'); // Reset color
+  }
+
+  /**
+   * Adds a footer to the page.
+   * @param {string} text - Footer text.
+   * @private
+   */
+  _addFooter(text) {
+    const pageHeight = this.doc.page.height;
+    const bottomMargin = this.doc.page.margins.bottom;
+
+    this.doc.fontSize(8)
+      .fillColor('gray')
+      .text(text, 50, pageHeight - bottomMargin + 10, {
+        align: 'center',
+        width: this.doc.page.width - 100
+      });
+    this.doc.fillColor('black'); // Reset color
+  }
+
+  /**
    * Generates the PDF and saves it to a file.
    * @param {string} outputFileName - The path to save the output PDF file.
    */
   generate(outputFileName) {
     this.doc.pipe(fs.createWriteStream(outputFileName));
     this._generateTable();
+
+    // Add custom footer if configured
+    if (this.layout.footerText) {
+      this._addFooter(this.layout.footerText);
+    }
+
     this.doc.end();
   }
 }

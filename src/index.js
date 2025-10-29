@@ -49,7 +49,12 @@ async function main() {
         pdfLayout: validatedConfig.pdfLayout,
         printMode: argv.printMode ?? validatedConfig.printMode,
         dryRun: argv.dryRun ?? false,
-        serviceRunIntervalHours: argv.serviceRunIntervalHours ?? validatedConfig.serviceRunIntervalHours
+        serviceRunIntervalHours: argv.serviceRunIntervalHours ?? validatedConfig.serviceRunIntervalHours,
+        // Advanced features
+        filters: validatedConfig.filters,
+        webhooks: validatedConfig.webhooks,
+        printers: validatedConfig.printers,
+        watchConfig: validatedConfig.watchConfig
     };
 
     // Validate CLI arguments
@@ -118,6 +123,16 @@ async function main() {
         process.env.DASHBOARD_PORT = argv.port || 3030;
         const { startDashboard } = require('./web-dashboard');
         startDashboard();
+    } else if (command === 'metrics') {
+        const { displayMetrics } = require('./metrics');
+        displayMetrics();
+    } else if (command === 'metrics-reset') {
+        const { resetMetrics } = require('./metrics');
+        resetMetrics();
+        console.log('All metrics have been reset.');
+    } else if (command === 'api-stats') {
+        const { displayApiStats } = require('./api-rate-limiter');
+        displayApiStats(argv.minutes || 60);
     } else {
         logger.error('Invalid command. Run with --help to see available commands.');
         process.exit(1);

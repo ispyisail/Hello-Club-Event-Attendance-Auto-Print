@@ -1,5 +1,6 @@
 const axios = require('axios');
 const logger = require('./logger');
+const { recordApiCall } = require('./api-rate-limiter');
 
 const API_KEY = process.env.API_KEY;
 const BASE_URL = process.env.API_BASE_URL || 'https://api.helloclub.com';
@@ -29,6 +30,39 @@ axiosRetry(api, {
     logger.warn(`Retrying request to ${requestConfig.url} due to ${error.response?.status || 'network error'}. Attempt ${retryCount} of 3.`);
   }
 });
+
+// Add request interceptor to track timing
+api.interceptors.request.use((config) => {
+  config.metadata = { startTime: Date.now() };
+  return config;
+});
+
+// Add response interceptor to record API calls and rate limits
+api.interceptors.response.use(
+  (response) => {
+    // Calculate request duration
+    if (response.config.metadata) {
+      response.config.metadata.duration = Date.now() - response.config.metadata.startTime;
+    }
+
+    // Record API call for rate limiting dashboard
+    const endpoint = response.config.url;
+    recordApiCall(endpoint, response);
+
+    return response;
+  },
+  (error) => {
+    // Also record failed requests
+    if (error.config && error.response) {
+      if (error.config.metadata) {
+        error.config.metadata.duration = Date.now() - error.config.metadata.startTime;
+      }
+      const endpoint = error.config.url;
+      recordApiCall(endpoint, error.response);
+    }
+    return Promise.reject(error);
+  }
+);
 
 /**
  * Handles API errors, logs them, and throws an error to be handled by the caller.

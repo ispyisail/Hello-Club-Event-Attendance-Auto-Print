@@ -60,7 +60,51 @@ const configSchema = Joi.object({
       { "id": "fee", "header": "Fee", "width": 60 },
       { "id": "status", "header": "Status", "width": 90 }
     ]),
+    headerText: Joi.string().optional(),
+    footerText: Joi.string().optional(),
+    watermark: Joi.string().optional(),
   }).optional(),
+  // Webhook notifications
+  webhooks: Joi.object({
+    onSuccess: Joi.alternatives().try(
+      Joi.string().uri(),
+      Joi.array().items(Joi.string().uri())
+    ).optional(),
+    onError: Joi.alternatives().try(
+      Joi.string().uri(),
+      Joi.array().items(Joi.string().uri())
+    ).optional(),
+    onWarning: Joi.alternatives().try(
+      Joi.string().uri(),
+      Joi.array().items(Joi.string().uri())
+    ).optional(),
+    onStart: Joi.alternatives().try(
+      Joi.string().uri(),
+      Joi.array().items(Joi.string().uri())
+    ).optional(),
+  }).optional(),
+  // Multiple printer support
+  printers: Joi.object().pattern(
+    Joi.string(),
+    Joi.alternatives().try(
+      Joi.string(), // Printer name or email
+      Joi.object({
+        email: Joi.string().email(),
+        name: Joi.string()
+      })
+    )
+  ).optional(),
+  // Custom event filters
+  filters: Joi.object({
+    minAttendees: Joi.number().integer().min(0).optional(),
+    maxAttendees: Joi.number().integer().positive().optional(),
+    excludeKeywords: Joi.array().items(Joi.string()).optional(),
+    includeKeywords: Joi.array().items(Joi.string()).optional(),
+    onlyPaidEvents: Joi.boolean().optional(),
+    onlyFreeEvents: Joi.boolean().optional(),
+  }).optional(),
+  // Hot reload
+  watchConfig: Joi.boolean().default(false),
 });
 
 module.exports = configSchema;

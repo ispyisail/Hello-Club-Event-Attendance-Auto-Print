@@ -2,6 +2,7 @@ const logger = require('./logger');
 const { getDb } = require('./database');
 const { fetchAndStoreUpcomingEvents, processSingleEvent } = require('./functions');
 const { recordServiceStart, recordHeartbeat, recordError } = require('./status-tracker');
+const { watchConfig } = require('./config-watcher');
 
 // In-memory map to store references to our scheduled timeout jobs.
 // The key is the event ID, and the value is the timeout ID returned by setTimeout.
@@ -132,6 +133,19 @@ function runService(config) {
         const scheduledCount = scheduledJobs.size;
         logger.info(`Heartbeat: Service is running. ${scheduledCount} event(s) scheduled.`);
     }, heartbeatInterval);
+
+    // Enable configuration hot-reload if configured
+    if (config.watchConfig) {
+        logger.info('Configuration hot-reload enabled');
+        watchConfig('config.json', (newConfig, oldConfig) => {
+            logger.info('Configuration updated. Note: Some changes require service restart (e.g., intervals)');
+            logger.info('Changes affecting future operations (categories, print mode, etc.) are now active');
+
+            // Update the config object with new values
+            // Note: Intervals and already-scheduled jobs won't be affected
+            Object.assign(config, newConfig);
+        });
+    }
 }
 
 module.exports = { runService };

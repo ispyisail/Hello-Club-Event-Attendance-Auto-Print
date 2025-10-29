@@ -7,6 +7,8 @@ const { getEventDetails, getAllAttendees, getUpcomingEvents } = require('./api-c
 const { recordFetch, recordProcess, recordError } = require('./status-tracker');
 const { retryWithBackoff } = require('./retry-util');
 const { incrementCounter, recordTiming } = require('./metrics');
+const { notifyEventProcessed, notifyError } = require('./notifications');
+const { applyFilters } = require('./event-filters');
 
 /**
  * Processes a single event: fetches attendees, creates a PDF, prints it, and updates the database.
@@ -30,11 +32,14 @@ async function processSingleEvent(event, finalConfig) {
         logger.info(`[DRY RUN] Print mode: ${printMode}`);
         logger.info(`[DRY RUN] Output file: ${outputFilename}`);
       } else {
-        await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode, dryRun);
+        await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode, finalConfig);
         const db = getDb();
         const updateStmt = db.prepare("UPDATE events SET status = 'processed' WHERE id = ?");
         updateStmt.run(event.id);
         logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
+
+        // Send success notification
+        await notifyEventProcessed(event.name, attendees.length, printMode);
       }
     } else {
       logger.warn(`No attendees found for event "${event.name}" (ID: ${event.id}). Skipping PDF generation.`);
@@ -47,6 +52,10 @@ async function processSingleEvent(event, finalConfig) {
     }
   } catch (error) {
     logger.error(`Failed to process event ${event.id} ("${event.name}"). It will not be retried.`);
+
+    // Send error notification
+    await notifyError('Event Processing Failed', `Failed to process event "${event.name}" (ID: ${event.id}): ${error.message}`);
+
     try {
       const db = getDb();
       db.prepare("UPDATE events SET status = 'processed' WHERE id = ?").run(event.id);
@@ -120,7 +129,8 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
 
     logger.info(`Fetched ${events.length} event(s) from API.`);
 
-    const filteredEvents = events.filter(event => {
+    // Apply category filtering
+    let filteredEvents = events.filter(event => {
       if (!allowedCategories || allowedCategories.length === 0) {
         return true; // No category filter, include all events
       }
@@ -128,14 +138,19 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
       return Array.isArray(event.categories) && event.categories.some(category => allowedCategories.includes(category.name));
     });
 
-    if (filteredEvents.length === 0) {
-      logger.info('No events matched the specified categories.');
-      recordFetch(0);
-      return;
-    }
-
     if (filteredEvents.length < events.length) {
       logger.info(`${filteredEvents.length} event(s) matched category filter (${events.length - filteredEvents.length} filtered out).`);
+    }
+
+    // Apply additional custom filters if configured
+    if (finalConfig.filters) {
+      filteredEvents = applyFilters(filteredEvents, finalConfig.filters);
+    }
+
+    if (filteredEvents.length === 0) {
+      logger.info('No events matched the specified filters.');
+      recordFetch(0);
+      return;
     }
 
     const db = getDb();
@@ -169,6 +184,10 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     logger.error('An error occurred during fetchAndStoreUpcomingEvents:', err.message);
     recordError('fetchAndStoreUpcomingEvents', err.message);
     incrementCounter('errors');
+
+    // Send error notification
+    await notifyError('Event Fetch Failed', `Failed to fetch and store upcoming events: ${err.message}`);
+
     throw err;
   }
 }
@@ -180,9 +199,10 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
  * @param {string} outputFileName - The name of the file to save the PDF as.
  * @param {Object} pdfLayout - The layout configuration for the PDF.
  * @param {string} printMode - The printing mode ('local' or 'email').
+ * @param {Object} config - The full configuration object.
  * @returns {Promise<void>}
  */
-async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode) {
+async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode, config) {
   // Generate PDF with proper error handling
   try {
     const generator = new PdfGenerator(event, attendees, pdfLayout);
@@ -193,12 +213,38 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
     throw new Error(`PDF generation failed: ${err.message}`);
   }
 
+  // Determine printer routing based on event category (if multiple printers configured)
+  let targetPrinter = null;
+  let targetEmail = null;
+  let routedPrintMode = printMode;
+
+  if (config.printers && event.categories && event.categories.length > 0) {
+    // Get the first category name
+    const categoryName = event.categories[0].name;
+
+    // Check if there's a printer configuration for this category
+    if (config.printers[categoryName]) {
+      const categoryPrinter = config.printers[categoryName];
+      logger.info(`Using category-specific printer for "${categoryName}"`);
+
+      if (categoryPrinter.type === 'local' && categoryPrinter.name) {
+        routedPrintMode = 'local';
+        targetPrinter = categoryPrinter.name;
+      } else if (categoryPrinter.type === 'email' && categoryPrinter.email) {
+        routedPrintMode = 'email';
+        targetEmail = categoryPrinter.email;
+      }
+    }
+  }
+
   // Print with retry logic
-  if (printMode === 'local') {
-    logger.info(`Printing PDF locally...`);
+  if (routedPrintMode === 'local') {
+    const printerInfo = targetPrinter ? ` to printer "${targetPrinter}"` : '';
+    logger.info(`Printing PDF locally${printerInfo}...`);
     await retryWithBackoff(
       async () => {
-        const msg = await print(outputFileName);
+        const printOptions = targetPrinter ? { printer: targetPrinter } : {};
+        const msg = await print(outputFileName, printOptions);
         logger.info(msg);
         return msg;
       },
@@ -208,10 +254,10 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
         operationName: 'Local print'
       }
     );
-  } else if (printMode === 'email') {
+  } else if (routedPrintMode === 'email') {
     logger.info(`Sending PDF to printer via email...`);
-    // Get email settings from environment variables
-    const PRINTER_EMAIL = process.env.PRINTER_EMAIL;
+    // Get email settings from environment variables (or use routed email)
+    const PRINTER_EMAIL = targetEmail || process.env.PRINTER_EMAIL;
     const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
     const SMTP_PORT = parseInt(process.env.SMTP_PORT, 10) || 587;
     const SMTP_USER = process.env.SMTP_USER;

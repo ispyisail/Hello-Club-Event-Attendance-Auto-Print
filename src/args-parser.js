@@ -139,6 +139,16 @@ const argv = yargs(hideBin(process.argv))
         description: 'Port to run the dashboard on'
       });
   })
+  .command('metrics', 'Display performance metrics and statistics')
+  .command('metrics-reset', 'Reset all metrics data')
+  .command('api-stats', 'Display API rate limiting statistics', (yargs) => {
+    return yargs
+      .option('minutes', {
+        type: 'number',
+        default: 60,
+        description: 'Time window in minutes for statistics'
+      });
+  })
   .demandCommand(1, 'You must provide a valid command. Run with --help to see available commands.')
   .help()
   .alias('help', 'h')
