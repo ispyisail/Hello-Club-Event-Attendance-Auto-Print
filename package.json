@@ -6,7 +6,12 @@
   "scripts": {
     "start": "node src/index.js start-service",
     "test": "jest",
-    "coverage": "jest --coverage"
+    "test:watch": "jest --watch",
+    "test:unit": "jest __tests__/ --testPathIgnorePatterns=integration",
+    "test:integration": "jest __tests__/integration",
+    "test:verbose": "jest --verbose",
+    "coverage": "jest --coverage",
+    "coverage:report": "jest --coverage && open coverage/lcov-report/index.html"
   },
   "keywords": [],
   "author": "",
