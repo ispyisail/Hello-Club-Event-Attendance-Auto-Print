@@ -149,6 +149,53 @@ const argv = yargs(hideBin(process.argv))
         description: 'Time window in minutes for statistics'
       });
   })
+  .command('metrics-server', 'Start Prometheus metrics HTTP server', (yargs) => {
+    return yargs
+      .option('port', {
+        type: 'number',
+        default: 9090,
+        description: 'Port to run metrics server on'
+      });
+  })
+  .command('dlq', 'Display dead letter queue contents')
+  .command('dlq-retry <id>', 'Retry a failed job from dead letter queue', (yargs) => {
+    return yargs.positional('id', {
+      describe: 'Job ID to retry',
+      type: 'string'
+    });
+  })
+  .command('dlq-cleanup', 'Cleanup old dead letter queue entries', (yargs) => {
+    return yargs
+      .option('days', {
+        type: 'number',
+        default: 30,
+        description: 'Remove entries older than this many days'
+      });
+  })
+  .command('circuit-breaker-status', 'Display circuit breaker status')
+  .command('circuit-breaker-reset <name>', 'Reset a circuit breaker', (yargs) => {
+    return yargs.positional('name', {
+      describe: 'Circuit breaker name (api, email, printer, webhook)',
+      type: 'string'
+    });
+  })
+  .command('backup-schedule', 'Schedule automatic backups', (yargs) => {
+    return yargs
+      .option('interval', {
+        type: 'number',
+        default: 24,
+        description: 'Backup interval in hours'
+      });
+  })
+  .command('backup-list', 'List all available backups')
+  .command('backup-rotate', 'Rotate old backups', (yargs) => {
+    return yargs
+      .option('days', {
+        type: 'number',
+        default: 30,
+        description: 'Keep backups newer than this many days'
+      });
+  })
   .demandCommand(1, 'You must provide a valid command. Run with --help to see available commands.')
   .help()
   .alias('help', 'h')

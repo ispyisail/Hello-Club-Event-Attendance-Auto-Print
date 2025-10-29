@@ -16,6 +16,13 @@ const getDb = () => {
       // This creates a new database connection. better-sqlite3 is synchronous.
       db = new Database('./events.db', { verbose: logger.info });
 
+      // Enable WAL (Write-Ahead Logging) mode for better concurrency
+      // WAL allows readers to access the database while a write is in progress
+      db.pragma('journal_mode = WAL');
+      db.pragma('synchronous = NORMAL'); // Faster writes with WAL
+      db.pragma('cache_size = -64000'); // 64MB cache
+      db.pragma('temp_store = MEMORY'); // Use memory for temp tables
+
       // Ensure the 'events' table exists.
       db.exec(`CREATE TABLE IF NOT EXISTS events (
         id TEXT PRIMARY KEY,
@@ -28,7 +35,7 @@ const getDb = () => {
       db.exec(`CREATE INDEX IF NOT EXISTS idx_events_status_start
                ON events(status, startDate)`);
 
-      logger.info('Connected to the SQLite database and table is ready.');
+      logger.info('Connected to the SQLite database with WAL mode enabled.');
 
 
 
