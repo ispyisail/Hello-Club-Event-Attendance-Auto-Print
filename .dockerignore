@@ -1,0 +1,16 @@
+node_modules/
+npm-debug.log
+.env
+*.db
+*.log
+*.pdf
+status.json
+.git/
+.gitignore
+README.md
+__tests__/
+coverage/
+.vscode/
+.idea/
+*.bat
+backup-*.db

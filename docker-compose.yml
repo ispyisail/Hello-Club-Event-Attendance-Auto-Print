@@ -1,0 +1,47 @@
+version: '3.8'
+
+services:
+  hello-club-service:
+    build: .
+    container_name: hello-club-service
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - LOG_TO_CONSOLE=true
+      - API_KEY=${API_KEY}
+      - PRINTER_EMAIL=${PRINTER_EMAIL}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - EMAIL_FROM=${EMAIL_FROM}
+    volumes:
+      - ./events.db:/app/events.db
+      - ./status.json:/app/status.json
+      - ./activity.log:/app/activity.log
+      - ./error.log:/app/error.log
+      - ./config.json:/app/config.json:ro
+    ports:
+      - "${DASHBOARD_PORT:-3030}:3030"
+    healthcheck:
+      test: ["CMD", "node", "src/index.js", "health-check"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  # Optional: Run dashboard as separate service
+  dashboard:
+    build: .
+    container_name: hello-club-dashboard
+    restart: unless-stopped
+    command: ["node", "src/index.js", "dashboard"]
+    environment:
+      - NODE_ENV=production
+    volumes:
+      - ./events.db:/app/events.db:ro
+      - ./status.json:/app/status.json:ro
+    ports:
+      - "${DASHBOARD_PORT:-3030}:3030"
+    profiles:
+      - dashboard

@@ -93,6 +93,10 @@ async function main() {
     } else if (command === 'restore') {
         const { restoreDatabase } = require('./commands');
         restoreDatabase(argv.path);
+    } else if (command === 'dashboard') {
+        process.env.DASHBOARD_PORT = argv.port || 3030;
+        const { startDashboard } = require('./web-dashboard');
+        startDashboard();
     } else {
         logger.error('Invalid command. Run with --help to see available commands.');
         process.exit(1);

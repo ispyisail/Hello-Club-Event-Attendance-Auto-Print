@@ -126,6 +126,14 @@ const argv = yargs(hideBin(process.argv))
       type: 'string'
     });
   })
+  .command('dashboard', 'Start the web-based dashboard (Windows-friendly GUI)', (yargs) => {
+    return yargs
+      .option('port', {
+        type: 'number',
+        default: 3030,
+        description: 'Port to run the dashboard on'
+      });
+  })
   .demandCommand(1, 'You must provide a valid command. Run with --help to see available commands.')
   .help()
   .alias('help', 'h')
