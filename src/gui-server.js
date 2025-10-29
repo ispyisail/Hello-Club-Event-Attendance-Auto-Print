@@ -164,7 +164,7 @@ function saveConfiguration(config) {
 }
 
 /**
- * Get environment variables from .env
+ * Get environment variables from .env (masked for display)
  */
 function getEnvVariables() {
     try {
@@ -187,6 +187,117 @@ function getEnvVariables() {
             return { success: true, env: envVars };
         }
         return { success: false, message: '.env not found' };
+    } catch (error) {
+        return { success: false, message: error.message };
+    }
+}
+
+/**
+ * Get raw .env file content for editing
+ */
+function getRawEnvContent() {
+    try {
+        const envPath = path.join(PROJECT_ROOT, '.env');
+        if (fs.existsSync(envPath)) {
+            const content = fs.readFileSync(envPath, 'utf8');
+            return { success: true, content: content, exists: true };
+        }
+
+        // If .env doesn't exist, check for .env.example
+        const examplePath = path.join(PROJECT_ROOT, '.env.example');
+        if (fs.existsSync(examplePath)) {
+            const content = fs.readFileSync(examplePath, 'utf8');
+            return { success: true, content: content, exists: false, isExample: true };
+        }
+
+        return { success: false, message: '.env not found', exists: false };
+    } catch (error) {
+        return { success: false, message: error.message, exists: false };
+    }
+}
+
+/**
+ * Save .env file content
+ */
+function saveEnvContent(content) {
+    try {
+        const envPath = path.join(PROJECT_ROOT, '.env');
+        fs.writeFileSync(envPath, content, 'utf8');
+        return { success: true, message: '.env file saved successfully' };
+    } catch (error) {
+        return { success: false, message: error.message };
+    }
+}
+
+/**
+ * Create config.json from config.json.example
+ */
+function createConfigFromExample() {
+    try {
+        const configPath = path.join(PROJECT_ROOT, 'config.json');
+        const examplePath = path.join(PROJECT_ROOT, 'config.json.example');
+
+        if (fs.existsSync(configPath)) {
+            return { success: false, message: 'config.json already exists' };
+        }
+
+        if (!fs.existsSync(examplePath)) {
+            return { success: false, message: 'config.json.example not found' };
+        }
+
+        const exampleContent = fs.readFileSync(examplePath, 'utf8');
+        fs.writeFileSync(configPath, exampleContent, 'utf8');
+
+        return { success: true, message: 'config.json created from example' };
+    } catch (error) {
+        return { success: false, message: error.message };
+    }
+}
+
+/**
+ * Create .env from .env.example
+ */
+function createEnvFromExample() {
+    try {
+        const envPath = path.join(PROJECT_ROOT, '.env');
+        const examplePath = path.join(PROJECT_ROOT, '.env.example');
+
+        if (fs.existsSync(envPath)) {
+            return { success: false, message: '.env already exists' };
+        }
+
+        if (!fs.existsSync(examplePath)) {
+            return { success: false, message: '.env.example not found' };
+        }
+
+        const exampleContent = fs.readFileSync(examplePath, 'utf8');
+        fs.writeFileSync(envPath, exampleContent, 'utf8');
+
+        return { success: true, message: '.env created from example' };
+    } catch (error) {
+        return { success: false, message: error.message };
+    }
+}
+
+/**
+ * Check if config files exist
+ */
+function checkConfigFiles() {
+    try {
+        const configPath = path.join(PROJECT_ROOT, 'config.json');
+        const envPath = path.join(PROJECT_ROOT, '.env');
+        const configExamplePath = path.join(PROJECT_ROOT, 'config.json.example');
+        const envExamplePath = path.join(PROJECT_ROOT, '.env.example');
+
+        return {
+            success: true,
+            files: {
+                configExists: fs.existsSync(configPath),
+                envExists: fs.existsSync(envPath),
+                configExampleExists: fs.existsSync(configExamplePath),
+                envExampleExists: fs.existsSync(envExamplePath)
+            }
+        };
     } catch (error) {
         return { success: false, message: error.message };
     }
@@ -405,11 +516,66 @@ app.post('/api/config', (req, res) => {
 });
 
 /**
- * GET /api/env - Get environment variables
+ * GET /api/env - Get environment variables (masked)
  */
 app.get('/api/env', (req, res) => {
     const env = getEnvVariables();
     res.json(env);
+});
+
+/**
+ * GET /api/env/raw - Get raw .env file content for editing
+ */
+app.get('/api/env/raw', (req, res) => {
+    const content = getRawEnvContent();
+    res.json(content);
+});
+
+/**
+ * POST /api/env - Save .env file content
+ */
+app.post('/api/env', (req, res) => {
+    const result = saveEnvContent(req.body.content);
+    res.json(result);
+
+    // Broadcast update to all connected clients
+    if (result.success) {
+        io.emit('env-updated');
+    }
+});
+
+/**
+ * POST /api/env/create-from-example - Create .env from .env.example
+ */
+app.post('/api/env/create-from-example', (req, res) => {
+    const result = createEnvFromExample();
+    res.json(result);
+
+    // Broadcast update
+    if (result.success) {
+        io.emit('env-created');
+    }
+});
+
+/**
+ * POST /api/config/create-from-example - Create config.json from example
+ */
+app.post('/api/config/create-from-example', (req, res) => {
+    const result = createConfigFromExample();
+    res.json(result);
+
+    // Broadcast update
+    if (result.success) {
+        io.emit('config-created');
+    }
+});
+
+/**
+ * GET /api/config/check-files - Check if config files exist
+ */
+app.get('/api/config/check-files', (req, res) => {
+    const result = checkConfigFiles();
+    res.json(result);
 });
 
 /**

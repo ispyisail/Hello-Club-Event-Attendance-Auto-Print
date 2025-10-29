@@ -126,14 +126,21 @@
         <div id="config" class="tab-content">
             <h2>Configuration</h2>
 
+            <!-- File Status Banner -->
+            <div id="config-status-banner" class="status-banner" style="display: none;"></div>
+
             <div class="card">
                 <h3>Application Settings (config.json)</h3>
                 <div id="config-editor">
-                    <textarea id="config-json" rows="20" class="config-textarea"></textarea>
+                    <div id="config-file-status" class="file-status"></div>
+                    <textarea id="config-json" rows="20" class="config-textarea" placeholder="Loading configuration..."></textarea>
                     <div class="button-group">
                         <button class="btn btn-primary" onclick="saveConfig()">💾 Save Configuration</button>
                         <button class="btn btn-secondary" onclick="loadConfig()">🔄 Reload</button>
                         <button class="btn btn-info" onclick="validateConfig()">✓ Validate JSON</button>
+                        <button id="btn-create-config" class="btn btn-success" onclick="createConfigFromExample()" style="display: none;">
+                            📄 Create from Example
+                        </button>
                     </div>
                     <div id="config-result" class="operation-result"></div>
                 </div>
@@ -142,11 +149,20 @@
             <div class="card">
                 <h3>Environment Variables (.env)</h3>
                 <div id="env-editor">
-                    <div class="env-warning">
-                        ⚠️ Warning: Sensitive values like API_KEY are masked for security.
-                        To change them, edit the .env file directly.
+                    <div class="env-info">
+                        💡 <strong>Tip:</strong> You can now edit your .env file directly in the GUI!
+                        Changes will be saved to the .env file.
                     </div>
-                    <div id="env-variables"></div>
+                    <div id="env-file-status" class="file-status"></div>
+                    <textarea id="env-content" rows="15" class="config-textarea" placeholder="Loading .env file..."></textarea>
+                    <div class="button-group">
+                        <button class="btn btn-primary" onclick="saveEnv()">💾 Save .env File</button>
+                        <button class="btn btn-secondary" onclick="loadEnv()">🔄 Reload</button>
+                        <button id="btn-create-env" class="btn btn-success" onclick="createEnvFromExample()" style="display: none;">
+                            📄 Create from Example
+                        </button>
+                    </div>
+                    <div id="env-result" class="operation-result"></div>
                 </div>
             </div>
         </div>

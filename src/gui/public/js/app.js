@@ -19,8 +19,9 @@ let logRefreshInterval;
 document.addEventListener('DOMContentLoaded', () => {
     initializeSocketIO();
     initializeTabs();
+    checkConfigFiles();
     loadConfig();
-    loadEnvVariables();
+    loadEnv();
     loadLogs();
     startLogAutoRefresh();
 });
@@ -70,7 +71,26 @@ function initializeSocketIO() {
 
     socket.on('config-updated', () => {
         loadConfig();
+        checkConfigFiles();
         showNotification('Configuration updated', 'success');
+    });
+
+    socket.on('config-created', () => {
+        loadConfig();
+        checkConfigFiles();
+        showNotification('config.json created from example', 'success');
+    });
+
+    socket.on('env-updated', () => {
+        loadEnv();
+        checkConfigFiles();
+        showNotification('.env file updated', 'success');
+    });
+
+    socket.on('env-created', () => {
+        loadEnv();
+        checkConfigFiles();
+        showNotification('.env file created from example', 'success');
     });
 
     socket.on('circuit-breaker-reset', (name) => {
@@ -164,8 +184,9 @@ function loadTabContent(tabName) {
             loadServiceDetails();
             break;
         case 'config':
+            checkConfigFiles();
             loadConfig();
-            loadEnvVariables();
+            loadEnv();
             break;
         case 'logs':
             loadLogs();
@@ -306,15 +327,90 @@ async function loadServiceDetails() {
 // Configuration Management
 // ============================================================================
 
+/**
+ * Check if config files exist and show status
+ */
+async function checkConfigFiles() {
+    try {
+        const response = await fetch('/api/config/check-files');
+        const result = await response.json();
+
+        if (result.success) {
+            const files = result.files;
+
+            // Update config.json status
+            const configStatus = document.getElementById('config-file-status');
+            const btnCreateConfig = document.getElementById('btn-create-config');
+
+            if (configStatus) {
+                if (files.configExists) {
+                    configStatus.className = 'file-status exists';
+                    configStatus.textContent = '✓ config.json exists';
+                    if (btnCreateConfig) btnCreateConfig.style.display = 'none';
+                } else if (files.configExampleExists) {
+                    configStatus.className = 'file-status missing';
+                    configStatus.textContent = '⚠️ config.json not found. Click "Create from Example" to get started.';
+                    if (btnCreateConfig) btnCreateConfig.style.display = 'inline-block';
+                } else {
+                    configStatus.className = 'file-status missing';
+                    configStatus.textContent = '⚠️ config.json and config.json.example not found';
+                }
+            }
+
+            // Update .env status
+            const envStatus = document.getElementById('env-file-status');
+            const btnCreateEnv = document.getElementById('btn-create-env');
+
+            if (envStatus) {
+                if (files.envExists) {
+                    envStatus.className = 'file-status exists';
+                    envStatus.textContent = '✓ .env file exists';
+                    if (btnCreateEnv) btnCreateEnv.style.display = 'none';
+                } else if (files.envExampleExists) {
+                    envStatus.className = 'file-status missing';
+                    envStatus.textContent = '⚠️ .env file not found. Click "Create from Example" to get started.';
+                    if (btnCreateEnv) btnCreateEnv.style.display = 'inline-block';
+                } else {
+                    envStatus.className = 'file-status missing';
+                    envStatus.textContent = '⚠️ .env and .env.example not found';
+                }
+            }
+
+            // Show banner if files are missing
+            const banner = document.getElementById('config-status-banner');
+            if (banner) {
+                if (!files.configExists || !files.envExists) {
+                    banner.className = 'status-banner warning';
+                    banner.style.display = 'block';
+                    const missing = [];
+                    if (!files.configExists) missing.push('config.json');
+                    if (!files.envExists) missing.push('.env');
+                    banner.textContent = `⚠️ Configuration files missing: ${missing.join(', ')}. Create them from examples to get started.`;
+                } else {
+                    banner.style.display = 'none';
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Failed to check config files:', error);
+    }
+}
+
+/**
+ * Load config.json
+ */
 async function loadConfig() {
     try {
         const response = await fetch('/api/config');
         const result = await response.json();
 
-        if (result.success) {
-            const textarea = document.getElementById('config-json');
-            if (textarea) {
+        const textarea = document.getElementById('config-json');
+        if (textarea) {
+            if (result.success) {
                 textarea.value = JSON.stringify(result.config, null, 2);
+            } else {
+                textarea.value = '// ' + result.message + '\n// Click "Create from Example" to create config.json';
+                textarea.disabled = !document.getElementById('btn-create-config');
             }
         }
     } catch (error) {
@@ -322,6 +418,9 @@ async function loadConfig() {
     }
 }
 
+/**
+ * Save config.json
+ */
 async function saveConfig() {
     const textarea = document.getElementById('config-json');
     if (!textarea) return;
@@ -339,12 +438,16 @@ async function saveConfig() {
 
         if (result.success) {
             showNotification('Configuration saved successfully. Restart service for changes to take effect.', 'success');
+            checkConfigFiles(); // Refresh status
         }
     } catch (error) {
         showOperationResult('config-result', { success: false, message: 'Invalid JSON: ' + error.message });
     }
 }
 
+/**
+ * Validate config.json JSON syntax
+ */
 function validateConfig() {
     const textarea = document.getElementById('config-json');
     if (!textarea) return;
@@ -357,28 +460,107 @@ function validateConfig() {
     }
 }
 
-async function loadEnvVariables() {
+/**
+ * Create config.json from config.json.example
+ */
+async function createConfigFromExample() {
+    if (!confirm('Create config.json from config.json.example?')) return;
+
     try {
-        const response = await fetch('/api/env');
+        const response = await fetch('/api/config/create-from-example', { method: 'POST' });
         const result = await response.json();
 
+        showOperationResult('config-result', result);
+
         if (result.success) {
-            const container = document.getElementById('env-variables');
-            if (container) {
-                let html = '';
-                for (const [key, value] of Object.entries(result.env)) {
-                    html += `
-                        <div class="env-item">
-                            <strong>${key}</strong>
-                            <span>${value || '<em>not set</em>'}</span>
-                        </div>
-                    `;
+            showNotification('config.json created successfully', 'success');
+            checkConfigFiles();
+            loadConfig();
+        }
+    } catch (error) {
+        showOperationResult('config-result', { success: false, message: error.message });
+    }
+}
+
+/**
+ * Load .env file
+ */
+async function loadEnv() {
+    try {
+        const response = await fetch('/api/env/raw');
+        const result = await response.json();
+
+        const textarea = document.getElementById('env-content');
+        if (textarea) {
+            if (result.success) {
+                textarea.value = result.content;
+
+                if (result.isExample) {
+                    textarea.placeholder = 'Content loaded from .env.example. Click "Save .env File" to create .env.';
+                } else if (!result.exists) {
+                    textarea.value = '# .env file not found\n# Click "Create from Example" to create .env file';
+                    textarea.disabled = true;
+                } else {
+                    textarea.placeholder = '';
+                    textarea.disabled = false;
                 }
-                container.innerHTML = html;
+            } else {
+                textarea.value = '# ' + result.message + '\n# Click "Create from Example" to create .env file';
+                textarea.disabled = !document.getElementById('btn-create-env');
             }
         }
     } catch (error) {
-        console.error('Failed to load env variables:', error);
+        console.error('Failed to load .env:', error);
+    }
+}
+
+/**
+ * Save .env file
+ */
+async function saveEnv() {
+    const textarea = document.getElementById('env-content');
+    if (!textarea) return;
+
+    const content = textarea.value;
+
+    try {
+        const response = await fetch('/api/env', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ content: content })
+        });
+
+        const result = await response.json();
+        showOperationResult('env-result', result);
+
+        if (result.success) {
+            showNotification('.env file saved successfully. Restart service for changes to take effect.', 'success');
+            checkConfigFiles(); // Refresh status
+        }
+    } catch (error) {
+        showOperationResult('env-result', { success: false, message: error.message });
+    }
+}
+
+/**
+ * Create .env from .env.example
+ */
+async function createEnvFromExample() {
+    if (!confirm('Create .env from .env.example?')) return;
+
+    try {
+        const response = await fetch('/api/env/create-from-example', { method: 'POST' });
+        const result = await response.json();
+
+        showOperationResult('env-result', result);
+
+        if (result.success) {
+            showNotification('.env file created successfully', 'success');
+            checkConfigFiles();
+            loadEnv();
+        }
+    } catch (error) {
+        showOperationResult('env-result', { success: false, message: error.message });
     }
 }
 
