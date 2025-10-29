@@ -199,6 +199,7 @@ async function getAllAttendees(eventId) {
 }
 
 module.exports = {
+    api,
     getEventDetails,
     getUpcomingEvents,
     getAllAttendees,
