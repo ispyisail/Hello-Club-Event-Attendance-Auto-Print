@@ -23,3 +23,20 @@ Thumbs.db
 
 # Database files
 *.db
+
+# NSSM binaries (downloaded at runtime)
+/nssm/nssm-*/
+
+# Backup files
+/backups/
+
+# Runtime data
+status.json
+metrics.json
+dead-letter-queue.json
+
+# PDF cache
+/.pdf-cache/
+
+# Windows service logs
+daemon/
