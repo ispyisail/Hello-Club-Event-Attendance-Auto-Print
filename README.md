@@ -1,120 +1,196 @@
-# Hello Club - Event Attendee Printout
+# Hello Club Event Attendance Auto-Print
 
-## Description
+> Automated Windows service for printing Hello Club event attendance lists with system tray monitoring
 
-This command-line tool provides a robust, automated solution for generating and printing attendee lists for upcoming events from the Hello Club API. It is designed to be efficient by minimizing API calls while ensuring the final attendee list is as up-to-date as possible.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)](https://nodejs.org/)
+[![Tests](https://img.shields.io/badge/tests-20%20passing-success)](./tests)
 
-## Features
+## 📋 Table of Contents
 
-- **Automated Event Fetching**: Automatically finds upcoming events within a configurable time window.
-- **Just-in-Time Attendee Lists**: Fetches the final attendee list moments before an event starts to capture last-minute sign-ups.
-- **Efficient API Usage**: A two-stage process reduces the load on the Hello Club API.
-- **PDF Generation**: Creates a clean, printable PDF of the attendee list.
-- **Flexible Printing**: Supports printing to local printers or sending the PDF to a printer's email address.
-- **Highly Configurable**: Customize event categories, time windows, PDF layout, and more.
-- **Run as a Service**: Designed to run continuously in the background using a process manager like PM2.
+- [Overview](#overview)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Installation](#installation)
+- [Configuration](#configuration)
+- [Usage](#usage)
+- [Documentation](#documentation)
+- [Project Structure](#project-structure)
+- [Testing](#testing)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
 
-## How It Works
+## 🎯 Overview
 
-The tool can be run as a continuous service or as two separate, scheduled commands.
+Hello Club Event Attendance Auto-Print is a professional Windows application that automatically fetches, monitors, and prints attendee lists for upcoming Hello Club events. It runs as a Windows Service in the background and provides a system tray interface for easy monitoring and control.
 
-### The Two-Stage Process
+### How It Works
 
-The core logic is split into two stages to ensure efficiency and accuracy:
+The application uses a smart two-stage process:
 
-1.  **`fetch-events`**: This command queries the Hello Club API for all upcoming events within a configurable time window (e.g., the next 24 hours). It then stores these events in a local database. This command is designed to be run periodically (e.g., once every hour).
-2.  **`process-schedule`**: This command checks the local database for stored events that are about to start. When an event is within a configurable time window (e.g., 5 minutes from its start time), it makes one final API call to get the latest attendee list and generates a printable PDF. This command is designed to be run frequently (e.g., once every minute).
+1. **Event Discovery** - Periodically scans the Hello Club API for upcoming events
+2. **Just-in-Time Processing** - Fetches the latest attendee list moments before an event starts
+3. **Automatic Printing** - Generates a professional PDF and prints it (locally or via email)
 
-### The `start-service` Command
+### System Architecture
 
-For ease of use, the `start-service` command combines both stages into a single, long-running process. It will periodically fetch events and constantly monitor the schedule to process printouts automatically. This is the recommended way to run the application.
+```
+┌─────────────────────────────────────────────────────────┐
+│                    System Tray App                      │
+│              (Electron-based Monitor)                   │
+│  • Visual status indicator (green/yellow/red)           │
+│  • Service control (start/stop/restart)                 │
+│  • Log viewer & notifications                           │
+└────────────────────┬────────────────────────────────────┘
+                     │
+                     ▼
+┌─────────────────────────────────────────────────────────┐
+│                  Windows Service                        │
+│            (Always-Running Background)                  │
+│  • Fetches events every N hours                         │
+│  • Schedules processing for each event                  │
+│  • Auto-restarts on failure                             │
+└────────────────────┬────────────────────────────────────┘
+                     │
+        ┌────────────┼────────────┐
+        ▼            ▼            ▼
+   [Hello Club]  [SQLite DB]  [Printer]
+      API        (Event Queue)  (Local/Email)
+```
 
-## Installation
+## ✨ Features
 
-### Prerequisites
+### Core Features
+- ✅ **Automated Event Fetching** - Scans for upcoming events within configurable time windows
+- ✅ **Smart Scheduling** - Processes events at optimal times to capture last-minute sign-ups
+- ✅ **Professional PDFs** - Generates clean, printable attendee lists with custom layouts
+- ✅ **Flexible Printing** - Print locally or send via email to network printers
+- ✅ **Category Filtering** - Only process events from specified categories
 
-Before you begin, ensure you have the following installed on your system:
+### Windows Service Features
+- ✅ **Always Running** - Starts automatically with Windows
+- ✅ **Self-Healing** - Automatically restarts if it crashes
+- ✅ **Background Operation** - Runs without user interaction
+- ✅ **Production Ready** - Built with `node-windows` for reliability
 
-- **Node.js**: This project is built on Node.js. You can download it from [https://nodejs.org/](https://nodejs.org/).
-- **npm**: The Node Package Manager is included with Node.js and is used to manage the project's dependencies.
-- **Git**: You will need Git to clone the repository. You can download it from [https://git-scm.com/](https://git-scm.com/).
+### System Tray Features
+- 🟢 **Visual Status** - Color-coded icon (Green=Running, Red=Stopped, Yellow=Warning)
+- 📊 **Real-time Monitoring** - Shows service status and recent activity
+- 📝 **Log Viewer** - Browse activity and error logs in a clean interface
+- 🔔 **Notifications** - Desktop alerts when events are processed
+- 🎛️ **Service Control** - Start, stop, and restart the service from the tray
+- ⚙️ **Settings GUI** - Edit configuration and credentials without touching files
+- 🔌 **Connection Tests** - Test API and Email connections with one click
 
-### Build Tools for `sqlite3`
+### Developer Features
+- ✅ **Comprehensive Tests** - 20+ unit tests with Jest
+- ✅ **Type Safety** - Joi schema validation for all configuration
+- ✅ **Error Handling** - Robust error handling with detailed logging
+- ✅ **Modular Architecture** - Clean separation of concerns
+- ✅ **Well Documented** - Extensive JSDoc comments
 
-One of this project's dependencies (`sqlite3`) may need to be compiled from source, which requires a build toolchain.
+## 🚀 Quick Start
 
-- **Python**: Required by the `node-gyp` build tool. You can download it from [https://www.python.org/](https://www.python.org/).
-- **C++ Compiler**:
-    - **Windows:** Install the "Desktop development with C++" workload from the [Visual Studio Installer](https://visualstudio.microsoft.com/downloads/).
-    - **macOS:** Install the Xcode Command Line Tools by running `xcode-select --install`.
-    - **Linux:** Install a compiler like GCC (e.g., `sudo apt install build-essential`).
+### For End Users (Recommended)
 
-> **Important for Python 3.12+ Users:** The `distutils` module has been removed from Python 3.12 and newer, which can cause an error when `node-gyp` tries to build `sqlite3`. To fix this, you must manually install `setuptools`:
->
-> ```bash
-> pip install setuptools
-> ```
+**Download and run the installer** - The easiest way to get started:
 
-### Local Printing Requirements
+1. Download `HelloClubEventAttendance-Setup-1.0.0.exe` from the [Releases](https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print/releases) page
+2. Run the installer (requires Administrator)
+3. Follow the friendly setup wizard:
+   - Enter your Hello Club API key
+   - Configure email printing (optional)
+4. The installer automatically:
+   - Installs Node.js dependencies
+   - Sets up the Windows service
+   - Launches the tray monitor
 
-To print PDFs directly to a physical printer (`--print-mode local`), you may need additional software:
+**That's it!** The tray icon will appear in your taskbar. Right-click it to:
+- View logs and status
+- Edit settings
+- Test API and Email connections
+- Control the service
 
--   **Windows:** You must install **SumatraPDF**. You can download it from [https://www.sumatrapdfreader.org/free-pdf-reader](https://www.sumatrapdfreader.org/free-pdf-reader).
--   **macOS/Linux:** A printer must be configured through the system's printing service (e.g., CUPS).
+### For Developers
 
-### Installation Steps
+If you want to run from source or contribute:
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git
-    ```
+```bash
+# 1. Clone the repository
+git clone https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git
+cd Hello-Club-Event-Attendance-Auto-Print
 
-2.  **Navigate to the project directory:**
-    ```bash
-    cd Hello-Club-Event-Attendance-Auto-Print
-    ```
+# 2. Install dependencies
+npm install
 
-3.  **Install the dependencies:**
-    ```bash
-    npm install
-    ```
+# 3. Configure your API key
+copy .env.example .env
+# Edit .env and add your API_KEY
 
-## Configuration
+# 4. Install the Windows Service (requires admin)
+npm run service:install
 
-The tool is configured using two files: `.env` for secrets and `config.json` for settings.
+# 5. Start the tray monitor
+npm run tray
+```
 
-### 1. API Key & Email (`.env` file)
+## 📦 Installation
 
-This file stores your Hello Club API key and email settings for the email print mode.
+### Detailed Installation Steps
 
-1.  Create a file named `.env` in the root of the project directory.
-2.  Add your configuration to the file. `API_KEY` is always required. The other variables are only needed if you use the `email` print mode.
+#### 1. System Requirements
 
-    ```
-    # Required for API access
-    API_KEY=your_hello_club_api_key
+- **Operating System**: Windows 10 or later
+- **Node.js**: Version 16.0.0 or higher
+- **Build Tools**: Required for native modules
+  - Windows: Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/)
+  - Or install via npm: `npm install --global windows-build-tools`
 
-    # Required for Email Printing Mode (Defaults are for Gmail)
-    PRINTER_EMAIL=your_printer_email_address@domain.com
-    SMTP_USER=your_gmail_username_or_app_password
-    SMTP_PASS=your_gmail_app_password
-    EMAIL_FROM=sender_address@example.com
-    ```
+#### 2. Install Dependencies
 
-### 2. Event & Print Settings (`config.json` file)
+```bash
+npm install
+```
 
-This file allows you to specify the default behavior for the script. Command-line options will always override the settings in this file.
+This installs all required packages including:
+- `node-windows` - Windows service management
+- `electron` - System tray application
+- `better-sqlite3` - Local database
+- `pdfkit` - PDF generation
+- `winston` - Logging
+- And more...
 
-Example `config.json`:
+#### 3. Configure the Application
+
+**Create `.env` file:**
+```bash
+# Copy the example
+copy .env.example .env
+```
+
+Edit `.env` and add your credentials:
+```env
+# Required: Your Hello Club API key
+API_KEY=your_api_key_here
+
+# Optional: For email printing mode
+PRINTER_EMAIL=printer@yourdomain.com
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+```
+
+**Edit `config.json`:**
 ```json
 {
-  "categories": ["NBA - Junior Events", "Pickleball"],
-  "fetchWindowHours": 24,
+  "categories": ["NBA - Junior Events", "Your Category"],
   "preEventQueryMinutes": 5,
+  "fetchWindowHours": 24,
   "serviceRunIntervalHours": 1,
+  "printMode": "local",
   "outputFilename": "attendees.pdf",
   "pdfLayout": {
-    "logo": null,
     "fontSize": 10,
     "columns": [
       { "id": "name", "header": "Name", "width": 140 },
@@ -126,129 +202,355 @@ Example `config.json`:
   }
 }
 ```
-- `categories`: A list of event category names to process. An empty list `[]` processes all categories.
-- `fetchWindowHours`: How many hours to look ahead for upcoming events. (Default: 24)
-- `preEventQueryMinutes`: How many minutes before an event starts to perform the final query for attendees. (Default: 5)
-- `serviceRunIntervalHours`: How often (in hours) the `start-service` command should re-fetch the list of upcoming events. (Default: 1)
-- `outputFilename`: The default name for the generated PDF file. (Default: "attendees.pdf")
-- `pdfLayout`: Configuration for the PDF's appearance. The `"id"` for a column must match a data field from the Hello Club API.
 
-## Usage
+#### 4. Install as Windows Service
 
-The application can be run using one of three commands.
+**Important**: This step requires Administrator privileges.
 
-### `fetch-events`
-
-Finds and stores upcoming events. Should be run periodically if not using the `start-service` command.
-
-**Usage:**
 ```bash
-node index.js fetch-events [options]
+# Open PowerShell or Command Prompt as Administrator
+npm run service:install
 ```
 
-**Options:**
-- `--category "Category Name"` (`-c`): Overrides the `categories` in `config.json`. Use the flag multiple times for multiple categories.
-- `--fetch-window-hours <hours>` (`--fwh`): Overrides the `fetchWindowHours` in `config.json`.
+The service will be installed as "HelloClubEventAttendance" and set to start automatically with Windows.
 
-### `process-schedule`
+#### 5. Start the Tray Monitor
 
-Processes stored events that are about to start. Should be run frequently if not using the `start-service` command.
-
-**Usage:**
 ```bash
-node index.js process-schedule [options]
+npm run tray
 ```
 
-**Options:**
-- `--pre-event-query-minutes <minutes>` (`-w`): Overrides the `preEventQueryMinutes` in `config.json`.
-- `--output <filename>` (`-o`): Overrides the `outputFilename` in `config.json`.
-- `--print-mode <mode>` (`-p`): Sets the print mode (`local` or `email`).
+The tray icon will appear in your system tray (bottom-right corner of Windows taskbar).
 
-### `start-service`
+### Using the Installer (Recommended for End Users)
 
-Runs the entire fetch and process cycle continuously. **This is the recommended command for automation.**
+The installer provides a professional, guided setup experience with a modern wizard:
 
-**Usage:**
+#### What You Get:
+
+**🎨 Modern Setup Wizard:**
+- Friendly welcome screen with prerequisites checklist
+- Node.js detection and guidance
+- Step-by-step API configuration with helpful hints
+- Optional email printing setup with Gmail-specific tips
+- Smart validation (checks API key format)
+- Real-time progress with emoji indicators
+
+**⚙️ Automatic Setup:**
+1. Installs all files to Program Files
+2. Runs `npm install` for you (3-5 minutes)
+3. Creates `.env` file from your input
+4. Installs and starts the Windows service
+5. Creates Start Menu and Desktop shortcuts
+6. Launches the tray monitor
+
+**📦 What's Included:**
+- Windows service (auto-starts on boot)
+- System tray monitor
+- All dependencies
+- Complete documentation
+- Automatic updates support
+
+#### To Build Your Own Installer:
+
 ```bash
-node index.js start-service [options]
-```
-This command accepts all options available to `fetch-events` and `process-schedule`.
-
-## Running as a Service (Automation)
-
-To achieve full automation, the application should be run as a persistent background service.
-
-### Method 1: Using PM2 (Recommended)
-
-PM2 is a production process manager for Node.js applications that keeps your service alive.
-
-**1. Install PM2**
-If you don't have PM2 installed, install it globally using `npm`:
-```bash
-npm install pm2 -g
-```
-
-**2. Start the Service**
-Navigate to the project directory and use the following command to start the application with PM2.
-```bash
-pm2 start npm --name "hello-club-service" -- run start
-```
-- `pm2 start npm`: Tells PM2 to use `npm` to execute the `start` script from `package.json`.
-- `--name "hello-club-service"`: Gives the process a memorable name.
-
-**3. Enable Automatic Startup**
-To ensure the service restarts when your computer reboots, run this command and follow the on-screen instructions:
-```bash
-pm2 startup
+cd installer
+build-installer.bat
 ```
 
-**4. Save the Process List**
-Save the current process list so PM2 knows what to restart on boot:
+The installer will be created in `dist/HelloClubEventAttendance-Setup-1.0.0.exe` (2MB)
+
+## ⚙️ Configuration
+
+### Easy Configuration Options
+
+**For End Users:** Use the **Settings GUI** in the tray app - no file editing needed!
+
+**For Developers:** Edit configuration files manually or use the Settings GUI.
+
+### Configuration Files
+
+The application uses two configuration files:
+
+1. **`.env`** - Secrets and credentials (never commit this! Already in .gitignore)
+2. **`config.json`** - Application settings (safe to commit - no secrets)
+
+**Note:** When using the installer, it creates your `.env` file during setup. The Settings GUI allows you to edit both files safely with automatic backups.
+
+### Environment Variables (`.env`)
+
+| Variable | Required | Description | Default |
+|----------|----------|-------------|---------|
+| `API_KEY` | ✅ Yes | Hello Club API authentication key | - |
+| `PRINTER_EMAIL` | For email mode | Email address of network printer | - |
+| `SMTP_USER` | For email mode | SMTP username (e.g., Gmail address) | - |
+| `SMTP_PASS` | For email mode | SMTP password or app-specific password | - |
+| `SMTP_HOST` | For email mode | SMTP server hostname | `smtp.gmail.com` |
+| `SMTP_PORT` | For email mode | SMTP server port | `587` |
+| `EMAIL_FROM` | For email mode | Sender email address | Same as `SMTP_USER` |
+
+### Application Settings (`config.json`)
+
+See [CONFIGURATION.md](./docs/CONFIGURATION.md) for detailed configuration documentation.
+
+## 📖 Usage
+
+### System Tray Interface
+
+The system tray icon provides quick access to all functionality:
+
+**Icon Colors:**
+- 🟢 **Green** - Service running normally
+- 🔴 **Red** - Service stopped or error
+- 🟡 **Yellow** - Service starting or warning
+
+**Right-click Menu:**
+- **View Logs** - Open log viewer window with real-time updates
+- **Settings** ⚙️ **NEW!** - Edit configuration via GUI
+  - Environment variables (API key, SMTP credentials)
+  - Application settings (categories, timing, PDF layout)
+  - Automatic validation and backup
+- **Test API Connection** 🔌 **NEW!** - Verify Hello Club API connectivity
+- **Test Email Connection** 🔌 **NEW!** - Verify SMTP settings
+- **Check Status Now** - Force status refresh
+- **Start/Stop/Restart Service** - Control the service
+- **Open Services Manager** - Windows services.msc
+- **Open Project Folder** - Browse application files
+- **Quit** - Exit tray application (service continues running)
+
+### New Features Guide
+
+**⚙️ Settings GUI:**
+After installation, you can edit all configuration without touching files:
+
+1. Right-click tray icon → **Settings**
+2. **Environment Variables Tab:**
+   - Edit API key and SMTP credentials
+   - Password fields with show/hide toggle
+   - Real-time validation
+3. **Configuration Tab:**
+   - Manage event categories (add/remove)
+   - Adjust timing settings
+   - Change print mode (local/email)
+   - Edit PDF layout
+4. Click **Save** - automatic backups created
+5. Restart service to apply changes
+
+**🔌 Connection Tests:**
+Verify your configuration before processing events:
+
+- **Test API Connection:**
+  - Click to test Hello Club API
+  - Shows response time and success/failure
+  - Validates API key format
+  - Provides troubleshooting hints
+
+- **Test Email Connection:**
+  - Click to verify SMTP settings
+  - Tests connection without sending email
+  - Detects common Gmail/authentication issues
+  - Confirms printer email is configured
+
+### Command Line Interface
+
+You can also run the application from the command line:
+
 ```bash
-pm2 save
+# Fetch events once
+node src/index.js fetch-events
+
+# Process pending events once
+node src/index.js process-schedule
+
+# Run as continuous service (in console)
+node src/index.js start-service
+
+# View help
+node src/index.js --help
 ```
 
-**5. Managing the Service**
-- **Check status:** `pm2 status`
-- **View logs:** `pm2 logs hello-club-service`
-- **Stop the service:** `pm2 stop hello-club-service`
-- **Restart the service:** `pm2 restart hello-club-service`
-- **Delete the service:** `pm2 delete hello-club-service`
+### Service Management
 
-### Method 2: Using Windows Task Scheduler (Alternative)
-
-If you are on Windows and prefer not to use PM2, you can schedule two separate tasks.
-
-**Task 1: Fetch Events (Run Periodically)**
-- **Frequency:** Every 1 to 4 hours.
-- **Action:**
-    - Program/script: `C:\Program Files\nodejs\node.exe`
-    - Add arguments: `index.js fetch-events`
-    - Start in: `C:\path\to\your\project`
-
-**Task 2: Process Schedule (Run Frequently)
-- **Frequency:** Every 1 to 5 minutes.
-- **Action:**
-    - Program/script: `C:\Program Files\nodejs\node.exe`
-    - Add arguments: `index.js process-schedule`
-    - Start in: `C:\path\to\your\project`
-
-## Testing
-
-To run the automated tests, use the following command:
 ```bash
+# Install the service
+npm run service:install
+
+# Check service status
+npm run service:status
+
+# Uninstall the service
+npm run service:uninstall
+
+# Windows services.msc
+services.msc
+```
+
+### Log Files
+
+Logs are written to the project root:
+
+- **`activity.log`** - Normal operations, events processed
+- **`error.log`** - Errors and warnings only
+
+View logs via:
+- System tray → "View Logs"
+- Open files directly in any text editor
+- Command: `npm run logs` (if you add this script)
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System design and architecture |
+| [API.md](./docs/API.md) | Module and function reference |
+| [CONFIGURATION.md](./docs/CONFIGURATION.md) | Detailed configuration guide |
+| [DEVELOPMENT.md](./docs/DEVELOPMENT.md) | Developer setup and contribution guide |
+| [WINDOWS-SERVICE-SETUP.md](./docs/WINDOWS-SERVICE-SETUP.md) | Windows service installation guide |
+| [TRAY-APP-GUIDE.md](./docs/TRAY-APP-GUIDE.md) | System tray application guide |
+| [INSTALLER-USER-GUIDE.md](./docs/INSTALLER-USER-GUIDE.md) | Installer creation guide |
+| [TESTING-GUIDE.md](./docs/TESTING-GUIDE.md) | Testing documentation |
+| [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | Common issues and solutions |
+
+## 📁 Project Structure
+
+```
+hello-club-event-attendance/
+├── src/                          # Application source code
+│   ├── core/                     # Core business logic
+│   │   ├── api-client.js         # Hello Club API integration
+│   │   ├── database.js           # SQLite database management
+│   │   ├── functions.js          # Event processing logic
+│   │   └── service.js            # Service scheduler
+│   ├── services/                 # Supporting services
+│   │   ├── email-service.js      # SMTP email sending
+│   │   ├── logger.js             # Winston logging configuration
+│   │   └── pdf-generator.js      # PDF creation
+│   ├── utils/                    # Utilities and helpers
+│   │   ├── args-parser.js        # CLI argument parsing
+│   │   └── config-schema.js      # Configuration validation
+│   └── index.js                  # Application entry point
+│
+├── service/                      # Windows Service management
+│   ├── install.js                # Service installation script
+│   ├── uninstall.js              # Service removal script
+│   └── status.js                 # Service status checker
+│
+├── tray-app/                     # Electron system tray app
+│   ├── main.js                   # Electron main process
+│   ├── log-viewer.html           # Log viewer UI
+│   ├── icons/                    # Tray icons
+│   └── start-tray.bat            # Tray launcher script
+│
+├── installer/                    # Inno Setup installer
+│   ├── setup.iss                 # Inno Setup script
+│   ├── build-installer.bat       # Build automation
+│   └── *.bat                     # Helper scripts
+│
+├── tests/                        # Unit tests
+│   ├── functions.test.js         # Core logic tests
+│   └── pdf-generator.test.js     # PDF generation tests
+│
+├── migrations/                   # Database migrations
+│   └── 001-initial-schema.sql    # Initial database schema
+│
+├── docs/                         # Documentation
+│   ├── ARCHITECTURE.md
+│   ├── API.md
+│   ├── CONFIGURATION.md
+│   └── ...
+│
+├── bin/                          # Generated binaries (gitignored)
+│   └── daemon/                   # Windows service daemon files
+│
+├── .env                          # Environment variables (gitignored)
+├── .env.example                  # Environment template
+├── config.json                   # Application configuration
+├── package.json                  # Node.js project manifest
+└── README.md                     # This file
+```
+
+## 🧪 Testing
+
+### Run Tests
+
+```bash
+# Run all tests
 npm test
-```
 
-To see the test coverage, run:
-```bash
+# Run with coverage report
 npm run coverage
+
+# Run specific test file
+npx jest tests/functions.test.js
+
+# Run in watch mode (for development)
+npx jest --watch
 ```
 
-## Troubleshooting
+### Test Coverage
 
-- **Error: "401 Unauthorized"**: Your `API_KEY` in the `.env` file is incorrect or has expired.
-- **Message: "No new events to store"**: The `fetch-events` command ran but did not find any new events that matched your category filters within the `fetchWindowHours`.
-- **Message: "No events to process"**: The `process-schedule` command ran but no stored events were scheduled to start within the `preEventQueryMinutes`.
-- **Database is never populated**: Ensure you are running the `fetch-events` command (or the `start-service` command) and that your category filters in `config.json` are correct.
-- **Events are not being printed**: Ensure you are running the `process-schedule` command frequently (or the `start-service` command). Check that `preEventQueryMinutes` is set to a reasonable value.
+Current test coverage:
+- **20 unit tests** passing
+- Core business logic fully tested
+- PDF generation tested with mocks
+- API client error handling tested
+
+## 🐛 Troubleshooting
+
+### Common Issues
+
+**Service won't start**
+- Ensure you installed as Administrator
+- Check `error.log` for details
+- Verify API_KEY in `.env` is correct
+
+**No events being processed**
+- Check category filters in `config.json`
+- Verify events exist in the time window
+- Run `node src/index.js fetch-events` manually
+
+**Tray icon not showing**
+- Check Windows notification area settings
+- Restart the tray app: `npm run tray`
+- Look for errors in console
+
+**PDF not printing**
+- Local mode: Install SumatraPDF on Windows
+- Email mode: Verify SMTP credentials in `.env`
+- Check `error.log` for printing errors
+
+**401 Unauthorized errors**
+- Your API_KEY is invalid or expired
+- Get a new key from Hello Club
+- Update `.env` and restart service
+
+See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for more solutions.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please see [DEVELOPMENT.md](./docs/DEVELOPMENT.md) for:
+- Development setup
+- Code style guidelines
+- Testing requirements
+- Pull request process
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [Hello Club](https://helloclub.com/) for the excellent event management platform
+- [node-windows](https://github.com/coreybutler/node-windows) for Windows service integration
+- [Electron](https://www.electronjs.org/) for the system tray application
+- [PDFKit](https://pdfkit.org/) for PDF generation
+
+## 📞 Support
+
+- **Issues**: [GitHub Issues](https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print/issues)
+- **Documentation**: See the `docs/` folder
+- **Email**: Check the package.json for contact information
+
+---
+
+**Made with ❤️ for Hello Club users**

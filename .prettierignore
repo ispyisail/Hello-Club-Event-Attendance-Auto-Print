@@ -1,0 +1,10 @@
+node_modules/
+dist/
+bin/
+coverage/
+*.pdf
+*.db
+*.log
+package-lock.json
+migrations/
+installer/dist/

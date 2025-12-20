@@ -2,17 +2,28 @@
 /node_modules
 
 # Build output
-/dist
+/dist/*.exe
+/dist/*.zip
+/bin
+/temp-portable
 
 # Logs
 *.log
 
 # Environment variables
 .env
+.env.backup
+*.backup
 
 # Generated output files
 *.pdf
 *.csv
+
+# Logo files (user-uploaded)
+logo.png
+logo.jpg
+logo.jpeg
+logo.gif
 
 # Coverage reports
 /coverage
@@ -23,3 +34,9 @@ Thumbs.db
 
 # Database files
 *.db
+
+# Installer downloads
+innosetup-installer.exe
+
+# Claude Code
+.claude/

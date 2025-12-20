@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello Club Service - Settings</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #2d2d30;
+      padding: 15px 20px;
+      border-bottom: 1px solid #3e3e42;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .btn:hover {
+      opacity: 0.8;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: #0e639c;
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .tabs {
+      background: #2d2d30;
+      display: flex;
+      border-bottom: 1px solid #3e3e42;
+    }
+
+    .tab {
+      padding: 12px 24px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .tab:hover {
+      background: #3e3e42;
+    }
+
+    .tab.active {
+      border-bottom-color: #0e639c;
+      color: #0e639c;
+    }
+
+    .content {
+      height: calc(100vh - 110px);
+      overflow-y: auto;
+      padding: 0;
+    }
+
+    .settings-panel {
+      display: none;
+      padding: 20px;
+    }
+
+    .settings-panel.active {
+      display: block;
+    }
+
+    .section {
+      background: #252526;
+      border: 1px solid #3e3e42;
+      border-radius: 6px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #3e3e42;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #cccccc;
+    }
+
+    .form-label .required {
+      color: #dc3545;
+    }
+
+    .form-label .optional {
+      color: #6c757d;
+      font-weight: normal;
+      font-size: 12px;
+    }
+
+    .input-group {
+      position: relative;
+      display: flex;
+    }
+
+    .form-control {
+      flex: 1;
+      padding: 8px 12px;
+      background: #1e1e1e;
+      border: 1px solid #3e3e42;
+      border-radius: 4px;
+      color: #d4d4d4;
+      font-size: 13px;
+      font-family: 'Consolas', monospace;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: #0e639c;
+    }
+
+    .form-control:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .toggle-password {
+      padding: 8px 12px;
+      background: #3e3e42;
+      border: 1px solid #3e3e42;
+      border-left: none;
+      border-radius: 0 4px 4px 0;
+      color: #cccccc;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    .toggle-password:hover {
+      background: #4e4e52;
+    }
+
+    .form-help {
+      font-size: 12px;
+      color: #858585;
+      margin-top: 4px;
+    }
+
+    .category-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .category-item {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .category-item input {
+      flex: 1;
+    }
+
+    .btn-small {
+      padding: 6px 12px;
+      font-size: 12px;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 20px;
+      margin-top: 8px;
+    }
+
+    .radio-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .radio-label input[type="radio"] {
+      cursor: pointer;
+    }
+
+    .alert {
+      padding: 12px 16px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+      display: none;
+    }
+
+    .alert.show {
+      display: block;
+    }
+
+    .alert-success {
+      background: rgba(40, 167, 69, 0.2);
+      border: 1px solid #28a745;
+      color: #28a745;
+    }
+
+    .alert-error {
+      background: rgba(220, 53, 69, 0.2);
+      border: 1px solid #dc3545;
+      color: #dc3545;
+    }
+
+    .alert-warning {
+      background: rgba(255, 193, 7, 0.2);
+      border: 1px solid #ffc107;
+      color: #ffc107;
+    }
+
+    textarea.form-control {
+      font-family: 'Consolas', monospace;
+      resize: vertical;
+      min-height: 100px;
+    }
+
+    .columns-note {
+      background: rgba(14, 99, 156, 0.1);
+      border: 1px solid #0e639c;
+      border-radius: 4px;
+      padding: 12px;
+      font-size: 12px;
+      color: #0e639c;
+      margin-top: 8px;
+    }
+
+    .logo-upload-container {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      margin-top: 8px;
+    }
+
+    .logo-preview {
+      width: 120px;
+      height: 80px;
+      border: 2px dashed #3e3e42;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #2d2d30;
+      overflow: hidden;
+    }
+
+    .logo-preview img {
+      max-width: 120px;
+      max-height: 80px;
+      object-fit: contain;
+    }
+
+    .logo-placeholder {
+      font-size: 11px;
+      color: #6c757d;
+      text-align: center;
+      padding: 10px;
+    }
+
+    .logo-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Settings</h1>
+    <div class="header-actions">
+      <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+      <button class="btn btn-primary" id="saveBtn">Save Changes</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="env">Environment Variables</div>
+    <div class="tab" data-tab="config">Configuration</div>
+  </div>
+
+  <div class="content">
+    <div id="alertContainer"></div>
+
+    <!-- Environment Variables Tab -->
+    <div class="settings-panel active" id="env-panel">
+      <div class="section">
+        <h2 class="section-title">API Configuration</h2>
+        <div class="form-group">
+          <label class="form-label">
+            API Key <span class="required">*</span>
+          </label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="apiKey" placeholder="hc_...">
+            <button class="toggle-password" data-target="apiKey">Show</button>
+          </div>
+          <div class="form-help">Your Hello Club API authentication key</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            API Base URL <span class="optional">(optional)</span>
+          </label>
+          <input type="text" class="form-control" id="apiBaseUrl" placeholder="https://api.helloclub.com">
+          <div class="form-help">Leave empty to use default: https://api.helloclub.com</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Email / SMTP Configuration</h2>
+        <div class="form-group">
+          <label class="form-label">
+            Printer Email <span class="required">*</span>
+          </label>
+          <input type="email" class="form-control" id="printerEmail" placeholder="printer@print.epsonconnect.com">
+          <div class="form-help">Email address of your network printer or Epson Connect</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            SMTP Host <span class="required">*</span>
+          </label>
+          <input type="text" class="form-control" id="smtpHost" placeholder="smtp.gmail.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            SMTP Port <span class="required">*</span>
+          </label>
+          <input type="number" class="form-control" id="smtpPort" placeholder="587" min="1" max="65535">
+          <div class="form-help">Use 587 for STARTTLS or 465 for SSL/TLS</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            SMTP User <span class="required">*</span>
+          </label>
+          <input type="text" class="form-control" id="smtpUser" placeholder="your-email@gmail.com">
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            SMTP Password <span class="required">*</span>
+          </label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="smtpPass" placeholder="App password or SMTP password">
+            <button class="toggle-password" data-target="smtpPass">Show</button>
+          </div>
+          <div class="form-help">For Gmail, use an App Password, not your regular password</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Email From <span class="optional">(optional)</span>
+          </label>
+          <input type="email" class="form-control" id="emailFrom" placeholder="your-email@gmail.com">
+          <div class="form-help">Leave empty to use SMTP User as sender</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Configuration Tab -->
+    <div class="settings-panel" id="config-panel">
+      <div class="section">
+        <h2 class="section-title">Event Categories</h2>
+        <div id="categoriesList" class="category-list"></div>
+        <button class="btn btn-success btn-small" id="addCategoryBtn">+ Add Category</button>
+        <div class="form-help" style="margin-top: 10px;">Only events from these categories will be processed</div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Timing Settings</h2>
+        <div class="form-group">
+          <label class="form-label">
+            Pre-Event Query Window (minutes)
+          </label>
+          <input type="number" class="form-control" id="preEventQueryMinutes" min="1" max="60" placeholder="5">
+          <div class="form-help">Fetch attendee list this many minutes before event starts</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Fetch Window (hours)
+          </label>
+          <input type="number" class="form-control" id="fetchWindowHours" min="1" max="720" placeholder="24">
+          <div class="form-help">Look for events within this many hours in the future</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Service Run Interval (hours)
+          </label>
+          <input type="number" class="form-control" id="serviceRunIntervalHours" min="1" max="24" placeholder="1">
+          <div class="form-help">How often the service checks for new events</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">Print Settings</h2>
+        <div class="form-group">
+          <label class="form-label">Print Mode</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="printMode" value="local">
+              Local Printer
+            </label>
+            <label class="radio-label">
+              <input type="radio" name="printMode" value="email">
+              Email to Printer
+            </label>
+          </div>
+          <div class="form-help">Local requires SumatraPDF, Email uses SMTP configuration above</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Output Filename
+          </label>
+          <input type="text" class="form-control" id="outputFilename" placeholder="attendees.pdf">
+          <div class="form-help">Name of the generated PDF file</div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2 class="section-title">PDF Layout</h2>
+        <div class="form-group">
+          <label class="form-label">
+            Logo
+          </label>
+          <div class="logo-upload-container">
+            <div id="logoPreview" class="logo-preview">
+              <div class="logo-placeholder">No logo uploaded</div>
+            </div>
+            <div class="logo-actions">
+              <button class="btn btn-primary btn-small" id="uploadLogoBtn">Upload Logo</button>
+              <button class="btn btn-danger btn-small" id="removeLogoBtn" style="display: none;">Remove Logo</button>
+            </div>
+          </div>
+          <div class="form-help">Logo will appear in top-right corner of PDF (max 120x80px). Supports PNG, JPG, GIF.</div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Font Size (pt)
+          </label>
+          <input type="number" class="form-control" id="fontSize" min="6" max="24" placeholder="10">
+        </div>
+        <div class="form-group">
+          <label class="form-label">
+            Columns (JSON)
+          </label>
+          <textarea class="form-control" id="pdfColumns" rows="8"></textarea>
+          <div class="columns-note">
+            Edit carefully! Each column needs: id, header, and width.<br>
+            Example: {"id": "name", "header": "Name", "width": 140}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        const targetTab = tab.dataset.tab;
+
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+
+        tab.classList.add('active');
+        document.getElementById(`${targetTab}-panel`).classList.add('active');
+      });
+    });
+
+    // Password toggle
+    document.querySelectorAll('.toggle-password').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const targetId = btn.dataset.target;
+        const input = document.getElementById(targetId);
+
+        if (input.type === 'password') {
+          input.type = 'text';
+          btn.textContent = 'Hide';
+        } else {
+          input.type = 'password';
+          btn.textContent = 'Show';
+        }
+      });
+    });
+
+    // Category management
+    let categories = [];
+
+    function renderCategories() {
+      const container = document.getElementById('categoriesList');
+      container.innerHTML = '';
+
+      categories.forEach((category, index) => {
+        const item = document.createElement('div');
+        item.className = 'category-item';
+        item.innerHTML = `
+          <input type="text" class="form-control" value="${category}" data-index="${index}">
+          <button class="btn btn-danger btn-small" data-index="${index}">Remove</button>
+        `;
+        container.appendChild(item);
+      });
+
+      // Add event listeners
+      container.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', (e) => {
+          const index = parseInt(e.target.dataset.index);
+          categories[index] = e.target.value;
+        });
+      });
+
+      container.querySelectorAll('.btn-danger').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const index = parseInt(e.target.dataset.index);
+          categories.splice(index, 1);
+          renderCategories();
+        });
+      });
+    }
+
+    document.getElementById('addCategoryBtn').addEventListener('click', () => {
+      categories.push('New Category');
+      renderCategories();
+    });
+
+    // Alert functions
+    function showAlert(message, type = 'success') {
+      const container = document.getElementById('alertContainer');
+      const alert = document.createElement('div');
+      alert.className = `alert alert-${type} show`;
+      alert.textContent = message;
+      container.innerHTML = '';
+      container.appendChild(alert);
+
+      setTimeout(() => {
+        alert.classList.remove('show');
+      }, 5000);
+    }
+
+    // Load settings on init
+    async function loadSettings() {
+      try {
+        // Load environment variables
+        const envResult = await window.electronAPI.getEnvConfig();
+        if (envResult.success) {
+          const env = envResult.data;
+          document.getElementById('apiKey').value = env.API_KEY || '';
+          document.getElementById('apiBaseUrl').value = env.API_BASE_URL || '';
+          document.getElementById('printerEmail').value = env.PRINTER_EMAIL || '';
+          document.getElementById('smtpHost').value = env.SMTP_HOST || '';
+          document.getElementById('smtpPort').value = env.SMTP_PORT || '';
+          document.getElementById('smtpUser').value = env.SMTP_USER || '';
+          document.getElementById('smtpPass').value = env.SMTP_PASS || '';
+          document.getElementById('emailFrom').value = env.EMAIL_FROM || '';
+        }
+
+        // Load configuration
+        const configResult = await window.electronAPI.getJsonConfig();
+        if (configResult.success) {
+          const config = configResult.data;
+          categories = config.categories || [];
+          renderCategories();
+
+          document.getElementById('preEventQueryMinutes').value = config.preEventQueryMinutes || 5;
+          document.getElementById('fetchWindowHours').value = config.fetchWindowHours || 24;
+          document.getElementById('serviceRunIntervalHours').value = config.serviceRunIntervalHours || 1;
+          document.getElementById('outputFilename').value = config.outputFilename || 'attendees.pdf';
+          document.getElementById('fontSize').value = config.pdfLayout?.fontSize || 10;
+          document.getElementById('pdfColumns').value = JSON.stringify(config.pdfLayout?.columns || [], null, 2);
+
+          // Load logo if exists
+          if (config.pdfLayout?.logo) {
+            updateLogoPreview(config.pdfLayout.logo);
+          }
+
+          const printMode = config.printMode || 'local';
+          document.querySelector(`input[name="printMode"][value="${printMode}"]`).checked = true;
+        }
+      } catch (error) {
+        showAlert('Failed to load settings: ' + error.message, 'error');
+      }
+    }
+
+    // Save settings
+    document.getElementById('saveBtn').addEventListener('click', async () => {
+      try {
+        // Validate and prepare environment variables
+        const envConfig = {
+          API_KEY: document.getElementById('apiKey').value.trim(),
+          API_BASE_URL: document.getElementById('apiBaseUrl').value.trim(),
+          PRINTER_EMAIL: document.getElementById('printerEmail').value.trim(),
+          SMTP_HOST: document.getElementById('smtpHost').value.trim(),
+          SMTP_PORT: document.getElementById('smtpPort').value.trim(),
+          SMTP_USER: document.getElementById('smtpUser').value.trim(),
+          // Strip ALL spaces from password (Google App passwords have spaces when copied)
+          SMTP_PASS: document.getElementById('smtpPass').value.replace(/\s/g, ''),
+          EMAIL_FROM: document.getElementById('emailFrom').value.trim()
+        };
+
+        // Basic validation
+        if (!envConfig.API_KEY) {
+          showAlert('API Key is required', 'error');
+          return;
+        }
+
+        // Prepare configuration
+        const jsonConfig = {
+          categories: categories.filter(c => c.trim()),
+          preEventQueryMinutes: parseInt(document.getElementById('preEventQueryMinutes').value),
+          fetchWindowHours: parseInt(document.getElementById('fetchWindowHours').value),
+          serviceRunIntervalHours: parseInt(document.getElementById('serviceRunIntervalHours').value),
+          printMode: document.querySelector('input[name="printMode"]:checked').value,
+          outputFilename: document.getElementById('outputFilename').value.trim(),
+          pdfLayout: {
+            fontSize: parseInt(document.getElementById('fontSize').value),
+            columns: JSON.parse(document.getElementById('pdfColumns').value),
+            logo: currentLogoPath || undefined
+          },
+          webhook: {
+            enabled: false,
+            url: null
+          }
+        };
+
+        // Validate JSON config
+        const validateResult = await window.electronAPI.validateJsonConfig(jsonConfig);
+        if (!validateResult.valid) {
+          showAlert('Configuration validation failed: ' + validateResult.errors.join(', '), 'error');
+          return;
+        }
+
+        // Save both
+        const envResult = await window.electronAPI.saveEnvConfig(envConfig);
+        const configResult = await window.electronAPI.saveJsonConfig(jsonConfig);
+
+        if (envResult.success && configResult.success) {
+          showAlert('Settings saved successfully! Restart the service for changes to take effect.', 'success');
+        } else {
+          showAlert('Failed to save settings', 'error');
+        }
+      } catch (error) {
+        showAlert('Error saving settings: ' + error.message, 'error');
+      }
+    });
+
+    // Cancel button
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      window.close();
+    });
+
+    // Logo management
+    let currentLogoPath = null;
+
+    function updateLogoPreview(logoPath) {
+      const preview = document.getElementById('logoPreview');
+      const removeBtn = document.getElementById('removeLogoBtn');
+
+      if (logoPath) {
+        currentLogoPath = logoPath;
+        preview.innerHTML = `<img src="file://${logoPath}" alt="Logo">`;
+        removeBtn.style.display = 'block';
+      } else {
+        currentLogoPath = null;
+        preview.innerHTML = '<div class="logo-placeholder">No logo uploaded</div>';
+        removeBtn.style.display = 'none';
+      }
+    }
+
+    // Upload logo button
+    document.getElementById('uploadLogoBtn').addEventListener('click', async () => {
+      try {
+        const result = await window.electronAPI.uploadLogo();
+        if (result.success) {
+          updateLogoPreview(result.logoPath);
+          showAlert('Logo uploaded successfully', 'success');
+        }
+      } catch (error) {
+        showAlert('Failed to upload logo: ' + error.message, 'error');
+      }
+    });
+
+    // Remove logo button
+    document.getElementById('removeLogoBtn').addEventListener('click', () => {
+      if (confirm('Are you sure you want to remove the logo?')) {
+        updateLogoPreview(null);
+        showAlert('Logo removed. Click Save Changes to apply.', 'warning');
+      }
+    });
+
+    // Load settings on page load
+    loadSettings();
+  </script>
+</body>
+</html>

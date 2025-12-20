@@ -1,0 +1,233 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v1.2.3, etc.
+  workflow_dispatch:  # Allows manual triggering from GitHub UI
+    inputs:
+      version:
+        description: 'Version to release (e.g., 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    name: Create GitHub Release
+    runs-on: windows-latest
+    permissions:
+      contents: write  # Required to create releases and upload assets
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog generation
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '16.x'
+          cache: 'npm'
+
+      - name: Get version from tag or input
+        id: get_version
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $VERSION = "${{ github.event.inputs.version }}"
+            echo "VERSION=$VERSION" >> $env:GITHUB_OUTPUT
+            echo "TAG=v$VERSION" >> $env:GITHUB_OUTPUT
+          } else {
+            $TAG = "${{ github.ref_name }}"
+            $VERSION = $TAG -replace '^v', ''
+            echo "VERSION=$VERSION" >> $env:GITHUB_OUTPUT
+            echo "TAG=$TAG" >> $env:GITHUB_OUTPUT
+          }
+          echo "Building version: $VERSION"
+
+      - name: Verify version matches package.json
+        shell: pwsh
+        run: |
+          $packageJson = Get-Content -Raw package.json | ConvertFrom-Json
+          $packageVersion = $packageJson.version
+          $tagVersion = "${{ steps.get_version.outputs.VERSION }}"
+
+          if ($packageVersion -ne $tagVersion) {
+            Write-Host "::error::Version mismatch! package.json=$packageVersion, tag=$tagVersion"
+            exit 1
+          }
+          Write-Host "Version verified: $packageVersion"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Build portable ZIP
+        shell: pwsh
+        run: |
+          cd portable
+          .\BUILD-PORTABLE-ZIP.bat
+        continue-on-error: false
+
+      - name: Verify ZIP was created
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+          $zipPath = "dist/HelloClubEventAttendance-Portable-v$version.zip"
+
+          if (!(Test-Path $zipPath)) {
+            Write-Host "::error::ZIP file not found at $zipPath"
+            exit 1
+          }
+
+          $size = (Get-Item $zipPath).Length / 1MB
+          Write-Host "ZIP created successfully: $zipPath"
+          Write-Host "Size: $([math]::Round($size, 2)) MB"
+
+          # Save for later steps
+          echo "ZIP_PATH=$zipPath" >> $env:GITHUB_OUTPUT
+          echo "ZIP_SIZE=$([math]::Round($size, 2))" >> $env:GITHUB_OUTPUT
+        id: verify_zip
+
+      - name: Generate changelog from commits
+        id: changelog
+        shell: pwsh
+        run: |
+          $version = "${{ steps.get_version.outputs.VERSION }}"
+
+          # Get commits since last tag
+          $lastTag = git describe --tags --abbrev=0 HEAD^ 2>$null
+          if ($lastTag) {
+            $commits = git log "$lastTag..HEAD" --pretty=format:"- %s (%h)" --no-merges
+          } else {
+            $commits = git log --pretty=format:"- %s (%h)" --no-merges -n 20
+          }
+
+          # Build changelog
+          $changelog = @"
+          ## What's Changed
+
+          $commits
+
+          ## Installation
+
+          ### Portable Version (No Installation Required)
+
+          1. Download ``HelloClubEventAttendance-Portable-v$version.zip``
+          2. Extract to a folder
+          3. Run ``portable\1-SETUP.bat``
+          4. Edit ``.env`` with your API credentials
+          5. Run ``portable\2-START-SERVICE.bat``
+
+          **Size:** ${{ steps.verify_zip.outputs.ZIP_SIZE }} MB
+
+          ### Requirements
+          - Windows 10 or later
+          - Node.js 16.x or later
+
+          ## Documentation
+
+          - [README](https://github.com/${{ github.repository }}/blob/main/README.md)
+          - [Quick Start](https://github.com/${{ github.repository }}/blob/main/portable/QUICK-START.txt)
+          - [Full Documentation](https://github.com/${{ github.repository }}/tree/main/docs)
+
+          **Full Changelog**: https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md
+          "@
+
+          # Save to file for release notes
+          $changelog | Out-File -FilePath changelog.txt -Encoding UTF8
+
+          # Also output for debugging
+          Write-Host "Generated changelog:"
+          Write-Host $changelog
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ steps.get_version.outputs.TAG }}
+          release_name: Release ${{ steps.get_version.outputs.TAG }}
+          body_path: changelog.txt
+          draft: false
+          prerelease: false
+
+      - name: Upload portable ZIP to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ${{ steps.verify_zip.outputs.ZIP_PATH }}
+          asset_name: HelloClubEventAttendance-Portable-v${{ steps.get_version.outputs.VERSION }}.zip
+          asset_content_type: application/zip
+
+      - name: Upload CHANGELOG.md to release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./CHANGELOG.md
+          asset_name: CHANGELOG.md
+          asset_content_type: text/markdown
+
+      - name: Release summary
+        shell: pwsh
+        run: |
+          Write-Host "============================================"
+          Write-Host "  Release Created Successfully!"
+          Write-Host "============================================"
+          Write-Host ""
+          Write-Host "Version: ${{ steps.get_version.outputs.VERSION }}"
+          Write-Host "Tag: ${{ steps.get_version.outputs.TAG }}"
+          Write-Host "Release URL: ${{ steps.create_release.outputs.html_url }}"
+          Write-Host "ZIP Size: ${{ steps.verify_zip.outputs.ZIP_SIZE }} MB"
+          Write-Host ""
+          Write-Host "Assets uploaded:"
+          Write-Host "  - HelloClubEventAttendance-Portable-v${{ steps.get_version.outputs.VERSION }}.zip"
+          Write-Host "  - CHANGELOG.md"
+          Write-Host ""
+          Write-Host "============================================"
+
+  # Optional: Build installer (commented out since it requires Inno Setup)
+  # Uncomment if you want to also build the full installer
+  # build-installer:
+  #   name: Build Installer
+  #   runs-on: windows-latest
+  #   needs: create-release
+  #
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Setup Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: '16.x'
+  #
+  #     - name: Install Inno Setup
+  #       run: |
+  #         choco install innosetup -y
+  #
+  #     - name: Build installer
+  #       run: |
+  #         cd installer
+  #         .\build-installer.bat
+  #
+  #     - name: Upload installer to release
+  #       uses: actions/upload-release-asset@v1
+  #       env:
+  #         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  #       with:
+  #         upload_url: ${{ needs.create-release.outputs.upload_url }}
+  #         asset_path: ./dist/HelloClubEventAttendance-Setup-${{ needs.create-release.outputs.version }}.exe
+  #         asset_name: HelloClubEventAttendance-Setup-${{ needs.create-release.outputs.version }}.exe
+  #         asset_content_type: application/octet-stream

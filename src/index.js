@@ -1,18 +1,38 @@
 require('dotenv').config();
 const fs = require('fs');
-const logger = require('./logger');
-const configSchema = require('./config-schema');
-const argv = require('./args-parser');
-const { fetchAndStoreUpcomingEvents, processScheduledEvents } = require('./functions');
-const { runService } = require('./service');
+const logger = require('./services/logger');
+const configSchema = require('./utils/config-schema');
+const argv = require('./utils/args-parser');
+const { fetchAndStoreUpcomingEvents, processScheduledEvents } = require('./core/functions');
+const { runService } = require('./core/service');
 
-// Check for required environment variables
+// Global error handlers to prevent crashes
+process.on('uncaughtException', (error) => {
+    logger.error('Uncaught Exception:', error);
+    // Give logger time to write before exiting
+    setTimeout(() => process.exit(1), 1000);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    logger.error('Unhandled Promise Rejection at:', promise, 'reason:', reason);
+});
+
+// Check for required environment variables with helpful error messages
 const requiredEnvVars = ['API_KEY'];
 const missingEnvVars = requiredEnvVars.filter(key => !process.env[key]);
 
 if (missingEnvVars.length > 0) {
-    logger.error(`Error: Missing required environment variables: ${missingEnvVars.join(', ')}`);
-    logger.error('Please create a .env file in the root of the project and add the necessary variables.');
+    logger.error('╔════════════════════════════════════════════════════════════════╗');
+    logger.error('║  ERROR: Missing Required Environment Variables                ║');
+    logger.error('╚════════════════════════════════════════════════════════════════╝');
+    logger.error(`Missing: ${missingEnvVars.join(', ')}`);
+    logger.error('');
+    logger.error('To fix this:');
+    logger.error('  1. Copy .env.example to .env in the project root');
+    logger.error('  2. Edit .env and add your Hello Club API key:');
+    logger.error('     API_KEY=your_api_key_here');
+    logger.error('');
+    logger.error('For help getting your API key, see: docs/CONFIGURATION.md');
     process.exit(1);
 }
 
@@ -28,10 +48,30 @@ async function main() {
         logger.warn('Warning: config.json not found or is invalid. Using default values.');
     }
 
-    // Validate config file data
+    // Validate config file data with helpful error messages
     const { error, value: validatedConfig } = configSchema.validate(config);
     if (error) {
-        logger.error('Invalid configuration in config.json:', error.details.map(d => d.message).join('\n'));
+        logger.error('╔════════════════════════════════════════════════════════════════╗');
+        logger.error('║  ERROR: Invalid Configuration in config.json                  ║');
+        logger.error('╚════════════════════════════════════════════════════════════════╝');
+        logger.error('');
+        error.details.forEach((detail, index) => {
+            logger.error(`${index + 1}. ${detail.message}`);
+            logger.error(`   Path: ${detail.path.join('.')}`);
+
+            // Add contextual help for common errors
+            if (detail.path.includes('printMode')) {
+                logger.error('   → Valid values: "local" or "email"');
+            } else if (detail.path.includes('preEventQueryMinutes')) {
+                logger.error('   → Must be a positive integer (e.g., 5, 10, 15)');
+            } else if (detail.path.includes('serviceRunIntervalHours')) {
+                logger.error('   → Must be a positive integer (e.g., 1, 2, 4)');
+            } else if (detail.path.includes('outputFilename')) {
+                logger.error('   → Must end with .pdf (e.g., "attendees.pdf")');
+            }
+            logger.error('');
+        });
+        logger.error('For configuration help, see: docs/CONFIGURATION.md');
         process.exit(1);
     }
 
@@ -47,7 +87,9 @@ async function main() {
         preEventQueryMinutes: argv.preEventQueryMinutes ?? validatedConfig.preEventQueryMinutes,
         outputFilename: argv.output ?? validatedConfig.outputFilename,
         pdfLayout: validatedConfig.pdfLayout,
-        printMode: argv.printMode ?? validatedConfig.printMode
+        printMode: argv.printMode ?? validatedConfig.printMode,
+        // For start-service
+        serviceRunIntervalHours: argv.serviceRunIntervalHours ?? validatedConfig.serviceRunIntervalHours
     };
 
     logger.info(`Executing command: ${command}`);
@@ -60,7 +102,22 @@ async function main() {
             const requiredEmailVars = ['PRINTER_EMAIL', 'SMTP_USER', 'SMTP_PASS'];
             const missingEmailVars = requiredEmailVars.filter(key => !process.env[key]);
             if (missingEmailVars.length > 0) {
-                logger.error(`Error: Missing required environment variables for email printing: ${missingEmailVars.join(', ')}`);
+                logger.error('╔════════════════════════════════════════════════════════════════╗');
+                logger.error('║  ERROR: Email Printing Mode Requires SMTP Configuration       ║');
+                logger.error('╚════════════════════════════════════════════════════════════════╝');
+                logger.error(`Missing: ${missingEmailVars.join(', ')}`);
+                logger.error('');
+                logger.error('To fix this:');
+                logger.error('  1. Edit your .env file');
+                logger.error('  2. Add the following SMTP settings:');
+                logger.error('     PRINTER_EMAIL=your.printer@hp.com');
+                logger.error('     SMTP_USER=your.email@gmail.com');
+                logger.error('     SMTP_PASS=your_app_password');
+                logger.error('     SMTP_HOST=smtp.gmail.com  (optional)');
+                logger.error('     SMTP_PORT=587  (optional)');
+                logger.error('');
+                logger.error('For Gmail setup instructions, see: docs/CONFIGURATION.md#email-setup');
+                logger.error('Or change printMode to "local" in config.json');
                 process.exit(1);
             }
         }

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+bin/
+coverage/
+*.pdf
+*.db
+*.log
+migrations/
+installer/dist/

@@ -1,0 +1,27 @@
+================================================================================
+  QUICK START - Hello Club Event Attendance (Portable Version)
+================================================================================
+
+1. Extract this ZIP to a permanent folder (NOT your Desktop or Downloads)
+
+2. Run: portable\1-SETUP.bat
+   (This installs dependencies - takes 2-5 minutes)
+
+3. Edit .env file and add your Hello Club API key:
+   API_KEY=your_key_here
+
+4. Run: portable\2-START-SERVICE.bat
+   (Keep this window open - the service runs here)
+
+5. (Optional) Run: portable\3-START-TRAY.bat
+   (Opens system tray monitor for easy control)
+
+================================================================================
+
+That's it! The service is now running and will automatically:
+- Fetch events every hour
+- Print attendee lists 5 minutes before each event
+
+For detailed help, see portable\README.txt
+
+================================================================================

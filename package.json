@@ -1,16 +1,62 @@
 {
   "name": "hello-club-next-event-automation",
   "version": "1.0.0",
-  "description": "",
+  "description": "Automated Windows service for printing Hello Club event attendance lists with system tray monitoring",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js start-service",
+    "fetch-events": "node src/index.js fetch-events",
     "test": "jest",
-    "coverage": "jest --coverage"
+    "coverage": "jest --coverage",
+    "service:install": "node service/install.js",
+    "service:uninstall": "node service/uninstall.js",
+    "service:status": "node service/status.js",
+    "tray": "electron tray-app/main.js",
+    "tray:build": "electron-builder",
+    "lint": "eslint src/ tests/ service/ tray-app/",
+    "lint:fix": "eslint --fix src/ tests/ service/ tray-app/",
+    "format": "prettier --write \"**/*.{js,json,md}\"",
+    "format:check": "prettier --check \"**/*.{js,json,md}\"",
+    "validate": "npm run lint && npm test",
+    "prepare": "husky install",
+    "build:installer": "node scripts/build-installer.js",
+    "build:installer:skip-tests": "node scripts/build-installer.js --skip-tests",
+    "build:portable": "cd portable && BUILD-PORTABLE-ZIP.bat",
+    "build:all": "npm run build:installer && npm run build:portable",
+    "release": "cd scripts && prepare-release.bat",
+    "release:patch": "npm version patch && git push && git push --tags",
+    "release:minor": "npm version minor && git push && git push --tags",
+    "release:major": "npm version major && git push && git push --tags"
   },
-  "keywords": [],
-  "author": "",
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  },
+  "keywords": [
+    "hello-club",
+    "automation",
+    "windows-service",
+    "attendance",
+    "printing",
+    "event-management",
+    "electron",
+    "pdf-generator"
+  ],
+  "author": "ispyisail",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print/issues"
+  },
+  "homepage": "https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print#readme",
   "type": "commonjs",
   "dependencies": {
     "axios": "^1.12.2",
@@ -18,6 +64,7 @@
     "dotenv": "^17.2.2",
     "joi": "^18.0.1",
     "node-cron": "^4.2.1",
+    "node-windows": "^1.0.0-beta.8",
     "nodemailer": "^7.0.6",
     "pdf-to-printer": "^5.6.0",
     "pdfkit": "^0.17.2",
@@ -25,7 +72,28 @@
     "yargs": "^18.0.0"
   },
   "devDependencies": {
+    "electron": "^39.2.7",
+    "electron-builder": "^26.0.12",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.1.0",
+    "husky": "^9.0.11",
     "jest": "^30.1.3",
-    "pkg": "^5.8.1"
+    "lint-staged": "^15.2.2",
+    "pkg": "^5.8.1",
+    "prettier": "^3.2.5"
+  },
+  "build": {
+    "appId": "com.helloclub.tray",
+    "productName": "Hello Club Service Monitor",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "tray-app/**/*"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "tray-app/icons/icon-green.png"
+    }
   }
 }

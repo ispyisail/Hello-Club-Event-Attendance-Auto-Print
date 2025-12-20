@@ -1,0 +1,60 @@
+name: Build Installer
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v1.2.3
+  workflow_dispatch:  # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  build-installer:
+    name: Build Windows Installer
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Install Inno Setup
+        run: |
+          choco install innosetup -y
+
+      - name: Build installer
+        run: npm run build:installer
+
+      - name: Get version from package.json
+        id: package-version
+        run: |
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          echo "version=$version" >> $env:GITHUB_OUTPUT
+        shell: pwsh
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: HelloClubEventAttendance-Setup-${{ steps.package-version.outputs.version }}
+          path: dist/HelloClubEventAttendance-Setup-*.exe
+          retention-days: 90
+
+      - name: Create Release (if tag pushed)
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/HelloClubEventAttendance-Setup-*.exe
+          generate_release_notes: true
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

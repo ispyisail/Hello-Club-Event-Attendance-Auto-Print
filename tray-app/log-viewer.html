@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello Club Service - Log Viewer</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      overflow: hidden;
+    }
+
+    .header {
+      background: #2d2d30;
+      padding: 15px 20px;
+      border-bottom: 1px solid #3e3e42;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .status-badge {
+      padding: 5px 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .status-running {
+      background: #28a745;
+      color: white;
+    }
+
+    .status-stopped {
+      background: #dc3545;
+      color: white;
+    }
+
+    .status-error {
+      background: #ffc107;
+      color: #212529;
+    }
+
+    .status-unknown {
+      background: #6c757d;
+      color: white;
+    }
+
+    .controls {
+      background: #252526;
+      padding: 10px 20px;
+      border-bottom: 1px solid #3e3e42;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 6px 14px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .btn:hover {
+      opacity: 0.8;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: #0e639c;
+      color: white;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+
+    .btn-warning {
+      background: #ffc107;
+      color: #212529;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .tabs {
+      background: #2d2d30;
+      display: flex;
+      border-bottom: 1px solid #3e3e42;
+    }
+
+    .tab {
+      padding: 12px 24px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+      font-size: 14px;
+      font-weight: 500;
+    }
+
+    .tab:hover {
+      background: #3e3e42;
+    }
+
+    .tab.active {
+      border-bottom-color: #0e639c;
+      color: #0e639c;
+    }
+
+    .content {
+      height: calc(100vh - 150px);
+      overflow: hidden;
+    }
+
+    .log-panel {
+      display: none;
+      height: 100%;
+      overflow-y: auto;
+      padding: 15px;
+    }
+
+    .log-panel.active {
+      display: block;
+    }
+
+    .log-line {
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 13px;
+      padding: 4px 8px;
+      border-left: 3px solid transparent;
+      margin-bottom: 2px;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    .log-line:hover {
+      background: #2d2d30;
+    }
+
+    .log-line.info {
+      border-left-color: #0e639c;
+    }
+
+    .log-line.error {
+      border-left-color: #dc3545;
+      background: rgba(220, 53, 69, 0.1);
+    }
+
+    .log-line.warn {
+      border-left-color: #ffc107;
+      background: rgba(255, 193, 7, 0.1);
+    }
+
+    .log-timestamp {
+      color: #858585;
+      margin-right: 8px;
+    }
+
+    .log-level {
+      color: #4ec9b0;
+      margin-right: 8px;
+      font-weight: 600;
+    }
+
+    .log-message {
+      color: #d4d4d4;
+    }
+
+    .empty-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: #858585;
+    }
+
+    .empty-state-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .auto-scroll {
+      display: flex;
+      align-items: center;
+      margin-left: auto;
+      font-size: 13px;
+      color: #d4d4d4;
+    }
+
+    .auto-scroll input {
+      margin-right: 6px;
+    }
+
+    ::-webkit-scrollbar {
+      width: 10px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #1e1e1e;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #424242;
+      border-radius: 5px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #4e4e4e;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Hello Club Service - Log Viewer</h1>
+    <span id="statusBadge" class="status-badge status-unknown">Unknown</span>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="refreshBtn">Refresh</button>
+    <button class="btn btn-success" id="startBtn">Start Service</button>
+    <button class="btn btn-danger" id="stopBtn">Stop Service</button>
+    <button class="btn btn-warning" id="restartBtn">Restart Service</button>
+    <button class="btn btn-secondary" id="clearBtn">Clear Display</button>
+    <div class="auto-scroll">
+      <input type="checkbox" id="autoScroll" checked>
+      <label for="autoScroll">Auto-scroll</label>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="activity">Activity Log</div>
+    <div class="tab" data-tab="errors">Error Log</div>
+  </div>
+
+  <div class="content">
+    <div class="log-panel active" id="activityLog"></div>
+    <div class="log-panel" id="errorLog"></div>
+  </div>
+
+  <script>
+    let autoScroll = true;
+    let refreshInterval = null;
+
+    // Parse log line and format
+    function parseLogLine(line) {
+      const match = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+(\w+):\s+(.+)$/);
+      if (match) {
+        return {
+          timestamp: match[1],
+          level: match[2],
+          message: match[3]
+        };
+      }
+      return { timestamp: '', level: '', message: line };
+    }
+
+    // Render log lines
+    function renderLog(lines, containerId) {
+      const container = document.getElementById(containerId);
+      const wasScrolledToBottom = container.scrollHeight - container.scrollTop === container.clientHeight;
+
+      if (lines.length === 0) {
+        container.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-state-icon">📄</div>
+            <div>No log entries found</div>
+          </div>
+        `;
+        return;
+      }
+
+      container.innerHTML = lines.map(line => {
+        const parsed = parseLogLine(line);
+        const levelClass = parsed.level.toLowerCase();
+        return `
+          <div class="log-line ${levelClass}">
+            <span class="log-timestamp">${parsed.timestamp}</span>
+            <span class="log-level">${parsed.level}</span>
+            <span class="log-message">${escapeHtml(parsed.message)}</span>
+          </div>
+        `;
+      }).join('');
+
+      // Auto-scroll if enabled and was already at bottom
+      if (autoScroll && wasScrolledToBottom) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Update service status badge
+    async function updateStatus() {
+      const status = await window.electronAPI.getServiceStatus();
+      const badge = document.getElementById('statusBadge');
+      const startBtn = document.getElementById('startBtn');
+      const stopBtn = document.getElementById('stopBtn');
+      const restartBtn = document.getElementById('restartBtn');
+
+      if (status.running) {
+        badge.textContent = 'Running';
+        badge.className = 'status-badge status-running';
+        startBtn.disabled = true;
+        stopBtn.disabled = false;
+        restartBtn.disabled = false;
+      } else if (status.installed) {
+        badge.textContent = 'Stopped';
+        badge.className = 'status-badge status-stopped';
+        startBtn.disabled = false;
+        stopBtn.disabled = true;
+        restartBtn.disabled = false;
+      } else {
+        badge.textContent = 'Not Installed';
+        badge.className = 'status-badge status-unknown';
+        startBtn.disabled = true;
+        stopBtn.disabled = true;
+        restartBtn.disabled = true;
+      }
+    }
+
+    // Load logs
+    async function loadLogs() {
+      const activityLines = await window.electronAPI.getActivityLog();
+      const errorLines = await window.electronAPI.getErrorLog();
+
+      renderLog(activityLines, 'activityLog');
+      renderLog(errorLines, 'errorLog');
+    }
+
+    // Refresh everything
+    async function refresh() {
+      await Promise.all([updateStatus(), loadLogs()]);
+    }
+
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.log-panel').forEach(p => p.classList.remove('active'));
+
+        tab.classList.add('active');
+        const panelId = tab.dataset.tab === 'activity' ? 'activityLog' : 'errorLog';
+        document.getElementById(panelId).classList.add('active');
+      });
+    });
+
+    // Auto-scroll checkbox
+    document.getElementById('autoScroll').addEventListener('change', (e) => {
+      autoScroll = e.target.checked;
+    });
+
+    // Refresh button
+    document.getElementById('refreshBtn').addEventListener('click', refresh);
+
+    // Clear button
+    document.getElementById('clearBtn').addEventListener('click', () => {
+      document.getElementById('activityLog').innerHTML = '';
+      document.getElementById('errorLog').innerHTML = '';
+    });
+
+    // Service control buttons
+    document.getElementById('startBtn').addEventListener('click', async () => {
+      const result = await window.electronAPI.startService();
+      alert(result.success ? result.message : 'Failed: ' + result.error);
+      await refresh();
+    });
+
+    document.getElementById('stopBtn').addEventListener('click', async () => {
+      const result = await window.electronAPI.stopService();
+      alert(result.success ? result.message : 'Failed: ' + result.error);
+      await refresh();
+    });
+
+    document.getElementById('restartBtn').addEventListener('click', async () => {
+      const result = await window.electronAPI.restartService();
+      alert(result.success ? result.message : 'Failed: ' + result.error);
+      await refresh();
+    });
+
+    // Listen for status updates from main process
+    window.electronAPI.onStatusUpdate((status) => {
+      updateStatus();
+    });
+
+    // Initial load
+    refresh();
+
+    // Auto-refresh every 5 seconds
+    refreshInterval = setInterval(loadLogs, 5000);
+  </script>
+</body>
+</html>
