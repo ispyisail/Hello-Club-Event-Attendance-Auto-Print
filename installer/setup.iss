@@ -190,11 +190,9 @@ begin
   ConfigPage := CreateInputQueryPage(ApiKeyPage.ID,
     '📧 Email Printer Configuration',
     'Configure SMTP settings for email printing',
-    'If you want to print via email (e.g., using Epson Email Print),' + #13#10 +
-    'enter your SMTP credentials below.' + #13#10 + #13#10 +
-    '💡 Gmail users:' + #13#10 +
-    '   • Use an App Password (not your regular password)' + #13#10 +
-    '   • Generate one at: myaccount.google.com/apppasswords' + #13#10 + #13#10 +
+    'If you want to print via email (e.g., using Epson Email Print), enter your SMTP credentials below.' + #13#10 + #13#10 +
+    '💡 Gmail users: Use an App Password (not your regular password)' + #13#10 +
+    'Generate one at: myaccount.google.com/apppasswords' + #13#10 + #13#10 +
     'Leave blank to skip email printing (you can configure this later).');
 
   ConfigPage.Add('SMTP &Username (e.g., yourname@gmail.com):', False);
