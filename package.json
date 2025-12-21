@@ -1,6 +1,6 @@
 {
   "name": "hello-club-next-event-automation",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automated Windows service for printing Hello Club event attendance lists with system tray monitoring",
   "main": "src/index.js",
   "scripts": {

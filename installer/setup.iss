@@ -8,7 +8,7 @@
 ; To build: Open this file in Inno Setup Compiler and click "Compile"
 
 #define MyAppName "Hello Club Event Attendance"
-#define MyAppVersion "1.0.0"
+#define MyAppVersion "1.0.1"
 #define MyAppPublisher "Your Organization"
 #define MyAppURL "https://www.example.com/"
 #define MyAppExeName "tray-monitor.exe"
@@ -25,7 +25,8 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 
 ; Installation directories
-DefaultDirName={autopf}\{#MyAppName}
+; Use local app data for non-admin installation
+DefaultDirName={localappdata}\{#MyAppName}
 DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 
@@ -40,8 +41,9 @@ SolidCompression=yes
 
 ; Windows version requirements
 MinVersion=10.0
-PrivilegesRequired=admin
-PrivilegesRequiredOverridesAllowed=dialog
+; Allow installation without admin rights (installs to user folder)
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=commandline dialog
 
 ; Appearance - Modern, clean design
 WizardStyle=modern
@@ -58,13 +60,13 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Messages]
 ; Custom messages for a friendlier experience
 WelcomeLabel1=Welcome to Hello Club Event Attendance Setup
-WelcomeLabel2=This wizard will guide you through the installation and configuration of Hello Club Event Attendance - an automated system for printing event attendee lists.%n%nBefore continuing, please ensure you have:%n  • Your Hello Club API Key%n  • Node.js 14 or later installed%n  • Administrator privileges%n%nClick Next to continue.
+WelcomeLabel2=This wizard will guide you through the installation and configuration of Hello Club Event Attendance - an automated system for printing event attendee lists.%n%nBefore continuing, please ensure you have:%n  • Your Hello Club API Key%n  • Node.js 14 or later installed%n%nNote: Administrator privileges are only required for Windows service installation.%n%nClick Next to continue.
 FinishedLabel=Setup has successfully installed Hello Club Event Attendance!%n%nYour system tray monitor will launch automatically. You can:%n  • View logs and status from the tray icon%n  • Edit settings using the Settings menu%n  • Test your API and Email connections%n%nThe Windows service is ready to automatically process events.
 
 [Tasks]
 Name: "desktopicon"; Description: "Create a &desktop shortcut for quick access"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 Name: "startupicon"; Description: "Launch tray monitor &automatically when Windows starts (Recommended)"; GroupDescription: "Startup options:"
-Name: "installservice"; Description: "&Install Windows service for automatic event processing (Recommended)"; GroupDescription: "Service configuration:"
+Name: "installservice"; Description: "&Install Windows service for automatic event processing (Requires Administrator)"; GroupDescription: "Service configuration:"; Flags: unchecked
 
 [Files]
 ; Copy all application files except node_modules, logs, and dist
@@ -278,7 +280,7 @@ begin
     MsgBox('⚠️ Dependency Installation Issue' + #13#10 + #13#10 +
            'Some dependencies may not have installed correctly.' + #13#10 + #13#10 +
            '🔧 To fix this manually:' + #13#10 +
-           '   1. Open Command Prompt as Administrator' + #13#10 +
+           '   1. Open Command Prompt' + #13#10 +
            '   2. Navigate to: ' + ExpandConstant('{app}') + #13#10 +
            '   3. Run: npm install' + #13#10 + #13#10 +
            '💡 Common causes:' + #13#10 +
