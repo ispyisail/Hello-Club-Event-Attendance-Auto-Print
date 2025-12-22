@@ -8,7 +8,7 @@
 ; To build: Open this file in Inno Setup Compiler and click "Compile"
 
 #define MyAppName "Hello Club Event Attendance"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.1.0"
 #define MyAppPublisher "Your Organization"
 #define MyAppURL "https://www.example.com/"
 #define MyAppExeName "tray-monitor.exe"
