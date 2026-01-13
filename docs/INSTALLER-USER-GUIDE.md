@@ -9,7 +9,7 @@ This guide walks you through installing the Hello Club Event Attendance applicat
 ### Requirements
 
 ✓ **Windows 10 or later**
-✓ **Administrator privileges**
+✓ **Administrator privileges** (Only if installing Windows service - optional)
 ✓ **500 MB free disk space**
 ✓ **Internet connection** (for downloading dependencies)
 ✓ **Node.js 14.x or later** - [Download here](https://nodejs.org/)
@@ -26,7 +26,7 @@ This guide walks you through installing the Hello Club Event Attendance applicat
 
 1. Download the installer file:
    ```
-   HelloClubEventAttendance-Setup-1.0.0.exe
+   HelloClubEventAttendance-Setup-1.1.0.exe
    ```
 
 2. Save it to your Downloads folder
@@ -37,11 +37,11 @@ This guide walks you through installing the Hello Club Event Attendance applicat
 
 1. **Locate the downloaded file** in your Downloads folder
 
-2. **Right-click the installer**
+2. **Double-click the installer to run it**
+   - **No administrator rights needed** for standard installation
+   - Administrator rights only required if you want to install the Windows service (optional)
 
-3. **Select "Run as Administrator"**
-
-4. If prompted by Windows Security:
+3. If prompted by Windows Security:
    - Click "More info"
    - Click "Run anyway"
 
@@ -57,9 +57,13 @@ This guide walks you through installing the Hello Club Event Attendance applicat
 
 ![Install Location](images/location.png)
 
-1. **Default location:** `C:\Program Files\Hello Club Event Attendance\`
+1. **Default location:** `%LOCALAPPDATA%\Hello Club Event Attendance\`
+   - Example: `C:\Users\YourName\AppData\Local\Hello Club Event Attendance\`
+   - This is a user-level folder that doesn't require administrator rights
+   - Each user gets their own installation
 
 2. **To change:** Click "Browse" and select a different folder
+   - If you select a folder requiring admin rights (like Program Files), you'll need to run the installer as Administrator
 
 3. Click **"Next"**
 
@@ -72,8 +76,10 @@ Choose what you want:
 - ✓ **Start tray monitor on Windows startup** (Recommended)
   - Tray app will launch automatically when you log in
 
-- ✓ **Install and start Windows service** (Recommended)
+- ☐ **Install and start Windows service** (Optional, requires Administrator)
   - Service will run in the background automatically
+  - **Unchecked by default** - you can use the tray monitor without the service
+  - If checked, you'll need administrator privileges
 
 - ☐ **Create desktop icon** (Optional)
   - Adds shortcut to your desktop
@@ -250,7 +256,13 @@ Press the Windows key and type "Hello Club" to see:
 **Solution:**
 1. Check your internet connection
 2. Installation will continue
-3. After installation, open Command Prompt as Administrator:
+3. After installation, open Command Prompt:
+   ```
+   cd "%LOCALAPPDATA%\Hello Club Event Attendance"
+   npm install
+   ```
+
+   Or if you have a legacy installation in Program Files:
    ```
    cd "C:\Program Files\Hello Club Event Attendance"
    npm install
@@ -357,7 +369,12 @@ To remove everything including configuration:
 
 1. Uninstall using standard method above
 
-2. Delete installation folder:
+2. Delete installation folder (if not automatically removed):
+   ```
+   %LOCALAPPDATA%\Hello Club Event Attendance\
+   ```
+
+   Or for legacy installations:
    ```
    C:\Program Files\Hello Club Event Attendance\
    ```
@@ -421,7 +438,7 @@ Use the tray app with manual execution:
 
 2. Run manually in a console:
    ```
-   cd "C:\Program Files\Hello Club Event Attendance"
+   cd "%LOCALAPPDATA%\Hello Club Event Attendance"
    npm start
    ```
 

@@ -738,16 +738,16 @@ After install completes:
 # Check service
 sc query HelloClubEventAttendance
 
-# Check files
-dir "C:\Program Files\Hello Club Event Attendance"
+# Check files (new v1.1.0+ location)
+dir "%LOCALAPPDATA%\Hello Club Event Attendance"
 
 # Check shortcuts
 dir "%ProgramData%\Microsoft\Windows\Start Menu\Programs\Hello Club Event Attendance"
 ```
 
 **Expected:**
-- ✓ Service installed and running
-- ✓ All files present
+- ✓ Service installed and running (if option was checked)
+- ✓ All files present in %LOCALAPPDATA%
 - ✓ Shortcuts created
 - ✓ Tray app launched
 - ✓ No errors in logs
@@ -804,8 +804,8 @@ dir "%ProgramData%\Microsoft\Windows\Start Menu\Programs\Hello Club Event Attend
 sc query HelloClubEventAttendance
 # Should error: "does not exist"
 
-# Program Files should be empty or gone
-dir "C:\Program Files\Hello Club Event Attendance"
+# Installation folder should be empty or gone
+dir "%LOCALAPPDATA%\Hello Club Event Attendance"
 # Should not exist
 
 # Start Menu shortcuts gone

@@ -34,7 +34,7 @@ The installer will check for Node.js on the target machine:
 
 4. **Find the installer:**
    ```
-   Location: dist\HelloClubEventAttendance-Setup-1.0.0.exe
+   Location: dist\HelloClubEventAttendance-Setup-1.1.0.exe
    Size: ~150 MB (includes all dependencies)
    ```
 
@@ -53,10 +53,11 @@ For automation or CI/CD:
 1. **Pre-Installation Checks**
    - Checks for Node.js installation
    - Warns if Node.js is not found
-   - Verifies administrator privileges
+   - **No administrator privileges required** for standard installation (only for optional service)
 
 2. **File Installation**
-   - Copies application files to `Program Files\Hello Club Event Attendance\`
+   - Copies application files to `%LOCALAPPDATA%\Hello Club Event Attendance\` (user folder)
+   - No admin rights needed for this location
    - Excludes: node_modules, logs, old database files
    - Includes: source code, configuration, documentation
 
@@ -106,7 +107,7 @@ Users can customize the installation with these options:
 |--------|---------|-------------|
 | **Create desktop icon** | Unchecked | Adds shortcut to desktop |
 | **Start on Windows startup** | Checked | Auto-launch tray monitor |
-| **Install and start service** | Checked | Set up Windows service |
+| **Install and start service** | **Unchecked** | Set up Windows service (**requires admin**) |
 
 ## Installer Features
 
@@ -149,15 +150,15 @@ Edit `setup.iss`, lines 8-12:
 
 ### Change Install Location
 
-Edit `setup.iss`, line 22:
+Edit `setup.iss`, line 29:
 
 ```pascal
-DefaultDirName={autopf}\{#MyAppName}
+DefaultDirName={localappdata}\{#MyAppName}
 ```
 
 Options:
-- `{autopf}` - Program Files (recommended)
-- `{localappdata}` - User's AppData folder
+- `{localappdata}` - User's AppData folder (current default, no admin needed)
+- `{autopf}` - Program Files (requires admin)
 - `{userdocs}` - User's Documents folder
 
 ### Modify Installation Tasks
@@ -168,7 +169,7 @@ Edit the `[Tasks]` section in `setup.iss`:
 [Tasks]
 Name: "desktopicon"; Description: "Create desktop icon"; Flags: unchecked
 Name: "startupicon"; Description: "Start on Windows startup"; Flags: checked
-Name: "installservice"; Description: "Install Windows service"; Flags: checked
+Name: "installservice"; Description: "Install Windows service"; Flags: unchecked
 ```
 
 Change `Flags`:
@@ -220,17 +221,18 @@ Before distributing:
 
 1. **Copy installer to VM**
    ```
-   HelloClubEventAttendance-Setup-1.0.0.exe
+   HelloClubEventAttendance-Setup-1.1.0.exe
    ```
 
 2. **Run installer**
-   - Right-click → Run as Administrator
+   - Double-click to run (no admin needed for standard install)
+   - Check "Install Windows service" if testing service (requires admin)
    - Follow wizard
    - Enter test API credentials
 
 3. **Verify installation**
-   - Check Program Files folder
-   - Verify service status: `sc query HelloClubEventAttendance`
+   - Check `%LOCALAPPDATA%\Hello Club Event Attendance` folder
+   - If service installed: Verify service status `sc query HelloClubEventAttendance`
    - Launch tray app from Start Menu
 
 4. **Test functionality**
@@ -330,24 +332,27 @@ Provide clear instructions:
 ## Download
 
 1. Download the latest installer:
-   [HelloClubEventAttendance-Setup-1.0.0.exe](download-link)
+   [HelloClubEventAttendance-Setup-1.1.0.exe](download-link)
 
-2. Run the installer (requires Administrator)
+2. Run the installer (no admin rights needed!)
+   - Administrator only required for optional Windows service
 
 3. Follow the setup wizard
 
 4. Enter your API credentials when prompted
 
-5. Wait for installation to complete (3-5 minutes)
+5. Optionally enable Windows service (requires admin)
 
-6. The tray monitor will launch automatically
+6. Wait for installation to complete (3-5 minutes)
+
+7. The tray monitor will launch automatically
 
 ## Requirements
 
 - Windows 10 or later
 - Node.js 14.x or later
 - 500 MB free disk space
-- Administrator privileges
+- Administrator privileges (only for Windows service installation)
 ```
 
 ## Updating the Application
@@ -375,12 +380,12 @@ To release an update:
 
 1. **Update version** in `setup.iss`:
    ```pascal
-   #define MyAppVersion "1.0.1"
+   #define MyAppVersion "1.1.0"
    ```
 
 2. **Update version** in `package.json`:
    ```json
-   "version": "1.0.1"
+   "version": "1.1.0"
    ```
 
 3. **Rebuild installer**
@@ -396,13 +401,13 @@ To release an update:
 For corporate deployment:
 
 ```batch
-HelloClubEventAttendance-Setup-1.0.0.exe /SILENT
+HelloClubEventAttendance-Setup-1.1.0.exe /SILENT
 ```
 
 Or fully silent:
 
 ```batch
-HelloClubEventAttendance-Setup-1.0.0.exe /VERYSILENT
+HelloClubEventAttendance-Setup-1.1.0.exe /VERYSILENT
 ```
 
 **Note:** Configuration must be done manually after silent install.
@@ -410,7 +415,7 @@ HelloClubEventAttendance-Setup-1.0.0.exe /VERYSILENT
 ### Custom Install Path
 
 ```batch
-HelloClubEventAttendance-Setup-1.0.0.exe /DIR="C:\MyCustomPath"
+HelloClubEventAttendance-Setup-1.1.0.exe /DIR="C:\MyCustomPath"
 ```
 
 ### Command Line Options
@@ -427,7 +432,7 @@ HelloClubEventAttendance-Setup-1.0.0.exe /DIR="C:\MyCustomPath"
 Example with multiple options:
 
 ```batch
-HelloClubEventAttendance-Setup-1.0.0.exe /SILENT /TASKS="startupicon,installservice" /LOG="install.log"
+HelloClubEventAttendance-Setup-1.1.0.exe /SILENT /TASKS="startupicon,installservice" /LOG="install.log"
 ```
 
 ## Security Considerations
@@ -442,7 +447,7 @@ For production release:
 
 2. **Sign the installer:**
    ```batch
-   signtool sign /f certificate.pfx /p password /t http://timestamp.digicert.com HelloClubEventAttendance-Setup-1.0.0.exe
+   signtool sign /f certificate.pfx /p password /t http://timestamp.digicert.com HelloClubEventAttendance-Setup-1.1.0.exe
    ```
 
 3. **Benefits:**
