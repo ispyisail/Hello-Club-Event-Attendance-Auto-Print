@@ -318,8 +318,10 @@ INSERT INTO events (id, name, startDate, status) VALUES
 
 ### Directory Structure in Production
 
+**Standard Installation (v1.1.0+):**
 ```
-C:\Program Files\Hello Club Event Attendance\
+%LOCALAPPDATA%\Hello Club Event Attendance\
+(e.g., C:\Users\{User}\AppData\Local\Hello Club Event Attendance\)
 ├── src/                      # Application code
 ├── service/                  # Service management
 ├── tray-app/                 # Tray application
@@ -342,6 +344,12 @@ C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Hello Club\
 └── Uninstall.lnk
 ```
 
+**Legacy Installation (v1.0.x):**
+```
+C:\Program Files\Hello Club Event Attendance\
+(Same structure as above, but requires admin rights)
+```
+
 ### Windows Service Registration
 
 **Service Name**: `HelloClubEventAttendance`
@@ -350,14 +358,16 @@ C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Hello Club\
 ```ini
 Display Name: Hello Club Event Attendance
 Description: Automatically fetches and prints Hello Club event attendance lists
-Start Type: Automatic
+Start Type: Automatic (if installed)
 Recovery: Restart the service after 2 seconds
 Account: Local System
 ```
 
-**Service Wrapper** (node-windows):
+**Note**: Starting v1.1.0, Windows service installation is **optional** and unchecked by default. The application can run using only the tray monitor without the service.
+
+**Service Wrapper** (node-windows, if service installed):
 ```
-C:\Program Files\Hello Club Event Attendance\bin\daemon\
+%LOCALAPPDATA%\Hello Club Event Attendance\bin\daemon\
 ├── helloclubeventattendance.exe        # Service executable
 ├── helloclubeventattendance.exe.config # Configuration
 └── helloclubeventattendance.xml        # Service definition

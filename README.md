@@ -95,21 +95,24 @@ The application uses a smart two-stage process:
 
 **Download and run the installer** - The easiest way to get started:
 
-1. Download `HelloClubEventAttendance-Setup-1.0.0.exe` from the [Releases](https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print/releases) page
-2. Run the installer (requires Administrator)
+1. Download `HelloClubEventAttendance-Setup-1.1.0.exe` from the [Releases](https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print/releases) page
+2. Run the installer (**No administrator rights required!**)
+   - Installs to your user folder (`%LOCALAPPDATA%\Hello Club Event Attendance`)
+   - Administrator privileges only needed if you want the optional Windows service
 3. Follow the friendly setup wizard:
    - Enter your Hello Club API key
    - Configure email printing (optional)
+   - Optionally install Windows service (requires admin, unchecked by default)
 4. The installer automatically:
    - Installs Node.js dependencies
-   - Sets up the Windows service
+   - Creates your configuration file
    - Launches the tray monitor
 
 **That's it!** The tray icon will appear in your taskbar. Right-click it to:
 - View logs and status
 - Edit settings
 - Test API and Email connections
-- Control the service
+- Control the service (if installed)
 
 ### For Developers
 
@@ -203,9 +206,16 @@ SMTP_PORT=587
 }
 ```
 
-#### 4. Install as Windows Service
+#### 4. Install as Windows Service (Optional)
 
-**Important**: This step requires Administrator privileges.
+**Important**: This step requires Administrator privileges and is **optional**. You can use the tray monitor without the service.
+
+The Windows service provides:
+- Automatic start with Windows
+- Background operation even when not logged in
+- Auto-restart on failure
+
+To install the service:
 
 ```bash
 # Open PowerShell or Command Prompt as Administrator
@@ -213,6 +223,8 @@ npm run service:install
 ```
 
 The service will be installed as "HelloClubEventAttendance" and set to start automatically with Windows.
+
+**Without the service**: Simply run the tray monitor (`npm run tray`) and it will handle event processing while you're logged in.
 
 #### 5. Start the Tray Monitor
 
@@ -235,21 +247,26 @@ The installer provides a professional, guided setup experience with a modern wiz
 - Optional email printing setup with Gmail-specific tips
 - Smart validation (checks API key format)
 - Real-time progress with emoji indicators
+- **No admin required** for standard installation
 
 **⚙️ Automatic Setup:**
-1. Installs all files to Program Files
+1. Installs all files to `%LOCALAPPDATA%\Hello Club Event Attendance` (your user folder)
 2. Runs `npm install` for you (3-5 minutes)
 3. Creates `.env` file from your input
-4. Installs and starts the Windows service
+4. **Optionally** installs and starts the Windows service (requires admin, unchecked by default)
 5. Creates Start Menu and Desktop shortcuts
 6. Launches the tray monitor
 
 **📦 What's Included:**
-- Windows service (auto-starts on boot)
-- System tray monitor
+- System tray monitor (always included)
+- Windows service (optional, requires admin)
 - All dependencies
 - Complete documentation
 - Automatic updates support
+
+**🔑 Installation Modes:**
+- **Standard (No Admin)**: Tray monitor runs when you're logged in
+- **With Service (Admin)**: Background operation even when logged out
 
 #### To Build Your Own Installer:
 
@@ -258,7 +275,22 @@ cd installer
 build-installer.bat
 ```
 
-The installer will be created in `dist/HelloClubEventAttendance-Setup-1.0.0.exe` (2MB)
+The installer will be created in `dist/HelloClubEventAttendance-Setup-1.1.0.exe` (2MB)
+
+### Upgrading from Previous Versions
+
+**If you installed version 1.0.x or earlier:**
+
+Previous versions installed to `C:\Program Files\Hello Club Event Attendance` and required administrator rights. Starting with version 1.1.0:
+
+- **New installations** use `%LOCALAPPDATA%\Hello Club Event Attendance` (no admin needed)
+- **Existing installations** continue to work from their current location
+- **To migrate**:
+  1. Uninstall the old version (keeps your .env and config.json)
+  2. Install the new version
+  3. Copy your .env and config.json from the old location if needed
+
+Your data and configuration are preserved during upgrades.
 
 ## ⚙️ Configuration
 
