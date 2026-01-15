@@ -4,7 +4,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/tests-20%20passing-success)](./tests)
+[![Tests](https://img.shields.io/badge/tests-118%20passing-success)](./tests)
 
 ## 📋 Table of Contents
 
@@ -61,6 +61,7 @@ The application uses a smart two-stage process:
 ## ✨ Features
 
 ### Core Features
+
 - ✅ **Automated Event Fetching** - Scans for upcoming events within configurable time windows
 - ✅ **Smart Scheduling** - Processes events at optimal times to capture last-minute sign-ups
 - ✅ **Professional PDFs** - Generates clean, printable attendee lists with custom layouts
@@ -68,12 +69,14 @@ The application uses a smart two-stage process:
 - ✅ **Category Filtering** - Only process events from specified categories
 
 ### Windows Service Features
+
 - ✅ **Always Running** - Starts automatically with Windows
 - ✅ **Self-Healing** - Automatically restarts if it crashes
 - ✅ **Background Operation** - Runs without user interaction
 - ✅ **Production Ready** - Built with `node-windows` for reliability
 
 ### System Tray Features
+
 - 🟢 **Visual Status** - Color-coded icon (Green=Running, Red=Stopped, Yellow=Warning)
 - 📊 **Real-time Monitoring** - Shows service status and recent activity
 - 📝 **Log Viewer** - Browse activity and error logs in a clean interface
@@ -83,7 +86,8 @@ The application uses a smart two-stage process:
 - 🔌 **Connection Tests** - Test API and Email connections with one click
 
 ### Developer Features
-- ✅ **Comprehensive Tests** - 20+ unit tests with Jest
+
+- ✅ **Comprehensive Tests** - 118 unit tests with Jest
 - ✅ **Type Safety** - Joi schema validation for all configuration
 - ✅ **Error Handling** - Robust error handling with detailed logging
 - ✅ **Modular Architecture** - Clean separation of concerns
@@ -109,6 +113,7 @@ The application uses a smart two-stage process:
    - Launches the tray monitor
 
 **That's it!** The tray icon will appear in your taskbar. Right-click it to:
+
 - View logs and status
 - Edit settings
 - Test API and Email connections
@@ -156,6 +161,7 @@ npm install
 ```
 
 This installs all required packages including:
+
 - `node-windows` - Windows service management
 - `electron` - System tray application
 - `better-sqlite3` - Local database
@@ -166,12 +172,14 @@ This installs all required packages including:
 #### 3. Configure the Application
 
 **Create `.env` file:**
+
 ```bash
 # Copy the example
 copy .env.example .env
 ```
 
 Edit `.env` and add your credentials:
+
 ```env
 # Required: Your Hello Club API key
 API_KEY=your_api_key_here
@@ -185,6 +193,7 @@ SMTP_PORT=587
 ```
 
 **Edit `config.json`:**
+
 ```json
 {
   "categories": ["NBA - Junior Events", "Your Category"],
@@ -211,6 +220,7 @@ SMTP_PORT=587
 **Important**: This step requires Administrator privileges and is **optional**. You can use the tray monitor without the service.
 
 The Windows service provides:
+
 - Automatic start with Windows
 - Background operation even when not logged in
 - Auto-restart on failure
@@ -241,6 +251,7 @@ The installer provides a professional, guided setup experience with a modern wiz
 #### What You Get:
 
 **🎨 Modern Setup Wizard:**
+
 - Friendly welcome screen with prerequisites checklist
 - Node.js detection and guidance
 - Step-by-step API configuration with helpful hints
@@ -250,6 +261,7 @@ The installer provides a professional, guided setup experience with a modern wiz
 - **No admin required** for standard installation
 
 **⚙️ Automatic Setup:**
+
 1. Installs all files to `%LOCALAPPDATA%\Hello Club Event Attendance` (your user folder)
 2. Runs `npm install` for you (3-5 minutes)
 3. Creates `.env` file from your input
@@ -258,6 +270,7 @@ The installer provides a professional, guided setup experience with a modern wiz
 6. Launches the tray monitor
 
 **📦 What's Included:**
+
 - System tray monitor (always included)
 - Windows service (optional, requires admin)
 - All dependencies
@@ -265,6 +278,7 @@ The installer provides a professional, guided setup experience with a modern wiz
 - Automatic updates support
 
 **🔑 Installation Modes:**
+
 - **Standard (No Admin)**: Tray monitor runs when you're logged in
 - **With Service (Admin)**: Background operation even when logged out
 
@@ -311,19 +325,61 @@ The application uses two configuration files:
 
 ### Environment Variables (`.env`)
 
-| Variable | Required | Description | Default |
-|----------|----------|-------------|---------|
-| `API_KEY` | ✅ Yes | Hello Club API authentication key | - |
-| `PRINTER_EMAIL` | For email mode | Email address of network printer | - |
-| `SMTP_USER` | For email mode | SMTP username (e.g., Gmail address) | - |
-| `SMTP_PASS` | For email mode | SMTP password or app-specific password | - |
-| `SMTP_HOST` | For email mode | SMTP server hostname | `smtp.gmail.com` |
-| `SMTP_PORT` | For email mode | SMTP server port | `587` |
-| `EMAIL_FROM` | For email mode | Sender email address | Same as `SMTP_USER` |
+| Variable        | Required       | Description                                  | Default             |
+| --------------- | -------------- | -------------------------------------------- | ------------------- |
+| `API_KEY`       | ✅ Yes         | Hello Club API authentication key            | -                   |
+| `PRINTER_EMAIL` | For email mode | Email address of network printer             | -                   |
+| `SMTP_USER`     | For email mode | SMTP username (e.g., Gmail address)          | -                   |
+| `SMTP_PASS`     | For email mode | SMTP password or app-specific password       | -                   |
+| `SMTP_HOST`     | For email mode | SMTP server hostname                         | `smtp.gmail.com`    |
+| `SMTP_PORT`     | For email mode | SMTP server port                             | `587`               |
+| `EMAIL_FROM`    | For email mode | Sender email address                         | Same as `SMTP_USER` |
+| `LOG_LEVEL`     | No             | Logging verbosity (error, warn, info, debug) | `info`              |
+| `DB_PATH`       | No             | Path to SQLite database file                 | `./events.db`       |
 
 ### Application Settings (`config.json`)
 
 See [CONFIGURATION.md](./docs/CONFIGURATION.md) for detailed configuration documentation.
+
+### Webhook Configuration (Optional)
+
+Enable webhook notifications to receive real-time updates when events are processed. Add the following to your `config.json`:
+
+```json
+{
+  "webhook": {
+    "enabled": true,
+    "url": "https://your-server.com/webhook",
+    "timeoutMs": 10000,
+    "maxRetries": 2,
+    "retryDelayMs": 2000
+  }
+}
+```
+
+**Webhook Events:**
+
+| Event                   | Description                                      |
+| ----------------------- | ------------------------------------------------ |
+| `event.processed`       | Event successfully processed with attendee count |
+| `event.failed`          | Event processing failed with error message       |
+| `job.retry`             | Job is being retried (includes retry count)      |
+| `job.permanent_failure` | Job failed after all retries exhausted           |
+| `service.started`       | Service has started with configuration info      |
+
+**Example Payload:**
+
+```json
+{
+  "event": "event.processed",
+  "timestamp": "2025-01-15T10:30:00.000Z",
+  "data": {
+    "eventId": "abc123",
+    "eventName": "Basketball Practice",
+    "attendeeCount": 15
+  }
+}
+```
 
 ## 📖 Usage
 
@@ -332,11 +388,13 @@ See [CONFIGURATION.md](./docs/CONFIGURATION.md) for detailed configuration docum
 The system tray icon provides quick access to all functionality:
 
 **Icon Colors:**
+
 - 🟢 **Green** - Service running normally
 - 🔴 **Red** - Service stopped or error
 - 🟡 **Yellow** - Service starting or warning
 
 **Right-click Menu:**
+
 - **View Logs** - Open log viewer window with real-time updates
 - **Settings** ⚙️ **NEW!** - Edit configuration via GUI
   - Environment variables (API key, SMTP credentials)
@@ -425,23 +483,24 @@ Logs are written to the project root:
 - **`error.log`** - Errors and warnings only
 
 View logs via:
+
 - System tray → "View Logs"
 - Open files directly in any text editor
 - Command: `npm run logs` (if you add this script)
 
 ## 📚 Documentation
 
-| Document | Description |
-|----------|-------------|
-| [ARCHITECTURE.md](./docs/ARCHITECTURE.md) | System design and architecture |
-| [API.md](./docs/API.md) | Module and function reference |
-| [CONFIGURATION.md](./docs/CONFIGURATION.md) | Detailed configuration guide |
-| [DEVELOPMENT.md](./docs/DEVELOPMENT.md) | Developer setup and contribution guide |
-| [WINDOWS-SERVICE-SETUP.md](./docs/WINDOWS-SERVICE-SETUP.md) | Windows service installation guide |
-| [TRAY-APP-GUIDE.md](./docs/TRAY-APP-GUIDE.md) | System tray application guide |
-| [INSTALLER-USER-GUIDE.md](./docs/INSTALLER-USER-GUIDE.md) | Installer creation guide |
-| [TESTING-GUIDE.md](./docs/TESTING-GUIDE.md) | Testing documentation |
-| [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | Common issues and solutions |
+| Document                                                    | Description                            |
+| ----------------------------------------------------------- | -------------------------------------- |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md)                   | System design and architecture         |
+| [API.md](./docs/API.md)                                     | Module and function reference          |
+| [CONFIGURATION.md](./docs/CONFIGURATION.md)                 | Detailed configuration guide           |
+| [DEVELOPMENT.md](./docs/DEVELOPMENT.md)                     | Developer setup and contribution guide |
+| [WINDOWS-SERVICE-SETUP.md](./docs/WINDOWS-SERVICE-SETUP.md) | Windows service installation guide     |
+| [TRAY-APP-GUIDE.md](./docs/TRAY-APP-GUIDE.md)               | System tray application guide          |
+| [INSTALLER-USER-GUIDE.md](./docs/INSTALLER-USER-GUIDE.md)   | Installer creation guide               |
+| [TESTING-GUIDE.md](./docs/TESTING-GUIDE.md)                 | Testing documentation                  |
+| [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)             | Common issues and solutions            |
 
 ## 📁 Project Structure
 
@@ -478,9 +537,14 @@ hello-club-event-attendance/
 │   ├── build-installer.bat       # Build automation
 │   └── *.bat                     # Helper scripts
 │
-├── tests/                        # Unit tests
+├── tests/                        # Unit tests (118 tests)
+│   ├── api-client.test.js        # API client tests
+│   ├── email-service.test.js     # Email service tests
 │   ├── functions.test.js         # Core logic tests
-│   └── pdf-generator.test.js     # PDF generation tests
+│   ├── health-check.test.js      # Health check tests
+│   ├── pdf-generator.test.js     # PDF generation tests
+│   ├── service.test.js           # Service scheduling tests
+│   └── webhook.test.js           # Webhook notification tests
 │
 ├── migrations/                   # Database migrations
 │   └── 001-initial-schema.sql    # Initial database schema
@@ -522,45 +586,76 @@ npx jest --watch
 ### Test Coverage
 
 Current test coverage:
-- **20 unit tests** passing
-- Core business logic fully tested
+
+- **118 unit tests** passing across 7 test suites
+- Core business logic fully tested (functions.js, service.js)
 - PDF generation tested with mocks
-- API client error handling tested
+- API client error handling and pagination tested
+- Email service error scenarios tested
+- Webhook notifications tested
+- Health check module tested
+- Service scheduling and retry logic tested
 
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
 **Service won't start**
+
 - Ensure you installed as Administrator
 - Check `error.log` for details
 - Verify API_KEY in `.env` is correct
 
 **No events being processed**
+
 - Check category filters in `config.json`
 - Verify events exist in the time window
 - Run `node src/index.js fetch-events` manually
 
 **Tray icon not showing**
+
 - Check Windows notification area settings
 - Restart the tray app: `npm run tray`
 - Look for errors in console
 
 **PDF not printing**
+
 - Local mode: Install SumatraPDF on Windows
 - Email mode: Verify SMTP credentials in `.env`
 - Check `error.log` for printing errors
 
 **401 Unauthorized errors**
+
 - Your API_KEY is invalid or expired
 - Get a new key from Hello Club
 - Update `.env` and restart service
+
+**Webhook not receiving notifications**
+
+- Verify `webhook.enabled` is `true` in `config.json`
+- Check that the webhook URL is accessible from your server
+- Ensure URL uses HTTPS (HTTP localhost URLs are blocked for security)
+- Check `error.log` for webhook delivery failures
+
+**Events failing repeatedly**
+
+- Check `error.log` for the specific error message
+- Events are retried 3 times with exponential backoff (5min, 10min, 20min)
+- After 3 failures, the event is marked as permanently failed
+- Use the health check file (`service-health.json`) to monitor failed job counts
+
+**Database errors**
+
+- Ensure the database file (`events.db`) is not locked by another process
+- Check disk space availability
+- Try deleting `events.db` and restarting (will re-fetch events)
 
 See [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) for more solutions.
 
 ## 🤝 Contributing
 
 Contributions are welcome! Please see [DEVELOPMENT.md](./docs/DEVELOPMENT.md) for:
+
 - Development setup
 - Code style guidelines
 - Testing requirements

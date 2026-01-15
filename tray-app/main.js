@@ -15,7 +15,7 @@
 const { app, Tray, BrowserWindow, ipcMain, Notification } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const { exec } = require('child_process');
+// child_process exec available via service-manager if needed
 const { checkServiceStatus, startService, stopService, restartService } = require('./service-manager');
 const { getRecentLogs, watchForProcessedEvents } = require('./log-watcher');
 const { buildContextMenu } = require('./menu-builder');
@@ -39,7 +39,7 @@ let currentServiceStatus = 'unknown';
 
 // State object for log watcher
 const logWatcherState = {
-  lastProcessedEventCount: 0
+  lastProcessedEventCount: 0,
 };
 
 // Paths
@@ -52,12 +52,13 @@ const ICONS_PATH = path.join(__dirname, 'icons');
  * Get the appropriate tray icon based on service status
  */
 function getTrayIcon(status) {
-  const iconName = {
-    'running': 'icon-green.png',
-    'stopped': 'icon-red.png',
-    'error': 'icon-red.png',
-    'unknown': 'icon-yellow.png'
-  }[status] || 'icon-yellow.png';
+  const iconName =
+    {
+      running: 'icon-green.png',
+      stopped: 'icon-red.png',
+      error: 'icon-red.png',
+      unknown: 'icon-yellow.png',
+    }[status] || 'icon-yellow.png';
 
   return path.join(ICONS_PATH, iconName);
 }
@@ -79,7 +80,7 @@ function updateTrayStatus() {
 
     // Check for recent errors
     const errorLines = getRecentLogs(ERROR_LOG, 10);
-    const recentErrors = errorLines.filter(line => {
+    const recentErrors = errorLines.filter((line) => {
       const timestamp = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/);
       if (timestamp) {
         const logTime = new Date(timestamp[1]);
@@ -100,11 +101,11 @@ function updateTrayStatus() {
       tray.setImage(getTrayIcon(newStatus));
 
       const tooltips = {
-        'running': 'Hello Club Service: Running',
-        'stopped': 'Hello Club Service: Stopped',
-        'error': 'Hello Club Service: Running with errors',
-        'unknown': 'Hello Club Service: Not installed',
-        'not-installed': 'Hello Club Service: Not installed'
+        running: 'Hello Club Service: Running',
+        stopped: 'Hello Club Service: Stopped',
+        error: 'Hello Club Service: Running with errors',
+        unknown: 'Hello Club Service: Not installed',
+        'not-installed': 'Hello Club Service: Not installed',
       };
 
       tray.setToolTip(tooltips[newStatus] || 'Hello Club Service');
@@ -118,7 +119,7 @@ function updateTrayStatus() {
       logWindow.webContents.send('status-update', {
         status: newStatus,
         installed: result.installed,
-        running: result.running
+        running: result.running,
       });
     }
   });
@@ -137,7 +138,7 @@ function updateContextMenu() {
     openBackup,
     updateTrayStatus,
     projectRoot: PROJECT_ROOT,
-    onQuit: () => app.quit()
+    onQuit: () => app.quit(),
   });
 }
 
@@ -158,8 +159,8 @@ function openLogViewer() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
-    }
+      preload: path.join(__dirname, 'preload.js'),
+    },
   });
 
   logWindow.loadFile(path.join(__dirname, 'log-viewer.html'));
@@ -186,8 +187,8 @@ function openSettings() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
-    }
+      preload: path.join(__dirname, 'preload.js'),
+    },
   });
 
   settingsWindow.loadFile(path.join(__dirname, 'settings.html'));
@@ -213,8 +214,8 @@ function openSetupWizard() {
     icon: path.join(ICONS_PATH, 'icon-green.png'),
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: true
-    }
+      contextIsolation: true,
+    },
   });
 
   setupWizardWindow.loadFile(path.join(__dirname, 'setup-wizard.html'));
@@ -241,8 +242,8 @@ function openDashboard() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'dashboard-preload.js')
-    }
+      preload: path.join(__dirname, 'dashboard-preload.js'),
+    },
   });
 
   dashboardWindow.loadFile(path.join(__dirname, 'dashboard.html'));
@@ -269,8 +270,8 @@ function openBackup() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
-    }
+      preload: path.join(__dirname, 'preload.js'),
+    },
   });
 
   backupWindow.loadFile(path.join(__dirname, 'backup.html'));
@@ -356,7 +357,7 @@ ipcMain.handle('get-env-config', async () => {
     const envContent = fs.readFileSync(envPath, 'utf8');
     const envData = {};
 
-    envContent.split('\n').forEach(line => {
+    envContent.split('\n').forEach((line) => {
       line = line.trim();
       if (line && !line.startsWith('#')) {
         const match = line.match(/^([^=]+)=(.*)$/);
@@ -456,7 +457,7 @@ ipcMain.handle('validate-json-config', async (event, configData) => {
     const { error } = configSchema.validate(configData);
 
     if (error) {
-      const errors = error.details.map(d => d.message);
+      const errors = error.details.map((d) => d.message);
       return { valid: false, errors };
     }
 
@@ -478,7 +479,7 @@ ipcMain.handle('get-statistics', async () => {
         events: { total: 0, byStatus: {}, successRate: '0%' },
         jobs: { total: 0, byStatus: {}, retryRate: '0%' },
         currentStatus: { pending: 0, failed: 0, retrying: 0 },
-        recentActivity: []
+        recentActivity: [],
       };
     }
 
@@ -526,17 +527,20 @@ ipcMain.handle('cleanup-old-backups', async (event, keepCount) => {
   return cleanupOldBackups(PROJECT_ROOT, keepCount || 10);
 });
 
-// Logo upload handler
+// Logo upload handler with security validation
 ipcMain.handle('upload-logo', async () => {
   const { dialog } = require('electron');
+
+  // Allowed extensions (lowercase)
+  const ALLOWED_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif'];
+  // Maximum file size: 5MB
+  const MAX_FILE_SIZE = 5 * 1024 * 1024;
 
   try {
     const result = await dialog.showOpenDialog({
       title: 'Select Logo Image',
-      filters: [
-        { name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif'] }
-      ],
-      properties: ['openFile']
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'gif'] }],
+      properties: ['openFile'],
     });
 
     if (result.canceled || !result.filePaths.length) {
@@ -544,14 +548,56 @@ ipcMain.handle('upload-logo', async () => {
     }
 
     const sourcePath = result.filePaths[0];
-    const ext = path.extname(sourcePath);
+    const ext = path.extname(sourcePath).toLowerCase();
+
+    // Validate file extension
+    if (!ALLOWED_EXTENSIONS.includes(ext)) {
+      return {
+        success: false,
+        error: `Invalid file type "${ext}". Only PNG, JPG, JPEG, and GIF files are allowed.`,
+      };
+    }
+
+    // Validate file size
+    const stats = fs.statSync(sourcePath);
+    if (stats.size > MAX_FILE_SIZE) {
+      const sizeMB = (stats.size / 1024 / 1024).toFixed(2);
+      return {
+        success: false,
+        error: `File too large (${sizeMB}MB). Maximum allowed size is 5MB.`,
+      };
+    }
+
+    // Validate file is actually readable and not a special file
+    if (!stats.isFile()) {
+      return { success: false, error: 'Selected path is not a valid file.' };
+    }
+
+    // Read first few bytes to verify it's actually an image (magic bytes check)
+    const buffer = Buffer.alloc(8);
+    const fd = fs.openSync(sourcePath, 'r');
+    fs.readSync(fd, buffer, 0, 8, 0);
+    fs.closeSync(fd);
+
+    // Check magic bytes for common image formats
+    const isPNG = buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47;
+    const isJPEG = buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+    const isGIF = buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46;
+
+    if (!isPNG && !isJPEG && !isGIF) {
+      return {
+        success: false,
+        error: 'File does not appear to be a valid image. Please select a PNG, JPG, or GIF file.',
+      };
+    }
+
     const logoFileName = `logo${ext}`;
     const destPath = path.join(PROJECT_ROOT, logoFileName);
 
     // Copy the file to project root
     fs.copyFileSync(sourcePath, destPath);
 
-    return { success: true, logoPath: destPath };
+    return { success: true, logoPath: logoFileName };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -577,7 +623,7 @@ app.whenReady().then(() => {
       new Notification({
         title: 'Welcome to Hello Club!',
         body: 'Opening setup wizard to help you get started...',
-        icon: path.join(ICONS_PATH, 'icon-green.png')
+        icon: path.join(ICONS_PATH, 'icon-green.png'),
       }).show();
     }, 1000);
   }

@@ -1,13 +1,27 @@
 {
-  "categories": [
-    "NBA - Junior Events",
-    "Pickleball"
-  ],
+  "categories": ["NBA - Junior Events", "Pickleball"],
   "preEventQueryMinutes": 5,
   "fetchWindowHours": 168,
   "serviceRunIntervalHours": 1,
   "printMode": "local",
   "outputFilename": "attendees.pdf",
+  "retry": {
+    "maxAttempts": 3,
+    "baseDelayMinutes": 5
+  },
+  "api": {
+    "paginationLimit": 100,
+    "paginationDelayMs": 1000,
+    "cacheFreshSeconds": 120,
+    "cacheStaleSeconds": 1800
+  },
+  "logging": {
+    "maxFileSizeBytes": 5242880,
+    "maxFiles": 5
+  },
+  "database": {
+    "cleanupDays": 30
+  },
   "pdfLayout": {
     "logo": null,
     "fontSize": 10,
@@ -41,6 +55,9 @@
   },
   "webhook": {
     "enabled": false,
-    "url": null
+    "url": null,
+    "timeoutMs": 10000,
+    "maxRetries": 2,
+    "retryDelayMs": 2000
   }
 }

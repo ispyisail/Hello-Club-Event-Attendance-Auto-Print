@@ -78,4 +78,65 @@ function cleanupOldEvents(daysToKeep = 30) {
   }
 }
 
-module.exports = { getDb, cleanupOldEvents };
+/**
+ * Update the status of an event
+ * @param {string} eventId - The event ID
+ * @param {string} status - The new status ('pending', 'processed', 'failed')
+ * @returns {Object} Result object with changes count
+ */
+function updateEventStatus(eventId, status) {
+  const database = getDb();
+  const stmt = database.prepare('UPDATE events SET status = ? WHERE id = ?');
+  return stmt.run(status, eventId);
+}
+
+/**
+ * Update the status of a scheduled job
+ * @param {string} eventId - The event ID associated with the job
+ * @param {string} status - The new status ('scheduled', 'processing', 'completed', 'failed', 'retrying')
+ * @param {string|null} errorMessage - Optional error message for failed jobs
+ * @returns {Object} Result object with changes count
+ */
+function updateJobStatus(eventId, status, errorMessage = null) {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE scheduled_jobs
+    SET status = ?, error_message = ?, updated_at = datetime('now')
+    WHERE event_id = ?
+  `);
+  return stmt.run(status, errorMessage, eventId);
+}
+
+/**
+ * Increment the retry count for a scheduled job
+ * @param {string} eventId - The event ID associated with the job
+ * @returns {Object} Result object with changes count
+ */
+function incrementJobRetryCount(eventId) {
+  const database = getDb();
+  const stmt = database.prepare(`
+    UPDATE scheduled_jobs
+    SET retry_count = retry_count + 1, updated_at = datetime('now')
+    WHERE event_id = ?
+  `);
+  return stmt.run(eventId);
+}
+
+/**
+ * Get information about a scheduled job
+ * @param {string} eventId - The event ID to look up
+ * @returns {Object|undefined} The job record or undefined if not found
+ */
+function getJobInfo(eventId) {
+  const database = getDb();
+  return database.prepare('SELECT * FROM scheduled_jobs WHERE event_id = ?').get(eventId);
+}
+
+module.exports = {
+  getDb,
+  cleanupOldEvents,
+  updateEventStatus,
+  updateJobStatus,
+  incrementJobRetryCount,
+  getJobInfo,
+};

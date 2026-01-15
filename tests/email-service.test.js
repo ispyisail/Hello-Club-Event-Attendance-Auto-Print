@@ -6,8 +6,10 @@
 // Mock dependencies
 jest.mock('nodemailer');
 jest.mock('../src/services/logger');
+jest.mock('fs');
 
 const nodemailer = require('nodemailer');
+const fs = require('fs');
 const logger = require('../src/services/logger');
 const { sendEmailWithAttachment } = require('../src/services/email-service');
 
@@ -23,11 +25,15 @@ describe('Email Service', () => {
 
     // Create mock transporter
     mockTransporter = {
-      sendMail: mockSendMail
+      sendMail: mockSendMail,
     };
 
     // Mock nodemailer.createTransport
     nodemailer.createTransport.mockReturnValue(mockTransporter);
+
+    // Mock fs functions for path validation
+    fs.existsSync.mockReturnValue(true);
+    fs.statSync.mockReturnValue({ isFile: () => true });
   });
 
   describe('sendEmailWithAttachment', () => {
@@ -37,22 +43,23 @@ describe('Email Service', () => {
       secure: false,
       auth: {
         user: 'test@test.com',
-        pass: 'testpassword'
-      }
+        pass: 'testpassword',
+      },
     };
 
+    // Use relative path that resolves to within project directory
     const emailParams = {
       to: 'recipient@test.com',
       from: 'sender@test.com',
       subject: 'Test Subject',
       body: 'Test email body',
-      attachmentPath: 'C:\\test\\attachment.pdf'
+      attachmentPath: 'attendees.pdf', // Relative to project root
     };
 
     it('should send email with attachment successfully', async () => {
       const mockResponse = {
         messageId: '12345',
-        response: '250 Message accepted'
+        response: '250 Message accepted',
       };
 
       mockSendMail.mockResolvedValue(mockResponse);
@@ -75,9 +82,9 @@ describe('Email Service', () => {
         text: emailParams.body,
         attachments: [
           {
-            path: emailParams.attachmentPath
-          }
-        ]
+            path: expect.stringContaining('attendees.pdf'),
+          },
+        ],
       });
 
       expect(result).toEqual(mockResponse);
@@ -101,10 +108,7 @@ describe('Email Service', () => {
         )
       ).rejects.toThrow('Invalid login');
 
-      expect(logger.error).toHaveBeenCalledWith(
-        'Failed to send email:',
-        authError
-      );
+      expect(logger.error).toHaveBeenCalledWith('Failed to send email:', authError);
     });
 
     it('should handle SMTP connection refused error', async () => {
@@ -148,6 +152,20 @@ describe('Email Service', () => {
     });
 
     it('should handle invalid recipient error', async () => {
+      // Test with invalid email format (missing TLD)
+      await expect(
+        sendEmailWithAttachment(
+          transportOptions,
+          'invalid@test', // Invalid email - missing TLD
+          emailParams.from,
+          emailParams.subject,
+          emailParams.body,
+          emailParams.attachmentPath
+        )
+      ).rejects.toThrow('Invalid recipient email address');
+    });
+
+    it('should handle SMTP recipient rejection error', async () => {
       const recipientError = new Error('Recipient address rejected');
       recipientError.responseCode = 550;
 
@@ -156,7 +174,7 @@ describe('Email Service', () => {
       await expect(
         sendEmailWithAttachment(
           transportOptions,
-          'invalid@test',
+          'valid@test.com', // Valid format but SMTP rejects
           emailParams.from,
           emailParams.subject,
           emailParams.body,
@@ -168,10 +186,8 @@ describe('Email Service', () => {
     });
 
     it('should handle missing attachment file error', async () => {
-      const fileError = new Error('ENOENT: no such file or directory');
-      fileError.code = 'ENOENT';
-
-      mockSendMail.mockRejectedValue(fileError);
+      // Mock file not existing
+      fs.existsSync.mockReturnValue(false);
 
       await expect(
         sendEmailWithAttachment(
@@ -180,11 +196,9 @@ describe('Email Service', () => {
           emailParams.from,
           emailParams.subject,
           emailParams.body,
-          'C:\\nonexistent\\file.pdf'
+          'nonexistent.pdf'
         )
-      ).rejects.toThrow(/no such file or directory/);
-
-      expect(logger.error).toHaveBeenCalled();
+      ).rejects.toThrow(/does not exist/);
     });
 
     it('should create new transporter for each send', async () => {
@@ -226,7 +240,7 @@ describe('Email Service', () => {
 
       expect(mockSendMail).toHaveBeenCalledWith(
         expect.objectContaining({
-          text: ''
+          text: '',
         })
       );
     });
@@ -247,7 +261,7 @@ describe('Email Service', () => {
 
       expect(mockSendMail).toHaveBeenCalledWith(
         expect.objectContaining({
-          subject: specialSubject
+          subject: specialSubject,
         })
       );
     });

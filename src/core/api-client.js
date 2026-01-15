@@ -11,9 +11,9 @@ const API_TIMEOUT = parseInt(process.env.API_TIMEOUT) || 30000;
 const api = axios.create({
   baseURL: BASE_URL,
   headers: {
-    'Authorization': `Bearer ${API_KEY}`
+    Authorization: `Bearer ${API_KEY}`,
   },
-  timeout: API_TIMEOUT
+  timeout: API_TIMEOUT,
 });
 
 /**
@@ -110,8 +110,8 @@ async function getUpcomingEvents(fetchWindowHours, options = { allowStale: true 
       params: {
         fromDate: fromDate.toISOString(),
         toDate: toDate.toISOString(),
-        sort: 'startDate'
-      }
+        sort: 'startDate',
+      },
     });
 
     const events = response.data.events || [];
@@ -160,26 +160,42 @@ async function getAllAttendees(eventId, options = { allowStale: true }) {
   let attendees = [];
   let offset = 0;
   const limit = 100;
-  let total = 0;
+  const MAX_PAGES = 100; // Safety limit to prevent infinite loops
 
   try {
+    let pageCount = 0;
+
     do {
+      pageCount++;
+
+      // Safety check: prevent infinite pagination
+      if (pageCount > MAX_PAGES) {
+        logger.error(`Pagination exceeded ${MAX_PAGES} pages for event ${eventId}, stopping`);
+        break;
+      }
+
       const response = await api.get('/eventAttendee', {
-        params: { event: eventId, limit: limit, offset: offset }
+        params: { event: eventId, limit: limit, offset: offset },
       });
 
       const receivedAttendees = response.data.attendees;
+      const total = response.data.meta?.total || 0;
 
       if (!receivedAttendees || receivedAttendees.length === 0) {
         break;
       }
 
       attendees = attendees.concat(receivedAttendees);
-      total = response.data.meta.total;
       offset += receivedAttendees.length;
 
+      // Safety check: stop if we've fetched all attendees
+      if (offset >= total) {
+        break;
+      }
+
       // Wait for 1 second before the next request to avoid hitting the rate limit.
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // eslint-disable-next-line no-constant-condition
     } while (true);
 
     // Sort attendees by last name, then first name (case-insensitive)
@@ -233,9 +249,9 @@ function getCacheStats() {
 }
 
 module.exports = {
-    getEventDetails,
-    getUpcomingEvents,
-    getAllAttendees,
-    clearCache,
-    getCacheStats
+  getEventDetails,
+  getUpcomingEvents,
+  getAllAttendees,
+  clearCache,
+  getCacheStats,
 };

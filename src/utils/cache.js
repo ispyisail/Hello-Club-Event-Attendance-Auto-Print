@@ -5,9 +5,26 @@
 
 const logger = require('../services/logger');
 
+// Maximum number of entries to prevent unbounded memory growth
+const MAX_CACHE_SIZE = 1000;
+
 class SimpleCache {
   constructor() {
     this.cache = new Map();
+  }
+
+  /**
+   * Evict oldest entries if cache is at capacity
+   * Uses FIFO (First-In-First-Out) eviction based on Map insertion order
+   * @private
+   */
+  _evictIfNeeded() {
+    while (this.cache.size >= MAX_CACHE_SIZE) {
+      // Map maintains insertion order, so first key is oldest
+      const oldestKey = this.cache.keys().next().value;
+      this.cache.delete(oldestKey);
+      logger.debug(`Cache evicted oldest entry: ${oldestKey} (size limit: ${MAX_CACHE_SIZE})`);
+    }
   }
 
   /**
@@ -18,10 +35,23 @@ class SimpleCache {
    * @param {number} staleTtlSeconds - Additional time to keep stale data (for graceful degradation)
    */
   set(key, value, ttlSeconds = 300, staleTtlSeconds = 3600) {
-    const expiresAt = Date.now() + (ttlSeconds * 1000);
-    const staleExpiresAt = Date.now() + ((ttlSeconds + staleTtlSeconds) * 1000);
-    this.cache.set(key, { value, expiresAt, staleExpiresAt });
-    logger.info(`Cache set: ${key} (TTL: ${ttlSeconds}s, Stale TTL: ${staleTtlSeconds}s)`);
+    // Evict oldest entries if at capacity (before adding new entry)
+    this._evictIfNeeded();
+
+    const now = Date.now();
+    const expiresAt = now + ttlSeconds * 1000;
+    const staleExpiresAt = now + (ttlSeconds + staleTtlSeconds) * 1000;
+
+    this.cache.set(key, {
+      value,
+      expiresAt,
+      staleExpiresAt,
+      createdAt: now, // Track creation time for debugging/stats
+    });
+
+    logger.info(
+      `Cache set: ${key} (TTL: ${ttlSeconds}s, Stale TTL: ${staleTtlSeconds}s, Size: ${this.cache.size}/${MAX_CACHE_SIZE})`
+    );
   }
 
   /**
@@ -143,8 +173,10 @@ class SimpleCache {
 
     return {
       total: this.cache.size,
+      maxSize: MAX_CACHE_SIZE,
       valid,
-      expired
+      expired,
+      utilizationPercent: Math.round((this.cache.size / MAX_CACHE_SIZE) * 100),
     };
   }
 }

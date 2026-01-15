@@ -46,37 +46,90 @@ const configSchema = Joi.object({
       }).required(),
     }).required(),
   }).optional(),
+  /**
+   * Retry configuration for failed event processing
+   * @type {Object}
+   */
+  retry: Joi.object({
+    maxAttempts: Joi.number().integer().min(1).max(10).default(3),
+    baseDelayMinutes: Joi.number().integer().min(1).max(60).default(5),
+  })
+    .optional()
+    .default({ maxAttempts: 3, baseDelayMinutes: 5 }),
+  /**
+   * API client configuration
+   * @type {Object}
+   */
+  api: Joi.object({
+    paginationLimit: Joi.number().integer().min(10).max(500).default(100),
+    paginationDelayMs: Joi.number().integer().min(100).max(5000).default(1000),
+    cacheFreshSeconds: Joi.number().integer().min(30).max(3600).default(120),
+    cacheStaleSeconds: Joi.number().integer().min(300).max(86400).default(1800),
+  })
+    .optional()
+    .default({
+      paginationLimit: 100,
+      paginationDelayMs: 1000,
+      cacheFreshSeconds: 120,
+      cacheStaleSeconds: 1800,
+    }),
+  /**
+   * Logging configuration
+   * @type {Object}
+   */
+  logging: Joi.object({
+    maxFileSizeBytes: Joi.number().integer().min(1048576).max(52428800).default(5242880),
+    maxFiles: Joi.number().integer().min(1).max(20).default(5),
+  })
+    .optional()
+    .default({ maxFileSizeBytes: 5242880, maxFiles: 5 }),
+  /**
+   * Database configuration
+   * @type {Object}
+   */
+  database: Joi.object({
+    cleanupDays: Joi.number().integer().min(1).max(365).default(30),
+  })
+    .optional()
+    .default({ cleanupDays: 30 }),
   pdfLayout: Joi.object({
     logo: Joi.string().allow(null).default(null),
     fontSize: Joi.number().positive().default(10),
-    columns: Joi.array().items(Joi.object({
-      id: Joi.string().required(),
-      header: Joi.string().required(),
-      width: Joi.number().positive().required(),
-    })).default([
-      { "id": "name", "header": "Name", "width": 140 },
-      { "id": "phone", "header": "Phone", "width": 100 },
-      { "id": "signUpDate", "header": "Signed up", "width": 100 },
-      { "id": "fee", "header": "Fee", "width": 60 },
-      { "id": "status", "header": "Status", "width": 90 }
-    ]),
+    columns: Joi.array()
+      .items(
+        Joi.object({
+          id: Joi.string().required(),
+          header: Joi.string().required(),
+          width: Joi.number().positive().required(),
+        })
+      )
+      .default([
+        { id: 'name', header: 'Name', width: 140 },
+        { id: 'phone', header: 'Phone', width: 100 },
+        { id: 'signUpDate', header: 'Signed up', width: 100 },
+        { id: 'fee', header: 'Fee', width: 60 },
+        { id: 'status', header: 'Status', width: 90 },
+      ]),
   }).optional(),
   /**
    * Webhook configuration for event notifications
    * @type {Object}
    */
   webhook: Joi.object({
-    /**
-     * The webhook URL to send notifications to
-     * @type {string}
-     */
     url: Joi.string().uri().allow(null, '').default(null),
-    /**
-     * Enable/disable webhook notifications
-     * @type {boolean}
-     */
     enabled: Joi.boolean().default(false),
-  }).optional().default({ url: null, enabled: false }),
+    timeoutMs: Joi.number().integer().min(1000).max(60000).default(10000),
+    maxRetries: Joi.number().integer().min(0).max(5).default(2),
+    retryDelayMs: Joi.number().integer().min(500).max(10000).default(2000),
+  })
+    .optional()
+    .default({
+      url: null,
+      enabled: false,
+      timeoutMs: 10000,
+      maxRetries: 2,
+      retryDelayMs: 2000,
+    }),
 });
 
 module.exports = configSchema;

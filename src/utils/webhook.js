@@ -4,6 +4,7 @@
  */
 
 const axios = require('axios');
+const { URL } = require('url');
 const logger = require('../services/logger');
 
 // Webhook timeout (10 seconds)
@@ -12,6 +13,64 @@ const WEBHOOK_TIMEOUT = 10000;
 // Retry configuration for webhook delivery
 const WEBHOOK_MAX_RETRIES = 2;
 const WEBHOOK_RETRY_DELAY = 2000; // 2 seconds
+
+// Blocked hostnames for SSRF protection
+const BLOCKED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', '::1', '[::1]'];
+
+/**
+ * Check if an IP address is in a private range
+ * @param {string} hostname - The hostname to check
+ * @returns {boolean} True if private IP
+ */
+function isPrivateIP(hostname) {
+  // IPv4 private ranges
+  const ipv4Match = hostname.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+  if (ipv4Match) {
+    const parts = ipv4Match.slice(1).map(Number);
+
+    // Check private ranges
+    return (
+      parts[0] === 10 || // 10.0.0.0/8
+      (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) || // 172.16.0.0/12
+      (parts[0] === 192 && parts[1] === 168) || // 192.168.0.0/16
+      parts[0] === 127 || // 127.0.0.0/8 (loopback)
+      (parts[0] === 169 && parts[1] === 254) || // 169.254.0.0/16 (link-local)
+      parts[0] === 0 // 0.0.0.0/8
+    );
+  }
+
+  return false;
+}
+
+/**
+ * Validate webhook URL to prevent SSRF attacks
+ * @param {string} url - The URL to validate
+ * @returns {{valid: boolean, error?: string}} Validation result
+ */
+function validateWebhookUrl(url) {
+  try {
+    const parsed = new URL(url);
+
+    // Only allow HTTPS for security
+    if (parsed.protocol !== 'https:') {
+      return { valid: false, error: 'Webhook URL must use HTTPS' };
+    }
+
+    // Check against blocked hostnames
+    if (BLOCKED_HOSTS.includes(parsed.hostname.toLowerCase())) {
+      return { valid: false, error: 'Webhook URL cannot point to localhost' };
+    }
+
+    // Check for private IP ranges
+    if (isPrivateIP(parsed.hostname)) {
+      return { valid: false, error: 'Webhook URL cannot point to private IP addresses' };
+    }
+
+    return { valid: true };
+  } catch (error) {
+    return { valid: false, error: `Invalid URL: ${error.message}` };
+  }
+}
 
 /**
  * Send a webhook notification
@@ -26,20 +85,27 @@ async function sendWebhook(url, payload, retryCount = 0) {
     return { success: false, reason: 'No URL configured' };
   }
 
+  // Validate URL to prevent SSRF attacks
+  const validation = validateWebhookUrl(url);
+  if (!validation.valid) {
+    logger.error(`Webhook URL validation failed: ${validation.error}`);
+    return { success: false, error: validation.error };
+  }
+
   try {
     const response = await axios.post(url, payload, {
       timeout: WEBHOOK_TIMEOUT,
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'HelloClub-Event-Attendance/1.0'
-      }
+        'User-Agent': 'HelloClub-Event-Attendance/1.0',
+      },
     });
 
     logger.info(`✓ Webhook sent successfully to ${url} (Status: ${response.status})`);
     return {
       success: true,
       status: response.status,
-      data: response.data
+      data: response.data,
     };
   } catch (error) {
     const errorMessage = error.response
@@ -53,7 +119,7 @@ async function sendWebhook(url, payload, retryCount = 0) {
     // Retry logic
     if (retryCount < WEBHOOK_MAX_RETRIES) {
       logger.warn(`Retrying webhook delivery (attempt ${retryCount + 1}/${WEBHOOK_MAX_RETRIES})...`);
-      await new Promise(resolve => setTimeout(resolve, WEBHOOK_RETRY_DELAY));
+      await new Promise((resolve) => setTimeout(resolve, WEBHOOK_RETRY_DELAY));
       return sendWebhook(url, payload, retryCount + 1);
     }
 
@@ -61,7 +127,7 @@ async function sendWebhook(url, payload, retryCount = 0) {
     return {
       success: false,
       error: errorMessage,
-      retries: retryCount
+      retries: retryCount,
     };
   }
 }
@@ -81,8 +147,8 @@ async function notifyEventProcessed(event, attendeeCount, webhookUrl) {
       eventName: event.name,
       eventDate: event.startDate,
       attendeeCount: attendeeCount,
-      status: 'success'
-    }
+      status: 'success',
+    },
   };
 
   return await sendWebhook(webhookUrl, payload);
@@ -103,8 +169,8 @@ async function notifyEventFailed(event, error, webhookUrl) {
       eventName: event.name,
       eventDate: event.startDate,
       error: error,
-      status: 'failed'
-    }
+      status: 'failed',
+    },
   };
 
   return await sendWebhook(webhookUrl, payload);
@@ -127,8 +193,8 @@ async function notifyJobRetry(event, retryCount, maxRetries, webhookUrl) {
       eventDate: event.startDate,
       retryCount: retryCount,
       maxRetries: maxRetries,
-      status: 'retrying'
-    }
+      status: 'retrying',
+    },
   };
 
   return await sendWebhook(webhookUrl, payload);
@@ -151,8 +217,8 @@ async function notifyPermanentFailure(event, error, retryCount, webhookUrl) {
       eventDate: event.startDate,
       error: error,
       retriesAttempted: retryCount,
-      status: 'permanently_failed'
-    }
+      status: 'permanently_failed',
+    },
   };
 
   return await sendWebhook(webhookUrl, payload);
@@ -170,8 +236,8 @@ async function notifyServiceStatus(status, details, webhookUrl) {
     timestamp: new Date().toISOString(),
     data: {
       status: status,
-      ...details
-    }
+      ...details,
+    },
   };
 
   return await sendWebhook(webhookUrl, payload);
@@ -183,5 +249,5 @@ module.exports = {
   notifyEventFailed,
   notifyJobRetry,
   notifyPermanentFailure,
-  notifyServiceStatus
+  notifyServiceStatus,
 };
