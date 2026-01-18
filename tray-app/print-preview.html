@@ -326,7 +326,7 @@
         const event = result.event;
         document.getElementById('eventName').textContent = event.name;
 
-        const dateTime = formatDateTime(event.startDatetime);
+        const dateTime = formatDateTime(event.startDate);
         document.getElementById('eventDate').textContent = dateTime.date;
         document.getElementById('eventTime').textContent = dateTime.time;
         document.getElementById('attendeeCount').textContent = result.attendeeCount;
@@ -364,7 +364,7 @@
         printBtn.disabled = true;
         printBtnText.textContent = printMode === 'local' ? 'Printing...' : 'Sending email...';
 
-        const result = await window.printAPI.printPreview(currentEventId, printMode);
+        const result = await window.printAPI.printPreview(currentEventId, printMode, pdfPath);
 
         if (result.success) {
           document.getElementById('footerInfo').textContent =
@@ -387,8 +387,24 @@
     });
 
     // Cancel button handler
-    document.getElementById('cancelBtn').addEventListener('click', () => {
+    document.getElementById('cancelBtn').addEventListener('click', async () => {
+      // Cleanup preview files before closing
+      if (currentEventId) {
+        try {
+          await window.printAPI.cleanupPreview(currentEventId);
+        } catch (_err) {
+          // Ignore cleanup errors
+        }
+      }
       window.close();
+    });
+
+    // Cleanup on window unload (handles manual close via X button)
+    window.addEventListener('beforeunload', () => {
+      if (currentEventId) {
+        // Use sync cleanup via main process (window close handler)
+        // The main process will handle cleanup when window closes
+      }
     });
 
     // Load preview on page load

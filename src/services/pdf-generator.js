@@ -20,7 +20,9 @@ function sanitizeOutputPath(fileName) {
 
   // Check for path traversal attempts
   if (basename !== fileName || fileName.includes('..')) {
-    throw new Error(`Invalid output filename: "${fileName}". Filename must not contain directory paths or traversal sequences.`);
+    throw new Error(
+      `Invalid output filename: "${fileName}". Filename must not contain directory paths or traversal sequences.`
+    );
   }
 
   // Ensure it has .pdf extension
@@ -62,26 +64,34 @@ class PdfGenerator {
     const pageWidth = this.doc.page.width - this.doc.page.margins.left - this.doc.page.margins.right;
 
     // Event name (title) on the left
-    this.doc.font('Helvetica').fontSize(20).text(this.event.name, this.doc.page.margins.left, startY, {
-      width: pageWidth * 0.6,
-      align: 'left'
-    });
+    this.doc
+      .font('Helvetica')
+      .fontSize(20)
+      .text(this.event.name, this.doc.page.margins.left, startY, {
+        width: pageWidth * 0.6,
+        align: 'left',
+      });
 
     // Timestamp below event name
     const now = new Date();
     const formattedDate = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    const formattedTime = now.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true }).toUpperCase();
-    this.doc.font('Helvetica').fontSize(10).text(`Attendees as of ${formattedDate}, ${formattedTime}`, this.doc.page.margins.left, this.doc.y + 5, {
-      width: pageWidth * 0.6,
-      align: 'left'
-    });
+    const formattedTime = now
+      .toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: true })
+      .toUpperCase();
+    this.doc
+      .font('Helvetica')
+      .fontSize(10)
+      .text(`Attendees as of ${formattedDate}, ${formattedTime}`, this.doc.page.margins.left, this.doc.y + 5, {
+        width: pageWidth * 0.6,
+        align: 'left',
+      });
 
     // Logo on the right (if exists)
     if (this.layout.logo && fs.existsSync(this.layout.logo)) {
       const logoX = this.doc.page.width - this.doc.page.margins.right - 120;
       this.doc.image(this.layout.logo, logoX, startY, {
         fit: [120, 80],
-        align: 'right'
+        align: 'right',
       });
     }
 
@@ -101,14 +111,14 @@ class PdfGenerator {
       { header: 'Name', width: 200 },
       { header: 'Phone', width: 120 },
       { header: 'Signed up', width: 100 },
-      { header: 'Fee', width: 80 }
+      { header: 'Fee', width: 80 },
     ];
 
     let x = startX + this.checkboxSize + 10; // Start after checkbox space
 
     // Draw column headers
     this.doc.font('Helvetica-Bold').fontSize(11);
-    columns.forEach(column => {
+    columns.forEach((column) => {
       this.doc.text(column.header, x, y, { width: column.width, align: 'left' });
       x += column.width;
     });
@@ -136,7 +146,7 @@ class PdfGenerator {
       case 'fee':
         return this._formatFee(attendee);
       case 'status':
-        return attendee.isPaid ? 'Paid' : (attendee.hasFee ? 'Owing' : 'No Fee');
+        return attendee.isPaid ? 'Paid' : attendee.hasFee ? 'Owing' : 'No Fee';
       default:
         return attendee[id] || '';
     }
@@ -177,7 +187,7 @@ class PdfGenerator {
     return new Date(attendee.signUpDate).toLocaleDateString('en-GB', {
       day: '2-digit',
       month: 'short',
-      year: 'numeric'
+      year: 'numeric',
     });
   }
 
@@ -236,8 +246,8 @@ class PdfGenerator {
   _generateTableRow(attendee, y) {
     const startX = this.doc.page.margins.left;
 
-    // Draw checkbox (proportional to text)
-    const checkboxY = y + (this.row_height - this.checkboxSize) / 2 - 2; // Center vertically
+    // Draw checkbox aligned with text baseline
+    const checkboxY = y + 1; // Align top of checkbox with text
     this.doc.rect(startX, checkboxY, this.checkboxSize, this.checkboxSize).stroke();
 
     // Fixed column widths matching header
@@ -245,14 +255,14 @@ class PdfGenerator {
       { value: this._formatName(attendee), width: 200, color: 'black' },
       { value: this._formatPhone(attendee), width: 120, color: 'black' },
       { value: this._formatSignUpDate(attendee), width: 100, color: 'black' },
-      { value: this._formatFee(attendee), width: 80, color: this._getFeeColor(attendee) }
+      { value: this._formatFee(attendee), width: 80, color: this._getFeeColor(attendee) },
     ];
 
     let x = startX + this.checkboxSize + 10;
 
     // Draw column values with appropriate colors
     this.doc.font('Helvetica').fontSize(11);
-    columns.forEach(column => {
+    columns.forEach((column) => {
       this.doc.fillColor(column.color);
       this.doc.text(column.value, x, y, { width: column.width, align: 'left' });
       x += column.width;
@@ -277,7 +287,7 @@ class PdfGenerator {
     this.doc.on('pageAdded', writePageHeader);
 
     let y = this.doc.y;
-    this.attendees.forEach(attendee => {
+    this.attendees.forEach((attendee) => {
       if (y + this.row_height > this.doc.page.height - this.doc.page.margins.bottom) {
         this.doc.addPage();
         y = this.doc.y;

@@ -16,9 +16,10 @@ contextBridge.exposeInMainWorld('printAPI', {
    * Print or email the previewed PDF
    * @param {string} eventId - The event ID to print
    * @param {string} printMode - 'local' or 'email'
+   * @param {string} pdfPath - Path to the preview PDF to reuse
    * @returns {Promise<{success: boolean, error?: string}>}
    */
-  printPreview: (eventId, printMode) => ipcRenderer.invoke('print-preview-pdf', eventId, printMode),
+  printPreview: (eventId, printMode, pdfPath) => ipcRenderer.invoke('print-preview-pdf', eventId, printMode, pdfPath),
 
   /**
    * Clean up temporary preview files

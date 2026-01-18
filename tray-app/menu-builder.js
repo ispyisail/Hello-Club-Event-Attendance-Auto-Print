@@ -34,7 +34,7 @@ function buildContextMenu(tray, options) {
     openPrintPreview,
     updateTrayStatus,
     projectRoot,
-    onQuit
+    onQuit,
   } = options;
 
   checkServiceStatus((result) => {
@@ -42,29 +42,29 @@ function buildContextMenu(tray, options) {
       {
         label: 'Hello Club Event Attendance',
         enabled: false,
-        icon: nativeImage.createFromPath(getTrayIcon(currentServiceStatus)).resize({ width: 16, height: 16 })
+        icon: nativeImage.createFromPath(getTrayIcon(currentServiceStatus)).resize({ width: 16, height: 16 }),
       },
       { type: 'separator' },
       {
         label: result.running ? 'Status: Running ✓' : 'Status: Stopped ✗',
-        enabled: false
+        enabled: false,
       },
       { type: 'separator' },
       {
         label: 'Dashboard',
-        click: openDashboard
+        click: openDashboard,
       },
       {
         label: 'View Logs',
-        click: openLogViewer
+        click: openLogViewer,
       },
       {
         label: 'Settings',
-        click: openSettings
+        click: openSettings,
       },
       {
         label: 'Backup & Restore',
-        click: openBackup
+        click: openBackup,
       },
       { type: 'separator' },
       {
@@ -74,9 +74,9 @@ function buildContextMenu(tray, options) {
           new Notification({
             title: 'Status Check',
             body: `Service is ${result.running ? 'running' : 'stopped'}`,
-            icon: getTrayIcon(currentServiceStatus)
+            icon: getTrayIcon(currentServiceStatus),
           }).show();
-        }
+        },
       },
       { type: 'separator' },
       {
@@ -85,7 +85,7 @@ function buildContextMenu(tray, options) {
           new Notification({
             title: 'Testing API...',
             body: 'Connecting to Hello Club API',
-            icon: getTrayIcon('unknown')
+            icon: getTrayIcon('unknown'),
           }).show();
 
           const { testApiConnection } = require('./connection-tests');
@@ -94,9 +94,9 @@ function buildContextMenu(tray, options) {
           new Notification({
             title: result.success ? 'API Test Passed' : 'API Test Failed',
             body: result.message,
-            icon: getTrayIcon(result.success ? 'running' : 'error')
+            icon: getTrayIcon(result.success ? 'running' : 'error'),
           }).show();
-        }
+        },
       },
       {
         label: 'Test Email Connection',
@@ -104,7 +104,7 @@ function buildContextMenu(tray, options) {
           new Notification({
             title: 'Testing Email...',
             body: 'Connecting to SMTP server',
-            icon: getTrayIcon('unknown')
+            icon: getTrayIcon('unknown'),
           }).show();
 
           const { testEmailConnection } = require('./connection-tests');
@@ -113,35 +113,53 @@ function buildContextMenu(tray, options) {
           new Notification({
             title: result.success ? 'Email Test Passed' : 'Email Test Failed',
             body: result.message,
-            icon: getTrayIcon(result.success ? 'running' : 'error')
+            icon: getTrayIcon(result.success ? 'running' : 'error'),
           }).show();
-        }
+        },
       },
       {
         label: 'Test Print Preview',
         click: async () => {
           try {
-            // Get the database and fetch the most recent pending event
+            new Notification({
+              title: 'Fetching Events...',
+              body: 'Getting upcoming events from Hello Club API',
+              icon: getTrayIcon('unknown'),
+            }).show();
+
+            // Query events directly from API with future date filter
             const path = require('path');
-            const { getDb } = require(path.join(projectRoot, 'src/core/database'));
-            const db = getDb();
+            const axios = require('axios');
+            require('dotenv').config({ path: path.join(projectRoot, '.env') });
 
-            const event = db.prepare(`
-              SELECT * FROM events
-              WHERE status = 'pending'
-                AND datetime(startDatetime) > datetime('now')
-              ORDER BY startDatetime ASC
-              LIMIT 1
-            `).get();
+            const API_KEY = process.env.API_KEY;
+            const BASE_URL = process.env.API_BASE_URL || 'https://api.helloclub.com';
 
-            if (!event) {
+            const fromDate = new Date().toISOString();
+
+            const response = await axios.get(`${BASE_URL}/event`, {
+              headers: { Authorization: `Bearer ${API_KEY}` },
+              params: {
+                fromDate: fromDate,
+                sort: 'startDate',
+                limit: 10,
+              },
+              timeout: 30000,
+            });
+
+            const events = response.data.events || [];
+
+            if (!events || events.length === 0) {
               new Notification({
                 title: 'No Events Found',
-                body: 'No upcoming pending events available for preview. Try fetching events first.',
-                icon: getTrayIcon('error')
+                body: 'No upcoming events available from the API.',
+                icon: getTrayIcon('error'),
               }).show();
               return;
             }
+
+            // Use the first upcoming event
+            const event = events[0];
 
             // Open print preview window with the event ID
             openPrintPreview(event.id);
@@ -149,17 +167,16 @@ function buildContextMenu(tray, options) {
             new Notification({
               title: 'Opening Print Preview',
               body: `Preview for: ${event.name}`,
-              icon: getTrayIcon('running')
+              icon: getTrayIcon('running'),
             }).show();
           } catch (error) {
-            console.error('Error opening print preview:', error);
             new Notification({
               title: 'Preview Error',
               body: `Failed to open preview: ${error.message}`,
-              icon: getTrayIcon('error')
+              icon: getTrayIcon('error'),
             }).show();
           }
-        }
+        },
       },
       { type: 'separator' },
       {
@@ -170,11 +187,11 @@ function buildContextMenu(tray, options) {
             new Notification({
               title: res.success ? 'Service Started' : 'Start Failed',
               body: res.success ? res.message : res.error,
-              icon: getTrayIcon(res.success ? 'running' : 'error')
+              icon: getTrayIcon(res.success ? 'running' : 'error'),
             }).show();
             updateTrayStatus();
           });
-        }
+        },
       },
       {
         label: 'Stop Service',
@@ -184,11 +201,11 @@ function buildContextMenu(tray, options) {
             new Notification({
               title: res.success ? 'Service Stopped' : 'Stop Failed',
               body: res.success ? res.message : res.error,
-              icon: getTrayIcon(res.success ? 'stopped' : 'error')
+              icon: getTrayIcon(res.success ? 'stopped' : 'error'),
             }).show();
             updateTrayStatus();
           });
-        }
+        },
       },
       {
         label: 'Restart Service',
@@ -198,30 +215,30 @@ function buildContextMenu(tray, options) {
             new Notification({
               title: res.success ? 'Service Restarted' : 'Restart Failed',
               body: res.success ? res.message : res.error,
-              icon: getTrayIcon(res.success ? 'running' : 'error')
+              icon: getTrayIcon(res.success ? 'running' : 'error'),
             }).show();
             updateTrayStatus();
           });
-        }
+        },
       },
       { type: 'separator' },
       {
         label: 'Open Services Manager',
         click: () => {
           exec('services.msc');
-        }
+        },
       },
       {
         label: 'Open Project Folder',
         click: () => {
           exec(`explorer "${projectRoot}"`);
-        }
+        },
       },
       { type: 'separator' },
       {
         label: 'Quit',
-        click: onQuit
-      }
+        click: onQuit,
+      },
     ]);
 
     tray.setContextMenu(contextMenu);
@@ -229,5 +246,5 @@ function buildContextMenu(tray, options) {
 }
 
 module.exports = {
-  buildContextMenu
+  buildContextMenu,
 };
