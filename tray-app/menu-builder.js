@@ -17,6 +17,7 @@ const { checkServiceStatus, startService, stopService, restartService } = requir
  * @param {Function} options.openSettings - Function to open settings window
  * @param {Function} options.openDashboard - Function to open dashboard window
  * @param {Function} options.openBackup - Function to open backup window
+ * @param {Function} options.openPrintPreview - Function to open print preview window
  * @param {Function} options.updateTrayStatus - Function to update tray status
  * @param {string} options.projectRoot - Project root directory path
  * @param {Function} options.onQuit - Function to call when quitting
@@ -30,6 +31,7 @@ function buildContextMenu(tray, options) {
     openSettings,
     openDashboard,
     openBackup,
+    openPrintPreview,
     updateTrayStatus,
     projectRoot,
     onQuit
@@ -113,6 +115,50 @@ function buildContextMenu(tray, options) {
             body: result.message,
             icon: getTrayIcon(result.success ? 'running' : 'error')
           }).show();
+        }
+      },
+      {
+        label: 'Test Print Preview',
+        click: async () => {
+          try {
+            // Get the database and fetch the most recent pending event
+            const path = require('path');
+            const { getDb } = require(path.join(projectRoot, 'src/core/database'));
+            const db = getDb();
+
+            const event = db.prepare(`
+              SELECT * FROM events
+              WHERE status = 'pending'
+                AND datetime(startDatetime) > datetime('now')
+              ORDER BY startDatetime ASC
+              LIMIT 1
+            `).get();
+
+            if (!event) {
+              new Notification({
+                title: 'No Events Found',
+                body: 'No upcoming pending events available for preview. Try fetching events first.',
+                icon: getTrayIcon('error')
+              }).show();
+              return;
+            }
+
+            // Open print preview window with the event ID
+            openPrintPreview(event.id);
+
+            new Notification({
+              title: 'Opening Print Preview',
+              body: `Preview for: ${event.name}`,
+              icon: getTrayIcon('running')
+            }).show();
+          } catch (error) {
+            console.error('Error opening print preview:', error);
+            new Notification({
+              title: 'Preview Error',
+              body: `Failed to open preview: ${error.message}`,
+              icon: getTrayIcon('error')
+            }).show();
+          }
         }
       },
       { type: 'separator' },
