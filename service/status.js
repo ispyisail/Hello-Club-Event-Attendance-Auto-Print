@@ -18,7 +18,7 @@ console.log('Checking Hello Club Event Attendance Service Status...\n');
 console.log('='.repeat(60));
 
 // Check if service is installed and get its status
-exec(`sc query "${SERVICE_NAME}"`, (error, stdout, stderr) => {
+exec(`sc query "${SERVICE_NAME}"`, (error, stdout, _stderr) => {
   if (error) {
     if (stdout.includes('The specified service does not exist')) {
       console.log('\n✗ SERVICE NOT INSTALLED');

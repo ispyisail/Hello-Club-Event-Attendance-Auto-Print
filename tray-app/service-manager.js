@@ -13,7 +13,7 @@ const SERVICE_NAME = 'HelloClubEventAttendance';
  * @returns {void}
  */
 function checkServiceStatus(callback) {
-  exec(`sc query "${SERVICE_NAME}"`, (error, stdout, stderr) => {
+  exec(`sc query "${SERVICE_NAME}"`, (error, stdout, _stderr) => {
     if (error) {
       if (stdout.includes('does not exist')) {
         callback({ installed: false, running: false, status: 'not-installed' });
@@ -89,5 +89,5 @@ module.exports = {
   checkServiceStatus,
   startService,
   stopService,
-  restartService
+  restartService,
 };
