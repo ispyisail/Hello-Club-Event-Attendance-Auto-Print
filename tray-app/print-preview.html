@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello Club Service - Print Preview</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .header {
+      background: #2d2d30;
+      padding: 15px 20px;
+      border-bottom: 1px solid #3e3e42;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .header h1 {
+      font-size: 18px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .btn:hover {
+      opacity: 0.8;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background: #0e639c;
+      color: white;
+    }
+
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+
+    .event-info {
+      background: #252526;
+      padding: 15px 20px;
+      border-bottom: 1px solid #3e3e42;
+      flex-shrink: 0;
+    }
+
+    .event-info h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+
+    .event-details {
+      display: flex;
+      gap: 30px;
+      font-size: 13px;
+      color: #cccccc;
+    }
+
+    .event-detail {
+      display: flex;
+      gap: 6px;
+    }
+
+    .event-detail-label {
+      color: #858585;
+    }
+
+    .event-detail-value {
+      color: #d4d4d4;
+      font-weight: 500;
+    }
+
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      background: #1e1e1e;
+    }
+
+    .pdf-container {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .pdf-viewer {
+      width: 100%;
+      height: 100%;
+      border: 1px solid #3e3e42;
+      border-radius: 4px;
+      background: #ffffff;
+    }
+
+    .loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      color: #cccccc;
+    }
+
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #3e3e42;
+      border-top-color: #0e639c;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      padding: 20px;
+      margin: 20px;
+      background: rgba(220, 53, 69, 0.2);
+      border: 1px solid #dc3545;
+      border-radius: 4px;
+      color: #dc3545;
+      text-align: center;
+    }
+
+    .footer {
+      background: #2d2d30;
+      padding: 15px 20px;
+      border-top: 1px solid #3e3e42;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+    }
+
+    .footer-info {
+      font-size: 12px;
+      color: #858585;
+    }
+
+    .footer-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .print-mode-selector {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      font-size: 13px;
+    }
+
+    .print-mode-selector label {
+      color: #cccccc;
+    }
+
+    .print-mode-selector select {
+      padding: 6px 10px;
+      background: #1e1e1e;
+      border: 1px solid #3e3e42;
+      border-radius: 4px;
+      color: #d4d4d4;
+      font-size: 13px;
+      cursor: pointer;
+    }
+
+    .print-mode-selector select:focus {
+      outline: none;
+      border-color: #0e639c;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Print Preview</h1>
+    <div class="header-actions">
+      <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
+      <button class="btn btn-success" id="printBtn" disabled>
+        <span id="printBtnText">Print</span>
+      </button>
+    </div>
+  </div>
+
+  <div class="event-info" id="eventInfo" style="display: none;">
+    <h2 id="eventName">Event Name</h2>
+    <div class="event-details">
+      <div class="event-detail">
+        <span class="event-detail-label">Date:</span>
+        <span class="event-detail-value" id="eventDate">-</span>
+      </div>
+      <div class="event-detail">
+        <span class="event-detail-label">Time:</span>
+        <span class="event-detail-value" id="eventTime">-</span>
+      </div>
+      <div class="event-detail">
+        <span class="event-detail-label">Attendees:</span>
+        <span class="event-detail-value" id="attendeeCount">-</span>
+      </div>
+      <div class="event-detail">
+        <span class="event-detail-label">Location:</span>
+        <span class="event-detail-value" id="eventLocation">-</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="content">
+    <div class="pdf-container" id="pdfContainer">
+      <div class="loading" id="loadingIndicator">
+        <div class="spinner"></div>
+        <div>Generating PDF preview...</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="footer-info" id="footerInfo">
+      Preview ready
+    </div>
+    <div class="footer-actions">
+      <div class="print-mode-selector">
+        <label for="printMode">Print Mode:</label>
+        <select id="printMode">
+          <option value="local">Local Printer</option>
+          <option value="email">Email to Printer</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let currentEventId = null;
+    let pdfPath = null;
+
+    // Get event ID from query parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    currentEventId = urlParams.get('eventId');
+
+    // Show error message
+    function showError(message) {
+      const container = document.getElementById('pdfContainer');
+      container.innerHTML = `<div class="error-message">${message}</div>`;
+      document.getElementById('footerInfo').textContent = 'Error occurred';
+    }
+
+    // Format date/time
+    function formatDateTime(dateString) {
+      const date = new Date(dateString);
+      return {
+        date: date.toLocaleDateString('en-US', {
+          weekday: 'short',
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        }),
+        time: date.toLocaleTimeString('en-US', {
+          hour: '2-digit',
+          minute: '2-digit'
+        })
+      };
+    }
+
+    // Load preview
+    async function loadPreview() {
+      try {
+        if (!currentEventId) {
+          showError('No event ID provided');
+          return;
+        }
+
+        // Get event data and generate PDF
+        const result = await window.printAPI.generatePreview(currentEventId);
+
+        if (!result.success) {
+          showError(result.error || 'Failed to generate preview');
+          return;
+        }
+
+        // Store PDF path
+        pdfPath = result.pdfPath;
+
+        // Display event info
+        const event = result.event;
+        document.getElementById('eventName').textContent = event.name;
+
+        const dateTime = formatDateTime(event.startDatetime);
+        document.getElementById('eventDate').textContent = dateTime.date;
+        document.getElementById('eventTime').textContent = dateTime.time;
+        document.getElementById('attendeeCount').textContent = result.attendeeCount;
+        document.getElementById('eventLocation').textContent = event.location || 'Not specified';
+
+        document.getElementById('eventInfo').style.display = 'block';
+
+        // Display PDF
+        const container = document.getElementById('pdfContainer');
+        container.innerHTML = `<iframe class="pdf-viewer" src="file://${pdfPath}"></iframe>`;
+
+        // Set print mode from config
+        if (result.printMode) {
+          document.getElementById('printMode').value = result.printMode;
+        }
+
+        // Enable print button
+        document.getElementById('printBtn').disabled = false;
+        document.getElementById('footerInfo').textContent = `PDF generated: ${result.fileName}`;
+
+      } catch (error) {
+        showError('Error loading preview: ' + error.message);
+        console.error(error);
+      }
+    }
+
+    // Print button handler
+    document.getElementById('printBtn').addEventListener('click', async () => {
+      const printBtn = document.getElementById('printBtn');
+      const printBtnText = document.getElementById('printBtnText');
+      const printMode = document.getElementById('printMode').value;
+
+      try {
+        // Disable button while printing
+        printBtn.disabled = true;
+        printBtnText.textContent = printMode === 'local' ? 'Printing...' : 'Sending email...';
+
+        const result = await window.printAPI.printPreview(currentEventId, printMode);
+
+        if (result.success) {
+          document.getElementById('footerInfo').textContent =
+            printMode === 'local'
+              ? 'Sent to printer successfully!'
+              : 'Email sent to printer successfully!';
+
+          // Close window after short delay
+          setTimeout(() => window.close(), 1500);
+        } else {
+          showError(result.error || 'Failed to print');
+          printBtn.disabled = false;
+          printBtnText.textContent = 'Print';
+        }
+      } catch (error) {
+        showError('Error printing: ' + error.message);
+        printBtn.disabled = false;
+        printBtnText.textContent = 'Print';
+      }
+    });
+
+    // Cancel button handler
+    document.getElementById('cancelBtn').addEventListener('click', () => {
+      window.close();
+    });
+
+    // Load preview on page load
+    loadPreview();
+  </script>
+</body>
+</html>

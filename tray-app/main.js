@@ -33,6 +33,7 @@ let settingsWindow = null;
 let setupWizardWindow = null;
 let dashboardWindow = null;
 let backupWindow = null;
+let printPreviewWindow = null;
 let statusCheckInterval = null;
 let logWatchInterval = null;
 let currentServiceStatus = 'unknown';
@@ -136,6 +137,7 @@ function updateContextMenu() {
     openSettings,
     openDashboard,
     openBackup,
+    openPrintPreview,
     updateTrayStatus,
     projectRoot: PROJECT_ROOT,
     onQuit: () => app.quit(),
@@ -278,6 +280,37 @@ function openBackup() {
 
   backupWindow.on('closed', () => {
     backupWindow = null;
+  });
+}
+
+/**
+ * Open the print preview window for a specific event
+ * @param {string} eventId - The event ID to preview
+ */
+function openPrintPreview(eventId) {
+  if (printPreviewWindow && !printPreviewWindow.isDestroyed()) {
+    printPreviewWindow.focus();
+    return;
+  }
+
+  printPreviewWindow = new BrowserWindow({
+    width: 1200,
+    height: 900,
+    title: 'Hello Club - Print Preview',
+    icon: path.join(ICONS_PATH, 'icon-green.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'print-preview-preload.js'),
+    },
+  });
+
+  printPreviewWindow.loadFile(path.join(__dirname, 'print-preview.html'), {
+    query: { eventId: eventId },
+  });
+
+  printPreviewWindow.on('closed', () => {
+    printPreviewWindow = null;
   });
 }
 
@@ -525,6 +558,138 @@ ipcMain.handle('delete-backup', async (event, backupName) => {
 ipcMain.handle('cleanup-old-backups', async (event, keepCount) => {
   const { cleanupOldBackups } = require('../src/utils/backup');
   return cleanupOldBackups(PROJECT_ROOT, keepCount || 10);
+});
+
+// Print preview handlers
+ipcMain.handle('generate-print-preview', async (event, eventId) => {
+  try {
+    // Load required modules
+    const { getEventDetails, getAllAttendees } = require('../src/core/api-client');
+    const PdfGenerator = require('../src/services/pdf-generator');
+
+    // Load config to get PDF layout settings
+    const configPath = path.join(PROJECT_ROOT, 'config.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+    // Fetch event details and attendees
+    const eventData = await getEventDetails(eventId);
+    const attendees = await getAllAttendees(eventId);
+
+    // Generate a unique temporary PDF filename
+    const timestamp = Date.now();
+    const tempFileName = `preview-${eventId}-${timestamp}.pdf`;
+    const tempFilePath = path.join(PROJECT_ROOT, tempFileName);
+
+    // Generate PDF
+    const generator = new PdfGenerator(eventData, attendees, config.pdfLayout || {});
+    generator.generate(tempFilePath);
+
+    return {
+      success: true,
+      pdfPath: tempFilePath,
+      event: eventData,
+      attendeeCount: attendees.length,
+      fileName: tempFileName,
+      printMode: config.printMode || 'local',
+    };
+  } catch (error) {
+    console.error('Error generating print preview:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to generate preview',
+    };
+  }
+});
+
+ipcMain.handle('print-preview-pdf', async (event, eventId, printMode) => {
+  try {
+    // Load required modules
+    const { getEventDetails, getAllAttendees } = require('../src/core/api-client');
+    const { print } = require('pdf-to-printer');
+    const { sendEmailWithAttachment } = require('../src/services/email-service');
+    const PdfGenerator = require('../src/services/pdf-generator');
+    const logger = require('../src/services/logger');
+
+    // Load config
+    const configPath = path.join(PROJECT_ROOT, 'config.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+
+    // Fetch event details and attendees
+    const eventData = await getEventDetails(eventId);
+    const attendees = await getAllAttendees(eventId);
+
+    // Generate PDF with the configured output filename
+    const outputFileName = config.outputFilename || 'attendees.pdf';
+    const outputFilePath = path.join(PROJECT_ROOT, outputFileName);
+
+    const generator = new PdfGenerator(eventData, attendees, config.pdfLayout || {});
+    generator.generate(outputFilePath);
+
+    // Log file size for monitoring
+    const stats = fs.statSync(outputFilePath);
+    const fileSizeKB = (stats.size / 1024).toFixed(2);
+    logger.info(`✓ PDF created via preview: ${outputFileName} (${fileSizeKB} KB, ${attendees.length} attendees)`);
+
+    // Print or email based on selected mode
+    if (printMode === 'local') {
+      logger.info('Printing PDF locally from preview...');
+      const msg = await print(outputFilePath);
+      logger.info(msg);
+    } else if (printMode === 'email') {
+      logger.info('Sending PDF to printer via email from preview...');
+
+      // Get email settings from environment variables
+      require('dotenv').config({ path: path.join(PROJECT_ROOT, '.env') });
+      const PRINTER_EMAIL = process.env.PRINTER_EMAIL;
+      const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
+      const SMTP_PORT = process.env.SMTP_PORT || 587;
+      const SMTP_USER = process.env.SMTP_USER;
+      const SMTP_PASS = (process.env.SMTP_PASS || '').replace(/\s/g, '');
+      const EMAIL_FROM = process.env.EMAIL_FROM || SMTP_USER;
+
+      const transportOptions = {
+        host: SMTP_HOST,
+        port: SMTP_PORT,
+        secure: SMTP_PORT == 465,
+        auth: {
+          user: SMTP_USER,
+          pass: SMTP_PASS,
+        },
+      };
+
+      const subject = `Print Job: ${eventData.name}`;
+      const body = `Attached is the attendee list for the event: ${eventData.name}.`;
+
+      await sendEmailWithAttachment(transportOptions, PRINTER_EMAIL, EMAIL_FROM, subject, body, outputFilePath);
+      logger.info(`✓ Email sent to: ${PRINTER_EMAIL}`);
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Error printing preview:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to print',
+    };
+  }
+});
+
+ipcMain.handle('cleanup-preview-pdf', async (event, eventId) => {
+  try {
+    // Find and delete temporary preview files for this event
+    const files = fs.readdirSync(PROJECT_ROOT);
+    const previewFiles = files.filter((file) => file.startsWith(`preview-${eventId}-`) && file.endsWith('.pdf'));
+
+    previewFiles.forEach((file) => {
+      const filePath = path.join(PROJECT_ROOT, file);
+      fs.unlinkSync(filePath);
+    });
+
+    return { success: true, deletedCount: previewFiles.length };
+  } catch (error) {
+    console.error('Error cleaning up preview files:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 // Logo upload handler with security validation
