@@ -73,7 +73,7 @@
     "axios-retry": "^4.4.0"
   },
   "devDependencies": {
-    "electron": "^39.2.7",
+    "electron": "^40.0.0",
     "electron-builder": "^26.0.12",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
