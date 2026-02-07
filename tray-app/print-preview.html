@@ -302,9 +302,11 @@
 
         document.getElementById('eventInfo').style.display = 'block';
 
-        // Display PDF
+        // Display PDF - convert Windows path to proper file:// URL
         const container = document.getElementById('pdfContainer');
-        container.innerHTML = `<iframe class="pdf-viewer" src="file://${pdfPath}"></iframe>`;
+        // Convert backslashes to forward slashes and ensure proper file:// URL format
+        const fileUrl = 'file:///' + pdfPath.replace(/\\/g, '/');
+        container.innerHTML = `<iframe class="pdf-viewer" src="${fileUrl}"></iframe>`;
 
         // Set print mode from config
         if (result.printMode) {
