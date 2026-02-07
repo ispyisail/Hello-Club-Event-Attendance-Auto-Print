@@ -13,6 +13,8 @@
     "service:install:bat": "service\\install.bat",
     "service:install:ps1": "powershell -ExecutionPolicy Bypass -File service/install.ps1",
     "service:uninstall": "node service/uninstall.js",
+    "service:uninstall:bat": "service\\uninstall.bat",
+    "service:uninstall:ps1": "powershell -ExecutionPolicy Bypass -File service/uninstall.ps1",
     "service:status": "node service/status.js",
     "tray": "electron tray-app/main.js",
     "tray:build": "electron-builder",
