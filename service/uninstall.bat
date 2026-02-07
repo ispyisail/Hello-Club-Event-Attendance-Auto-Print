@@ -4,51 +4,61 @@ REM This batch file elevates privileges and removes all components
 
 setlocal enabledelayedexpansion
 
-echo.
-echo ╔════════════════════════════════════════════════════════════════════╗
-echo ║    Hello Club Event Attendance - Complete Uninstall Started      ║
-echo ╚════════════════════════════════════════════════════════════════════╝
-echo.
-
 cd /d "%~dp0\.."
 
 REM Check for admin privileges
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-    echo 🔐 Administrator Privileges Required
-    echo.
-    echo This uninstaller needs to:
-    echo   • Remove Windows Service
-    echo   • Remove Registry entries
-    echo   • Delete launcher files
-    echo.
-    echo A Windows Security prompt will appear.
-    echo Please click YES to allow the uninstallation.
-    echo.
-    echo Requesting elevation...
-    echo.
-    timeout /t 2 /nobreak
-    echo.
+    REM Not admin - create elevated launcher script and elevate
+    set "ADMIN_SCRIPT=%TEMP%\uninstall_elevated_%RANDOM%.cmd"
 
-    REM Create a temporary admin launcher script
-    set "ADMIN_SCRIPT=%TEMP%\uninstall_admin_%RANDOM%.cmd"
+    REM Create the elevated launcher batch file
     (
         echo @echo off
         echo cd /d "%CD%"
+        echo echo.
+        echo echo ╔════════════════════════════════════════════════════════════════════╗
+        echo echo ║    Hello Club Event Attendance - Complete Uninstall Started      ║
+        echo echo ╚════════════════════════════════════════════════════════════════════╝
+        echo echo.
+        echo echo ✓ Running with Administrator privileges
+        echo echo.
         echo node service\uninstall.js
-        echo pause
+        echo if %%errorlevel%% neq 0 (
+        echo     echo.
+        echo     echo ✗ Uninstallation failed!
+        echo     echo Please check the error messages above.
+        echo     echo.
+        echo     echo Press any key to close this window...
+        echo     pause ^>nul
+        echo     exit /b %%errorlevel%%
+        echo ^)
+        echo echo.
+        echo echo ═══════════════════════════════════════════════════════════════════════
+        echo echo ✓ Uninstallation completed successfully!
+        echo echo ═══════════════════════════════════════════════════════════════════════
+        echo echo.
+        echo echo Please verify the uninstallation details above, then close this window.
+        echo echo.
+        echo echo Press any key to close this window...
+        echo pause ^>nul
     ) > "!ADMIN_SCRIPT!"
 
-    REM Run with admin privileges using runas (more reliable than powershell)
-    REM Note: This will show UAC prompt which is expected
-    runas /noprofile /user:%USERNAME% "cmd /k !ADMIN_SCRIPT!"
+    REM Elevate using VBS script (silent, no password prompt)
+    cscript.exe //nologo "service\elevate.vbs" "!ADMIN_SCRIPT!"
 
-    REM Clean up temp script
-    if exist "!ADMIN_SCRIPT!" del /f /q "!ADMIN_SCRIPT!"
+    REM Clean up temp script after a delay (give it time to start)
+    timeout /t 1 /nobreak >nul
+    if exist "!ADMIN_SCRIPT!" del /f /q "!ADMIN_SCRIPT!" >nul 2>&1
     exit /b 0
 )
 
-REM Already running as admin - run the uninstaller
+REM Already running as admin - run the uninstaller directly
+echo.
+echo ╔════════════════════════════════════════════════════════════════════╗
+echo ║    Hello Club Event Attendance - Complete Uninstall Started      ║
+echo ╚════════════════════════════════════════════════════════════════════╝
+echo.
 echo ✓ Running with Administrator privileges
 echo.
 

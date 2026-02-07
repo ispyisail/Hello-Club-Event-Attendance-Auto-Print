@@ -4,50 +4,61 @@ REM This batch file elevates privileges and runs the complete installer
 
 setlocal enabledelayedexpansion
 
-echo.
-echo ╔════════════════════════════════════════════════════════════════════╗
-echo ║      Hello Club Event Attendance - Complete Installation         ║
-echo ╚════════════════════════════════════════════════════════════════════╝
-echo.
-
 cd /d "%~dp0\.."
 
 REM Check for admin privileges
 net session >nul 2>&1
 if %errorlevel% neq 0 (
-    echo 🔐 Administrator Privileges Required
-    echo.
-    echo This installer needs to:
-    echo   • Install a Windows Service
-    echo   • Modify Windows Registry for auto-start
-    echo.
-    echo A Windows Security prompt will appear.
-    echo Please click YES to allow the installation.
-    echo.
-    echo Requesting elevation...
-    echo.
-    timeout /t 2 /nobreak
-    echo.
+    REM Not admin - create elevated launcher script and elevate
+    set "ADMIN_SCRIPT=%TEMP%\install_elevated_%RANDOM%.cmd"
 
-    REM Create a temporary admin launcher script
-    set "ADMIN_SCRIPT=%TEMP%\install_admin_%RANDOM%.cmd"
+    REM Create the elevated launcher batch file
     (
         echo @echo off
         echo cd /d "%CD%"
+        echo echo.
+        echo echo ╔════════════════════════════════════════════════════════════════════╗
+        echo echo ║      Hello Club Event Attendance - Complete Installation         ║
+        echo echo ╚════════════════════════════════════════════════════════════════════╝
+        echo echo.
+        echo echo ✓ Running with Administrator privileges
+        echo echo.
         echo node service\install-complete.js
-        echo pause
+        echo if %%errorlevel%% neq 0 (
+        echo     echo.
+        echo     echo ✗ Installation failed!
+        echo     echo Please check the error messages above.
+        echo     echo.
+        echo     echo Press any key to close this window...
+        echo     pause ^>nul
+        echo     exit /b %%errorlevel%%
+        echo ^)
+        echo echo.
+        echo echo ═══════════════════════════════════════════════════════════════════════
+        echo echo ✓ Installation completed successfully!
+        echo echo ═══════════════════════════════════════════════════════════════════════
+        echo echo.
+        echo echo Please verify the installation details above, then close this window.
+        echo echo.
+        echo echo Press any key to close this window...
+        echo pause ^>nul
     ) > "!ADMIN_SCRIPT!"
 
-    REM Run with admin privileges using runas (more reliable than powershell)
-    REM Note: This will show UAC prompt which is expected
-    runas /noprofile /user:%USERNAME% "cmd /k !ADMIN_SCRIPT!"
+    REM Elevate using VBS script (silent, no password prompt)
+    cscript.exe //nologo "service\elevate.vbs" "!ADMIN_SCRIPT!"
 
-    REM Clean up temp script
-    if exist "!ADMIN_SCRIPT!" del /f /q "!ADMIN_SCRIPT!"
+    REM Clean up temp script after a delay (give it time to start)
+    timeout /t 1 /nobreak >nul
+    if exist "!ADMIN_SCRIPT!" del /f /q "!ADMIN_SCRIPT!" >nul 2>&1
     exit /b 0
 )
 
-REM Already running as admin - run the installer
+REM Already running as admin - run the installer directly
+echo.
+echo ╔════════════════════════════════════════════════════════════════════╗
+echo ║      Hello Club Event Attendance - Complete Installation         ║
+echo ╚════════════════════════════════════════════════════════════════════╝
+echo.
 echo ✓ Running with Administrator privileges
 echo.
 
