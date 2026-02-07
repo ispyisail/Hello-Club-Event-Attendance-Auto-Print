@@ -17,16 +17,16 @@ if %errorlevel% neq 0 (
         echo @echo off
         echo cd /d "%CD%"
         echo echo.
-        echo echo ╔════════════════════════════════════════════════════════════════════╗
-        echo echo ║    Hello Club Event Attendance - Complete Uninstall Started      ║
-        echo echo ╚════════════════════════════════════════════════════════════════════╝
+        echo echo ========================================================================
+        echo echo     Hello Club Event Attendance - Complete Uninstall Started
+        echo echo ========================================================================
         echo echo.
-        echo echo ✓ Running with Administrator privileges
+        echo echo [OK] Running with Administrator privileges
         echo echo.
         echo node service\uninstall.js
         echo if %%errorlevel%% neq 0 (
         echo     echo.
-        echo     echo ✗ Uninstallation failed!
+        echo     echo [ERROR] Uninstallation failed!
         echo     echo Please check the error messages above.
         echo     echo.
         echo     echo Press any key to close this window...
@@ -34,9 +34,9 @@ if %errorlevel% neq 0 (
         echo     exit /b %%errorlevel%%
         echo ^)
         echo echo.
-        echo echo ═══════════════════════════════════════════════════════════════════════
-        echo echo ✓ Uninstallation completed successfully!
-        echo echo ═══════════════════════════════════════════════════════════════════════
+        echo echo ========================================================================
+        echo echo [SUCCESS] Uninstallation completed successfully!
+        echo echo ========================================================================
         echo echo.
         echo echo Please verify the uninstallation details above, then close this window.
         echo echo.
@@ -55,18 +55,18 @@ if %errorlevel% neq 0 (
 
 REM Already running as admin - run the uninstaller directly
 echo.
-echo ╔════════════════════════════════════════════════════════════════════╗
-echo ║    Hello Club Event Attendance - Complete Uninstall Started      ║
-echo ╚════════════════════════════════════════════════════════════════════╝
+echo ========================================================================
+echo     Hello Club Event Attendance - Complete Uninstall Started
+echo ========================================================================
 echo.
-echo ✓ Running with Administrator privileges
+echo [OK] Running with Administrator privileges
 echo.
 
 node service\uninstall.js
 
 if %errorlevel% neq 0 (
     echo.
-    echo ✗ Uninstallation failed!
+    echo [ERROR] Uninstallation failed!
     echo Please check the error messages above.
     echo.
     echo Press any key to close this window...
@@ -75,9 +75,9 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo ═══════════════════════════════════════════════════════════════════════
-echo ✓ Uninstallation completed successfully!
-echo ═══════════════════════════════════════════════════════════════════════
+echo ========================================================================
+echo [SUCCESS] Uninstallation completed successfully!
+echo ========================================================================
 echo.
 echo Please verify the uninstallation details above, then close this window.
 echo.

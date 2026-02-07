@@ -17,16 +17,16 @@ if %errorlevel% neq 0 (
         echo @echo off
         echo cd /d "%CD%"
         echo echo.
-        echo echo ╔════════════════════════════════════════════════════════════════════╗
-        echo echo ║      Hello Club Event Attendance - Complete Installation         ║
-        echo echo ╚════════════════════════════════════════════════════════════════════╝
+        echo echo ========================================================================
+        echo echo        Hello Club Event Attendance - Complete Installation
+        echo echo ========================================================================
         echo echo.
-        echo echo ✓ Running with Administrator privileges
+        echo echo [OK] Running with Administrator privileges
         echo echo.
         echo node service\install-complete.js
         echo if %%errorlevel%% neq 0 (
         echo     echo.
-        echo     echo ✗ Installation failed!
+        echo     echo [ERROR] Installation failed!
         echo     echo Please check the error messages above.
         echo     echo.
         echo     echo Press any key to close this window...
@@ -34,9 +34,9 @@ if %errorlevel% neq 0 (
         echo     exit /b %%errorlevel%%
         echo ^)
         echo echo.
-        echo echo ═══════════════════════════════════════════════════════════════════════
-        echo echo ✓ Installation completed successfully!
-        echo echo ═══════════════════════════════════════════════════════════════════════
+        echo echo ========================================================================
+        echo echo [SUCCESS] Installation completed successfully!
+        echo echo ========================================================================
         echo echo.
         echo echo Please verify the installation details above, then close this window.
         echo echo.
@@ -55,18 +55,18 @@ if %errorlevel% neq 0 (
 
 REM Already running as admin - run the installer directly
 echo.
-echo ╔════════════════════════════════════════════════════════════════════╗
-echo ║      Hello Club Event Attendance - Complete Installation         ║
-echo ╚════════════════════════════════════════════════════════════════════╝
+echo ========================================================================
+echo        Hello Club Event Attendance - Complete Installation
+echo ========================================================================
 echo.
-echo ✓ Running with Administrator privileges
+echo [OK] Running with Administrator privileges
 echo.
 
 node service\install-complete.js
 
 if %errorlevel% neq 0 (
     echo.
-    echo ✗ Installation failed!
+    echo [ERROR] Installation failed!
     echo Please check the error messages above.
     echo.
     echo Press any key to close this window...
@@ -75,9 +75,9 @@ if %errorlevel% neq 0 (
 )
 
 echo.
-echo ═══════════════════════════════════════════════════════════════════════
-echo ✓ Installation completed successfully!
-echo ═══════════════════════════════════════════════════════════════════════
+echo ========================================================================
+echo [SUCCESS] Installation completed successfully!
+echo ========================================================================
 echo.
 echo Please verify the installation details above, then close this window.
 echo.
