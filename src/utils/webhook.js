@@ -39,6 +39,29 @@ function isPrivateIP(hostname) {
     );
   }
 
+  // IPv6 private ranges
+  const cleanHostname = hostname.replace(/^\[|\]$/g, '').toLowerCase();
+
+  // IPv6 loopback: ::1 (also handles full form 0:0:0:0:0:0:0:1)
+  if (cleanHostname === '::1' || cleanHostname === '0:0:0:0:0:0:0:1') {
+    return true;
+  }
+
+  // IPv6 link-local: fe80::/10
+  if (
+    cleanHostname.startsWith('fe8') ||
+    cleanHostname.startsWith('fe9') ||
+    cleanHostname.startsWith('fea') ||
+    cleanHostname.startsWith('feb')
+  ) {
+    return true;
+  }
+
+  // IPv6 unique local: fc00::/7 (includes fd00::/8)
+  if (cleanHostname.startsWith('fc') || cleanHostname.startsWith('fd')) {
+    return true;
+  }
+
   return false;
 }
 
@@ -99,6 +122,8 @@ async function sendWebhook(url, payload, retryCount = 0) {
         'Content-Type': 'application/json',
         'User-Agent': 'HelloClub-Event-Attendance/1.0',
       },
+      maxRedirects: 0,
+      validateStatus: (status) => status >= 200 && status < 300,
     });
 
     logger.info(`✓ Webhook sent successfully to ${url} (Status: ${response.status})`);
@@ -108,6 +133,16 @@ async function sendWebhook(url, payload, retryCount = 0) {
       data: response.data,
     };
   } catch (error) {
+    // Handle redirect attempts as security violations
+    if (error.response && error.response.status >= 300 && error.response.status < 400) {
+      const redirectLocation = error.response.headers.location;
+      logger.error(`Webhook redirect detected to ${redirectLocation} - blocked for security`);
+      return {
+        success: false,
+        error: 'Webhook redirects are not allowed for security reasons',
+      };
+    }
+
     const errorMessage = error.response
       ? `HTTP ${error.response.status}: ${error.response.statusText}`
       : error.code === 'ECONNABORTED'

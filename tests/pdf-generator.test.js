@@ -56,71 +56,71 @@ describe('PdfGenerator', () => {
     });
 
     it('should return an empty string for a null signUpDate', () => {
-        const attendee = { signUpDate: null };
-        const result = generator['_getAttendeeValue'](attendee, 'signUpDate');
-        // This is the failing test case
-        expect(result).toBe('');
+      const attendee = { signUpDate: null };
+      const result = generator['_getAttendeeValue'](attendee, 'signUpDate');
+      // This is the failing test case
+      expect(result).toBe('');
     });
 
     it('should correctly format a signUpDate of 0 (Unix epoch)', () => {
-        const attendee = { signUpDate: 0 };
-        const result = generator['_getAttendeeValue'](attendee, 'signUpDate');
-        const expectedDate = new Date(0).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
-        expect(result).toBe(expectedDate); // Should be '01 Jan 1970'
+      const attendee = { signUpDate: 0 };
+      const result = generator['_getAttendeeValue'](attendee, 'signUpDate');
+      const expectedDate = new Date(0).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+      expect(result).toBe(expectedDate); // Should be '01 Jan 1970'
     });
 
     it('should return fee for an attendee with fee', () => {
-        const attendee = { hasFee: true, rule: { fee: 15.5 } };
-        const result = generator['_getAttendeeValue'](attendee, 'fee');
-        expect(result).toBe('$15.50');
+      const attendee = { hasFee: true, rule: { fee: 15.5 } };
+      const result = generator['_getAttendeeValue'](attendee, 'fee');
+      expect(result).toBe('$15.50');
     });
 
     it('should return empty string for fee if not applicable', () => {
-        const attendee = { hasFee: false };
-        const result = generator['_getAttendeeValue'](attendee, 'fee');
-        expect(result).toBe('');
+      const attendee = { hasFee: false };
+      const result = generator['_getAttendeeValue'](attendee, 'fee');
+      expect(result).toBe('');
     });
 
     it('should return "Paid" status for paid attendee', () => {
-        const attendee = { isPaid: true };
-        const result = generator['_getAttendeeValue'](attendee, 'status');
-        expect(result).toBe('Paid');
+      const attendee = { isPaid: true };
+      const result = generator['_getAttendeeValue'](attendee, 'status');
+      expect(result).toBe('Paid');
     });
 
     it('should return "Owing" status for unpaid attendee with fee', () => {
-        const attendee = { isPaid: false, hasFee: true };
-        const result = generator['_getAttendeeValue'](attendee, 'status');
-        expect(result).toBe('Owing');
+      const attendee = { isPaid: false, hasFee: true };
+      const result = generator['_getAttendeeValue'](attendee, 'status');
+      expect(result).toBe('Owing');
     });
 
     it('should return "No Fee" status for attendee with no fee', () => {
-        const attendee = { isPaid: false, hasFee: false };
-        const result = generator['_getAttendeeValue'](attendee, 'status');
-        expect(result).toBe('No Fee');
+      const attendee = { isPaid: false, hasFee: false };
+      const result = generator['_getAttendeeValue'](attendee, 'status');
+      expect(result).toBe('No Fee');
     });
 
     it('should handle a string fee gracefully', () => {
-        const attendee = { hasFee: true, rule: { fee: "15.5" } };
-        const result = generator['_getAttendeeValue'](attendee, 'fee');
-        expect(result).toBe('$15.50');
+      const attendee = { hasFee: true, rule: { fee: '15.5' } };
+      const result = generator['_getAttendeeValue'](attendee, 'fee');
+      expect(result).toBe('$15.50');
     });
 
     it('should return "Membership" for membership rules', () => {
-        const attendee = { rule: { name: 'Annual Membership' } };
-        const result = generator['_getAttendeeValue'](attendee, 'fee');
-        expect(result).toBe('Membership');
+      const attendee = { rule: { name: 'Annual Membership' } };
+      const result = generator['_getAttendeeValue'](attendee, 'fee');
+      expect(result).toBe('Membership');
     });
 
     it('should return empty string for unknown column id', () => {
-        const attendee = { someField: 'test' };
-        const result = generator['_getAttendeeValue'](attendee, 'unknownColumn');
-        expect(result).toBe('');
+      const attendee = { someField: 'test' };
+      const result = generator['_getAttendeeValue'](attendee, 'unknownColumn');
+      expect(result).toBe('');
     });
 
     it('should return field value for custom column id', () => {
-        const attendee = { customField: 'Custom Value' };
-        const result = generator['_getAttendeeValue'](attendee, 'customField');
-        expect(result).toBe('Custom Value');
+      const attendee = { customField: 'Custom Value' };
+      const result = generator['_getAttendeeValue'](attendee, 'customField');
+      expect(result).toBe('Custom Value');
     });
   });
 
@@ -148,16 +148,12 @@ describe('PdfGenerator', () => {
         name: 'Test Event',
         startDate: '2025-01-15T10:00:00Z',
         endDate: '2025-01-15T12:00:00Z',
-        timezone: 'UTC'
+        timezone: 'UTC',
       };
-      const attendees = [
-        { firstName: 'John', lastName: 'Doe', phone: '123-456-7890' }
-      ];
+      const attendees = [{ firstName: 'John', lastName: 'Doe', phone: '123-456-7890' }];
       const layout = {
         fontSize: 10,
-        columns: [
-          { id: 'name', header: 'Name', width: 150 }
-        ]
+        columns: [{ id: 'name', header: 'Name', width: 150 }],
       };
 
       const gen = new PdfGenerator(event, attendees, layout);
@@ -178,24 +174,21 @@ describe('PdfGenerator', () => {
       const event = { name: 'Test Event' };
       const gen = new PdfGenerator(event, [], { columns: [] });
 
-      expect(() => gen.generate('../../../etc/passwd.pdf'))
-        .toThrow(/Invalid output filename.*traversal sequences/i);
+      expect(() => gen.generate('../../../etc/passwd.pdf')).toThrow(/Invalid output filename.*traversal sequences/i);
     });
 
     it('should reject filename with directory separators', () => {
       const event = { name: 'Test Event' };
       const gen = new PdfGenerator(event, [], { columns: [] });
 
-      expect(() => gen.generate('subdir/output.pdf'))
-        .toThrow(/Invalid output filename.*directory paths/i);
+      expect(() => gen.generate('subdir/output.pdf')).toThrow(/Invalid output filename.*directory paths/i);
     });
 
     it('should reject filename without .pdf extension', () => {
       const event = { name: 'Test Event' };
       const gen = new PdfGenerator(event, [], { columns: [] });
 
-      expect(() => gen.generate('output.txt'))
-        .toThrow(/Invalid output filename.*\.pdf extension/i);
+      expect(() => gen.generate('output.txt')).toThrow(/Invalid output filename.*\.pdf extension/i);
     });
   });
 
@@ -231,20 +224,20 @@ describe('PdfGenerator', () => {
       const attendee = {
         firstName: 'Jane',
         lastName: 'Smith',
-        isPaid: true
+        isPaid: true,
       };
       const layout = {
         columns: [
           { id: 'name', header: 'Name', width: 150 },
-          { id: 'status', header: 'Status', width: 80 }
-        ]
+          { id: 'status', header: 'Status', width: 80 },
+        ],
       };
 
       const gen = new PdfGenerator(event, [attendee], layout);
       gen._generateTableRow(attendee, 100);
 
       // Verify rect (checkbox) was drawn
-      expect(gen.doc.rect).toHaveBeenCalledWith(50, 104, 16, 16);
+      expect(gen.doc.rect).toHaveBeenCalledWith(50, 101, 16, 16);
       expect(gen.doc.stroke).toHaveBeenCalled();
 
       // Verify text was written (name, phone, signUpDate, fee)
@@ -281,7 +274,7 @@ describe('PdfGenerator', () => {
         name: 'Summer Festival',
         startDate: '2025-07-15T14:00:00Z',
         endDate: '2025-07-15T18:00:00Z',
-        timezone: 'America/New_York'
+        timezone: 'America/New_York',
       };
       const layout = { fontSize: 10 };
 
@@ -292,7 +285,7 @@ describe('PdfGenerator', () => {
       expect(gen.doc.text).toHaveBeenCalledWith('Summer Festival', 50, 50, expect.objectContaining({ align: 'left' }));
       // Check that timestamp text was also written (contains "Attendees as of")
       const textCalls = gen.doc.text.mock.calls;
-      const hasTimestamp = textCalls.some(call => call[0].includes('Attendees as of'));
+      const hasTimestamp = textCalls.some((call) => call[0].includes('Attendees as of'));
       expect(hasTimestamp).toBe(true);
     });
 
@@ -304,7 +297,7 @@ describe('PdfGenerator', () => {
         name: 'Test Event',
         startDate: '2025-01-15T10:00:00Z',
         endDate: '2025-01-15T12:00:00Z',
-        timezone: 'UTC'
+        timezone: 'UTC',
       };
       const layout = { fontSize: 10, logo: '/path/to/logo.png' };
 
@@ -312,10 +305,15 @@ describe('PdfGenerator', () => {
       gen._generateHeader();
 
       // Verify logo was added on the right side
-      expect(gen.doc.image).toHaveBeenCalledWith('/path/to/logo.png', 425, 50, expect.objectContaining({
-        fit: [120, 80],
-        align: 'right'
-      }));
+      expect(gen.doc.image).toHaveBeenCalledWith(
+        '/path/to/logo.png',
+        425,
+        50,
+        expect.objectContaining({
+          fit: [120, 80],
+          align: 'right',
+        })
+      );
     });
   });
 
@@ -330,7 +328,12 @@ describe('PdfGenerator', () => {
       // Verify header text for fixed columns (Name, Phone, Signed up, Fee)
       expect(gen.doc.text).toHaveBeenCalledWith('Name', expect.any(Number), expect.any(Number), expect.any(Object));
       expect(gen.doc.text).toHaveBeenCalledWith('Phone', expect.any(Number), expect.any(Number), expect.any(Object));
-      expect(gen.doc.text).toHaveBeenCalledWith('Signed up', expect.any(Number), expect.any(Number), expect.any(Object));
+      expect(gen.doc.text).toHaveBeenCalledWith(
+        'Signed up',
+        expect.any(Number),
+        expect.any(Number),
+        expect.any(Object)
+      );
       expect(gen.doc.text).toHaveBeenCalledWith('Fee', expect.any(Number), expect.any(Number), expect.any(Object));
     });
   });

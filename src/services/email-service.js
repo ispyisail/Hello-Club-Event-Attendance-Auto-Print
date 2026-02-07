@@ -45,9 +45,10 @@ function validateAttachmentPath(filePath) {
  * @param {string} to - Recipient email
  * @param {string} from - Sender email
  * @param {string} subject - Email subject
+ * @param {string} body - Email body
  * @throws {Error} If any parameter contains invalid characters
  */
-function validateEmailParams(to, from, subject) {
+function validateEmailParams(to, from, subject, body) {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const headerInjectionRegex = /[\r\n]/;
 
@@ -61,6 +62,10 @@ function validateEmailParams(to, from, subject) {
 
   if (headerInjectionRegex.test(subject)) {
     throw new Error('Subject contains invalid characters');
+  }
+
+  if (body && headerInjectionRegex.test(body)) {
+    throw new Error('Email body contains invalid characters (CRLF injection detected)');
   }
 }
 
@@ -77,7 +82,7 @@ function validateEmailParams(to, from, subject) {
  */
 async function sendEmailWithAttachment(transportOptions, to, from, subject, body, attachmentPath) {
   // Validate email parameters to prevent header injection
-  validateEmailParams(to, from, subject);
+  validateEmailParams(to, from, subject, body);
 
   // Validate attachment path to prevent path traversal
   const safePath = validateAttachmentPath(attachmentPath);

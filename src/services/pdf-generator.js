@@ -10,6 +10,7 @@ const path = require('path');
 
 /**
  * Sanitizes and validates the output file path to prevent path traversal attacks.
+ * This is a shared utility function also used by functions.js and tray-app/main.js.
  * @param {string} fileName - The filename from config (potentially unsafe)
  * @returns {string} - Safe absolute path for PDF output
  * @throws {Error} - If filename contains path traversal attempts
@@ -316,3 +317,4 @@ class PdfGenerator {
 }
 
 module.exports = PdfGenerator;
+module.exports.sanitizeOutputPath = sanitizeOutputPath;

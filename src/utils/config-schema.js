@@ -31,7 +31,23 @@ const configSchema = Joi.object({
    * @type {number}
    */
   fetchWindowHours: Joi.number().integer().positive().default(24),
-  outputFilename: Joi.string().default('attendees.pdf'),
+  outputFilename: Joi.string()
+    .default('attendees.pdf')
+    .custom((value, helpers) => {
+      const path = require('path');
+      const basename = path.basename(value);
+      if (basename !== value || value.includes('..')) {
+        return helpers.error('any.invalid', {
+          message: 'outputFilename must not contain directory paths or traversal sequences (e.g., ../)',
+        });
+      }
+      if (!basename.toLowerCase().endsWith('.pdf')) {
+        return helpers.error('any.invalid', {
+          message: 'outputFilename must end with .pdf extension',
+        });
+      }
+      return value;
+    }, 'Path traversal validation'),
   printMode: Joi.string().valid('local', 'email').default('email'),
   email: Joi.object({
     to: Joi.string().email().required(),

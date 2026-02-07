@@ -13,7 +13,7 @@ const {
   notifyEventFailed,
   notifyJobRetry,
   notifyPermanentFailure,
-  notifyServiceStatus
+  notifyServiceStatus,
 } = require('../src/utils/webhook');
 
 describe('Webhook Module', () => {
@@ -30,35 +30,35 @@ describe('Webhook Module', () => {
     it('should send webhook successfully', async () => {
       axios.post.mockResolvedValue({
         status: 200,
-        data: { success: true }
+        data: { success: true },
       });
 
       const result = await sendWebhook('https://example.com/webhook', {
         event: 'test.event',
-        data: { foo: 'bar' }
+        data: { foo: 'bar' },
       });
 
       expect(axios.post).toHaveBeenCalledWith(
         'https://example.com/webhook',
         { event: 'test.event', data: { foo: 'bar' } },
-        {
+        expect.objectContaining({
           timeout: 10000,
           headers: {
             'Content-Type': 'application/json',
-            'User-Agent': 'HelloClub-Event-Attendance/1.0'
-          }
-        }
+            'User-Agent': 'HelloClub-Event-Attendance/1.0',
+          },
+          maxRedirects: 0,
+          validateStatus: expect.any(Function),
+        })
       );
 
       expect(result).toEqual({
         success: true,
         status: 200,
-        data: { success: true }
+        data: { success: true },
       });
 
-      expect(logger.info).toHaveBeenCalledWith(
-        expect.stringContaining('Webhook sent successfully')
-      );
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Webhook sent successfully'));
     });
 
     it('should return failure when URL is not configured', async () => {
@@ -66,24 +66,22 @@ describe('Webhook Module', () => {
 
       expect(result).toEqual({
         success: false,
-        reason: 'No URL configured'
+        reason: 'No URL configured',
       });
 
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Webhook URL not configured')
-      );
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Webhook URL not configured'));
     });
 
     it('should handle HTTP error responses', async () => {
       axios.post.mockRejectedValue({
         response: {
           status: 500,
-          statusText: 'Internal Server Error'
-        }
+          statusText: 'Internal Server Error',
+        },
       });
 
       const promise = sendWebhook('https://example.com/webhook', {
-        event: 'test.event'
+        event: 'test.event',
       });
 
       // Fast-forward through retry delays
@@ -99,11 +97,11 @@ describe('Webhook Module', () => {
     it('should handle timeout errors', async () => {
       axios.post.mockRejectedValue({
         code: 'ECONNABORTED',
-        message: 'timeout of 10000ms exceeded'
+        message: 'timeout of 10000ms exceeded',
       });
 
       const promise = sendWebhook('https://example.com/webhook', {
-        event: 'test.event'
+        event: 'test.event',
       });
 
       // Fast-forward through retry delays
@@ -123,7 +121,7 @@ describe('Webhook Module', () => {
         .mockResolvedValueOnce({ status: 200, data: {} });
 
       const promise = sendWebhook('https://example.com/webhook', {
-        event: 'test.event'
+        event: 'test.event',
       });
 
       // Fast-forward through retry delays
@@ -133,16 +131,14 @@ describe('Webhook Module', () => {
 
       expect(axios.post).toHaveBeenCalledTimes(3);
       expect(result.success).toBe(true);
-      expect(logger.warn).toHaveBeenCalledWith(
-        expect.stringContaining('Retrying webhook delivery')
-      );
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Retrying webhook delivery'));
     });
 
     it('should fail after max retries', async () => {
       axios.post.mockRejectedValue({ message: 'Network error' });
 
       const promise = sendWebhook('https://example.com/webhook', {
-        event: 'test.event'
+        event: 'test.event',
       });
 
       // Fast-forward through retry delays
@@ -152,9 +148,7 @@ describe('Webhook Module', () => {
 
       expect(axios.post).toHaveBeenCalledTimes(3); // Initial + 2 retries
       expect(result.success).toBe(false);
-      expect(logger.error).toHaveBeenCalledWith(
-        expect.stringContaining('failed after 2 retries')
-      );
+      expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('failed after 2 retries'));
     });
   });
 
@@ -165,7 +159,7 @@ describe('Webhook Module', () => {
       const event = {
         id: '123',
         name: 'Test Event',
-        startDate: '2025-01-01T10:00:00Z'
+        startDate: '2025-01-01T10:00:00Z',
       };
 
       await notifyEventProcessed(event, 25, 'https://example.com/webhook');
@@ -179,8 +173,8 @@ describe('Webhook Module', () => {
             eventName: 'Test Event',
             eventDate: '2025-01-01T10:00:00Z',
             attendeeCount: 25,
-            status: 'success'
-          })
+            status: 'success',
+          }),
         }),
         expect.any(Object)
       );
@@ -194,14 +188,10 @@ describe('Webhook Module', () => {
       const event = {
         id: '123',
         name: 'Test Event',
-        startDate: '2025-01-01T10:00:00Z'
+        startDate: '2025-01-01T10:00:00Z',
       };
 
-      await notifyEventFailed(
-        event,
-        'API timeout error',
-        'https://example.com/webhook'
-      );
+      await notifyEventFailed(event, 'API timeout error', 'https://example.com/webhook');
 
       expect(axios.post).toHaveBeenCalledWith(
         'https://example.com/webhook',
@@ -211,8 +201,8 @@ describe('Webhook Module', () => {
             eventId: '123',
             eventName: 'Test Event',
             error: 'API timeout error',
-            status: 'failed'
-          })
+            status: 'failed',
+          }),
         }),
         expect.any(Object)
       );
@@ -226,7 +216,7 @@ describe('Webhook Module', () => {
       const event = {
         id: '123',
         name: 'Test Event',
-        startDate: '2025-01-01T10:00:00Z'
+        startDate: '2025-01-01T10:00:00Z',
       };
 
       await notifyJobRetry(event, 2, 3, 'https://example.com/webhook');
@@ -240,8 +230,8 @@ describe('Webhook Module', () => {
             eventName: 'Test Event',
             retryCount: 2,
             maxRetries: 3,
-            status: 'retrying'
-          })
+            status: 'retrying',
+          }),
         }),
         expect.any(Object)
       );
@@ -255,15 +245,10 @@ describe('Webhook Module', () => {
       const event = {
         id: '123',
         name: 'Test Event',
-        startDate: '2025-01-01T10:00:00Z'
+        startDate: '2025-01-01T10:00:00Z',
       };
 
-      await notifyPermanentFailure(
-        event,
-        'PDF generation failed',
-        3,
-        'https://example.com/webhook'
-      );
+      await notifyPermanentFailure(event, 'PDF generation failed', 3, 'https://example.com/webhook');
 
       expect(axios.post).toHaveBeenCalledWith(
         'https://example.com/webhook',
@@ -274,8 +259,8 @@ describe('Webhook Module', () => {
             eventName: 'Test Event',
             error: 'PDF generation failed',
             retriesAttempted: 3,
-            status: 'permanently_failed'
-          })
+            status: 'permanently_failed',
+          }),
         }),
         expect.any(Object)
       );
@@ -291,7 +276,7 @@ describe('Webhook Module', () => {
         {
           serviceRunIntervalHours: 1,
           fetchWindowHours: 24,
-          scheduledJobsCount: 5
+          scheduledJobsCount: 5,
         },
         'https://example.com/webhook'
       );
@@ -304,8 +289,8 @@ describe('Webhook Module', () => {
             status: 'started',
             serviceRunIntervalHours: 1,
             fetchWindowHours: 24,
-            scheduledJobsCount: 5
-          })
+            scheduledJobsCount: 5,
+          }),
         }),
         expect.any(Object)
       );
@@ -319,15 +304,13 @@ describe('Webhook Module', () => {
       const event = {
         id: '123',
         name: 'Test Event',
-        startDate: '2025-01-01T10:00:00Z'
+        startDate: '2025-01-01T10:00:00Z',
       };
 
       await notifyEventProcessed(event, 10, 'https://example.com/webhook');
 
       const callArgs = axios.post.mock.calls[0][1];
-      expect(callArgs.timestamp).toMatch(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
-      );
+      expect(callArgs.timestamp).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
     });
   });
 });

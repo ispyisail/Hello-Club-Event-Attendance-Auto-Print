@@ -1,10 +1,26 @@
 // Mock other dependencies
 jest.mock('../src/core/database');
-jest.mock('../src/services/pdf-generator');
 jest.mock('pdf-to-printer');
 jest.mock('../src/services/email-service');
 jest.mock('../src/services/logger');
 jest.mock('../src/core/api-client');
+
+// Mock pdf-generator with sanitizeOutputPath
+jest.mock('../src/services/pdf-generator', () => {
+  const mockConstructor = jest.fn().mockImplementation(function (event, attendees, layout) {
+    this.event = event;
+    this.attendees = attendees;
+    this.layout = layout;
+    this.generate = jest.fn();
+  });
+
+  mockConstructor.sanitizeOutputPath = jest.fn((filename) => {
+    const path = require('path');
+    return path.resolve(process.cwd(), filename);
+  });
+
+  return mockConstructor;
+});
 
 // Now we can require the modules.
 const { fetchAndStoreUpcomingEvents, processScheduledEvents } = require('../src/core/functions');
@@ -41,7 +57,6 @@ describe('Event Processing Logic', () => {
     };
 
     getDb.mockReturnValue(mockDb);
-    PdfGenerator.prototype.generate = jest.fn();
   });
 
   afterEach(() => {
@@ -154,9 +169,10 @@ describe('Event Processing Logic', () => {
       // Check that it fetched attendees for the due event
       expect(getAllAttendees).toHaveBeenCalledWith(1);
 
-      // Check that PDF was generated and printed
-      expect(PdfGenerator.prototype.generate).toHaveBeenCalledWith('test.pdf');
-      expect(print).toHaveBeenCalledWith('test.pdf');
+      // Check that PDF was generated and printed with the sanitized path
+      // The constructor is called, so we check that print was called with the safe path
+      expect(PdfGenerator).toHaveBeenCalled();
+      expect(print).toHaveBeenCalledWith(expect.stringContaining('test.pdf'));
 
       // Check that the event status was updated to 'processed'
       expect(mockDb.prepare).toHaveBeenCalledWith("UPDATE events SET status = 'processed' WHERE id = ?");
@@ -176,8 +192,8 @@ describe('Event Processing Logic', () => {
 
       expect(getEventDetails).toHaveBeenCalledWith(2);
       expect(getAllAttendees).toHaveBeenCalledWith(2);
-      // PDF should NOT be generated
-      expect(PdfGenerator.prototype.generate).not.toHaveBeenCalled();
+      // PDF should NOT be generated (PdfGenerator constructor should not be called)
+      expect(PdfGenerator).not.toHaveBeenCalled();
       // Status should still be updated
       expect(mockStmt.run).toHaveBeenCalledWith(2);
     });

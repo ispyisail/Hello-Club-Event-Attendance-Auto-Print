@@ -19,6 +19,7 @@ const fs = require('fs');
 const { checkServiceStatus, startService, stopService, restartService } = require('./service-manager');
 const { getRecentLogs, watchForProcessedEvents } = require('./log-watcher');
 const { buildContextMenu } = require('./menu-builder');
+const { sanitizeOutputPath } = require('../src/services/pdf-generator');
 
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
@@ -678,7 +679,8 @@ ipcMain.handle('print-preview-pdf', async (event, eventId, printMode, previewPdf
 
     // Reuse the preview PDF instead of regenerating
     const outputFileName = config.outputFilename || 'attendees.pdf';
-    const outputFilePath = path.join(PROJECT_ROOT, outputFileName);
+    // Sanitize output path to prevent path traversal
+    const outputFilePath = sanitizeOutputPath(outputFileName);
 
     // Copy the preview PDF to the output location
     if (previewPdfPath && fs.existsSync(previewPdfPath)) {

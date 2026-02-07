@@ -2,8 +2,22 @@ const logger = require('../services/logger');
 const { print } = require('pdf-to-printer');
 const { sendEmailWithAttachment } = require('../services/email-service');
 const PdfGenerator = require('../services/pdf-generator');
+const { sanitizeOutputPath } = require('../services/pdf-generator');
 const { getDb } = require('./database');
 const { getEventDetails, getAllAttendees, getUpcomingEvents } = require('./api-client');
+
+/**
+ * Sanitizes text for use in email headers and body.
+ * Removes CRLF characters that could enable header injection attacks.
+ * @param {string} text - Text to sanitize
+ * @returns {string} Sanitized text
+ */
+function sanitizeEmailText(text) {
+  if (typeof text !== 'string') {
+    return String(text || '');
+  }
+  return text.replace(/[\r\n]/g, ' ');
+}
 
 /**
  * Processes a single event: fetches attendees, creates a PDF, prints it, and updates the database.
@@ -60,7 +74,6 @@ async function processSingleEvent(event, finalConfig) {
   }
 }
 
-
 /**
  * Checks the database for events that are due for printing and calls processSingleEvent for each.
  * @param {Object} finalConfig - The application's configuration object.
@@ -107,18 +120,20 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
 
   // Log all event categories for debugging
   logger.info('=== All Events Found ===');
-  events.forEach(event => {
-    const categories = Array.isArray(event.categories) ? event.categories.map(c => c.name).join(', ') : 'None';
+  events.forEach((event) => {
+    const categories = Array.isArray(event.categories) ? event.categories.map((c) => c.name).join(', ') : 'None';
     logger.info(`Event: "${event.name}" | Categories: ${categories}`);
   });
   logger.info('======================');
 
-  const filteredEvents = events.filter(event => {
+  const filteredEvents = events.filter((event) => {
     if (!allowedCategories || allowedCategories.length === 0) {
       return true; // No category filter, include all events
     }
     // Defensively check if categories is an array before trying to filter on it.
-    return Array.isArray(event.categories) && event.categories.some(category => allowedCategories.includes(category.name));
+    return (
+      Array.isArray(event.categories) && event.categories.some((category) => allowedCategories.includes(category.name))
+    );
   });
 
   if (filteredEvents.length === 0) {
@@ -164,13 +179,16 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
  * @returns {Promise<void>}
  */
 async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode) {
+  // Sanitize output path to prevent path traversal
+  const safeOutputPath = sanitizeOutputPath(outputFileName);
+
   const generator = new PdfGenerator(event, attendees, pdfLayout);
-  generator.generate(outputFileName);
+  generator.generate(safeOutputPath);
 
   // Log file size for monitoring (try-catch for test environments)
   try {
     const fs = require('fs');
-    const stats = fs.statSync(outputFileName);
+    const stats = fs.statSync(safeOutputPath);
     const fileSizeKB = (stats.size / 1024).toFixed(2);
     logger.info(`✓ PDF created: ${outputFileName} (${fileSizeKB} KB, ${attendees.length} attendees)`);
   } catch (err) {
@@ -181,7 +199,7 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
   if (printMode === 'local') {
     logger.info(`Printing PDF locally...`);
     try {
-      const msg = await print(outputFileName);
+      const msg = await print(safeOutputPath);
       logger.info(msg);
     } catch (err) {
       logger.error('Failed to print locally:', err);
@@ -207,9 +225,10 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
         pass: SMTP_PASS,
       },
     };
-    const subject = `Print Job: ${event.name}`;
-    const body = `Attached is the attendee list for the event: ${event.name}.`;
-    await sendEmailWithAttachment(transportOptions, PRINTER_EMAIL, EMAIL_FROM, subject, body, outputFileName);
+    const sanitizedEventName = sanitizeEmailText(event.name);
+    const subject = `Print Job: ${sanitizedEventName}`;
+    const body = `Attached is the attendee list for the event: ${sanitizedEventName}.`;
+    await sendEmailWithAttachment(transportOptions, PRINTER_EMAIL, EMAIL_FROM, subject, body, safeOutputPath);
     logger.info(`✓ Email sent to: ${PRINTER_EMAIL}`);
   }
 }
@@ -217,5 +236,5 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
 module.exports = {
   fetchAndStoreUpcomingEvents,
   processScheduledEvents,
-  processSingleEvent
+  processSingleEvent,
 };
