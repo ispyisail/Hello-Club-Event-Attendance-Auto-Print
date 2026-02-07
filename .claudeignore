@@ -1,0 +1,12 @@
+﻿node_modules/
+dist/
+build/
+.git/
+*.log
+package-lock.json
+yarn.lock
+venv/
+__pycache__/
+.env
+.DS_Store
+project_map.txt
