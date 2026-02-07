@@ -120,6 +120,16 @@ async function testEmailConnection() {
       };
     }
 
+    // Reload environment variables for SMTP (ensures fresh config even if app wasn't restarted)
+    process.env.SMTP_HOST = envConfig.SMTP_HOST;
+    process.env.SMTP_PORT = envConfig.SMTP_PORT;
+    process.env.SMTP_USER = envConfig.SMTP_USER;
+    process.env.SMTP_PASS = envConfig.SMTP_PASS;
+    process.env.PRINTER_EMAIL = envConfig.PRINTER_EMAIL;
+    if (envConfig.EMAIL_FROM) {
+      process.env.EMAIL_FROM = envConfig.EMAIL_FROM;
+    }
+
     // Import nodemailer
     const nodemailer = require('nodemailer');
 
