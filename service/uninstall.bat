@@ -41,10 +41,18 @@ if %errorlevel% neq 0 (
     echo.
     echo ✗ Uninstallation failed!
     echo Please check the error messages above.
-    pause
+    echo.
+    echo Press any key to close this window...
+    pause >nul
     exit /b %errorlevel%
 )
 
 echo.
+echo ═══════════════════════════════════════════════════════════════════════
 echo ✓ Uninstallation completed successfully!
-pause
+echo ═══════════════════════════════════════════════════════════════════════
+echo.
+echo Please verify the uninstallation details above, then close this window.
+echo.
+echo Press any key to close this window...
+pause >nul

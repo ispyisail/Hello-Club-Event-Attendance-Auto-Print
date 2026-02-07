@@ -76,16 +76,30 @@ if (-not (Test-Path "node_modules")) {
 Write-Host "🚀 Starting installation..." -ForegroundColor Cyan
 Write-Host ""
 
+Write-Host "🚀 Starting installation..." -ForegroundColor Cyan
+Write-Host ""
+
 node service\install-complete.js
 
 if ($LASTEXITCODE -ne 0) {
     Write-Host ""
-    Write-Host "✗ Installation failed! Please check the error messages above." -ForegroundColor Red
-    Read-Host "Press Enter to exit"
+    Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Red
+    Write-Host "✗ Installation failed!" -ForegroundColor Red
+    Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Red
+    Write-Host ""
+    Write-Host "Please check the error messages above." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "When ready, press Enter to close this window..." -ForegroundColor Cyan
+    Read-Host ""
     exit 1
 }
 
 Write-Host ""
+Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Green
 Write-Host "✓ Installation completed successfully!" -ForegroundColor Green
+Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Green
 Write-Host ""
-Read-Host "Press Enter to exit"
+Write-Host "Please verify the installation details above, then close this window." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "When ready, press Enter to close this window..." -ForegroundColor Cyan
+Read-Host ""

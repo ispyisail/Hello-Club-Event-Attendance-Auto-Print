@@ -60,16 +60,30 @@ Set-Location $projectRoot
 Write-Host "🚀 Starting uninstallation..." -ForegroundColor Cyan
 Write-Host ""
 
+Write-Host "🚀 Starting uninstallation..." -ForegroundColor Cyan
+Write-Host ""
+
 node service\uninstall.js
 
 if ($LASTEXITCODE -ne 0) {
   Write-Host ""
-  Write-Host "✗ Uninstallation failed! Please check the error messages above." -ForegroundColor Red
-  Read-Host "Press Enter to exit"
+  Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Red
+  Write-Host "✗ Uninstallation failed!" -ForegroundColor Red
+  Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Red
+  Write-Host ""
+  Write-Host "Please check the error messages above." -ForegroundColor Yellow
+  Write-Host ""
+  Write-Host "When ready, press Enter to close this window..." -ForegroundColor Cyan
+  Read-Host ""
   exit 1
 }
 
 Write-Host ""
+Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Green
 Write-Host "✓ Uninstallation completed successfully!" -ForegroundColor Green
+Write-Host "════════════════════════════════════════════════════════════════════" -ForegroundColor Green
 Write-Host ""
-Read-Host "Press Enter to exit"
+Write-Host "Please verify the uninstallation details above, then close this window." -ForegroundColor Cyan
+Write-Host ""
+Write-Host "When ready, press Enter to close this window..." -ForegroundColor Cyan
+Read-Host ""

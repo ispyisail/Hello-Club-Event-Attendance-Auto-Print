@@ -43,10 +43,18 @@ if %errorlevel% neq 0 (
     echo.
     echo ✗ Installation failed!
     echo Please check the error messages above.
-    pause
+    echo.
+    echo Press any key to close this window...
+    pause >nul
     exit /b %errorlevel%
 )
 
 echo.
+echo ═══════════════════════════════════════════════════════════════════════
 echo ✓ Installation completed successfully!
-pause
+echo ═══════════════════════════════════════════════════════════════════════
+echo.
+echo Please verify the installation above, then close this window when ready.
+echo.
+echo Press any key to close this window...
+pause >nul
