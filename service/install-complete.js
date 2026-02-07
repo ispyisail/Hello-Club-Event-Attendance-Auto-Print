@@ -20,8 +20,6 @@ const { execSync } = require('child_process');
 // Get the absolute paths
 const projectRoot = path.join(__dirname, '..');
 const scriptPath = path.join(projectRoot, 'src', 'index.js');
-const trayAppPath = path.join(projectRoot, 'tray-app', 'main.js');
-const electronPath = path.join(projectRoot, 'node_modules', '.bin', 'electron');
 
 // Check for admin privileges
 function isAdmin() {
@@ -46,8 +44,10 @@ function addTrayAutoStart() {
     const trayBatchPath = path.join(projectRoot, 'tray-app.bat');
     const batchContent = `@echo off
 REM Hello Club Tray App Launcher
-cd /d "${projectRoot}"
-start "" "${electronPath}" "${trayAppPath}"
+setlocal enabledelayedexpansion
+set "PROJ_DIR=${projectRoot}"
+cd /d "!PROJ_DIR!"
+start "" cmd /c "!PROJ_DIR!\\node_modules\\.bin\\electron.cmd" "!PROJ_DIR!\\tray-app\\main.js"
 exit /b 0
 `;
 

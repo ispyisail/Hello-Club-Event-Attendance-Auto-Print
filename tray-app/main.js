@@ -12,7 +12,7 @@
  * - Desktop notifications
  */
 
-const { app, Tray, BrowserWindow, ipcMain, Notification } = require('electron');
+const { app, Tray, BrowserWindow, ipcMain, Notification, nativeImage } = require('electron');
 const path = require('path');
 const fs = require('fs');
 // child_process exec available via service-manager if needed
@@ -20,6 +20,16 @@ const { checkServiceStatus, startService, stopService, restartService } = requir
 const { getRecentLogs, watchForProcessedEvents } = require('./log-watcher');
 const { buildContextMenu } = require('./menu-builder');
 const { sanitizeOutputPath } = require('../src/services/pdf-generator');
+
+// Simple logging to file
+const TRAY_LOG = path.join(__dirname, '..', 'tray-app.log');
+function logToFile(message, error = null) {
+  const timestamp = new Date().toISOString();
+  const logMessage = error
+    ? `${timestamp} ERROR: ${message} - ${error.message}\n${error.stack}\n`
+    : `${timestamp} ${message}\n`;
+  fs.appendFileSync(TRAY_LOG, logMessage, 'utf8');
+}
 
 // Prevent multiple instances
 const gotTheLock = app.requestSingleInstanceLock();
@@ -53,17 +63,27 @@ const ICONS_PATH = path.join(__dirname, 'icons');
 
 /**
  * Get the appropriate tray icon based on service status
+ * Generates colored square icons programmatically
  */
 function getTrayIcon(status) {
-  const iconName =
-    {
-      running: 'icon-green.png',
-      stopped: 'icon-red.png',
-      error: 'icon-red.png',
-      unknown: 'icon-yellow.png',
-    }[status] || 'icon-yellow.png';
+  // Color map for different statuses
+  const colors = {
+    running: '#22c55e', // Green
+    stopped: '#f43636', // Red
+    error: '#f43636', // Red
+    unknown: '#ffc107', // Yellow
+  };
 
-  return path.join(ICONS_PATH, iconName);
+  const color = colors[status] || colors.unknown;
+
+  // Create a 16x16 SVG and convert to native image
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">
+    <rect width="16" height="16" fill="${color}"/>
+  </svg>`;
+
+  const img = nativeImage.createFromDataURL('data:image/svg+xml;base64,' + Buffer.from(svg).toString('base64'));
+
+  return img;
 }
 
 /**
@@ -375,21 +395,33 @@ function cleanupStalePreviewFiles() {
  * Initialize the tray application
  */
 function createTray() {
-  tray = new Tray(getTrayIcon('unknown'));
-  tray.setToolTip('Hello Club Event Attendance');
+  try {
+    const icon = getTrayIcon('unknown');
+    logToFile('Creating tray with icon');
+    tray = new Tray(icon);
+    logToFile('Tray object created');
 
-  updateContextMenu();
+    tray.setToolTip('Hello Club Event Attendance');
+    logToFile('Tooltip set');
 
-  // Update status every 10 seconds
-  statusCheckInterval = setInterval(updateTrayStatus, 10000);
+    updateContextMenu();
+    logToFile('Context menu updated');
 
-  // Watch for processed events every 30 seconds
-  logWatchInterval = setInterval(() => {
-    watchForProcessedEvents(ACTIVITY_LOG, ICONS_PATH, logWatcherState);
-  }, 30000);
+    // Update status every 10 seconds
+    statusCheckInterval = setInterval(updateTrayStatus, 10000);
 
-  // Initial status check
-  updateTrayStatus();
+    // Watch for processed events every 30 seconds
+    logWatchInterval = setInterval(() => {
+      watchForProcessedEvents(ACTIVITY_LOG, ICONS_PATH, logWatcherState);
+    }, 30000);
+
+    // Initial status check
+    updateTrayStatus();
+    logToFile('Initial status check completed');
+  } catch (error) {
+    logToFile('Error in createTray', error);
+    throw error;
+  }
 }
 
 // IPC handlers for log viewer
@@ -834,33 +866,72 @@ ipcMain.handle('upload-logo', async () => {
   }
 });
 
+// Keep a reference to prevent garbage collection
+let appWindow = null;
+
 // App lifecycle
-app.whenReady().then(() => {
-  createTray();
+logToFile('Starting app.whenReady');
+app
+  .whenReady()
+  .then(() => {
+    try {
+      // Create a hidden window to keep the app alive in memory
+      // This ensures Electron events are properly handled and the tray stays visible
+      appWindow = new BrowserWindow({
+        show: false,
+        width: 0,
+        height: 0,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+        },
+      });
+      appWindow.loadURL('data:text/html,<html></html>');
+      logToFile('Hidden window created');
 
-  // Clean up any stale preview files from previous sessions
-  cleanupStalePreviewFiles();
+      logToFile('Creating tray');
+      createTray();
+      logToFile('Tray created successfully');
 
-  // Check if icons exist, show warning if not
-  if (!fs.existsSync(ICONS_PATH)) {
-    new Notification({
-      title: 'Tray App Started',
-      body: 'Warning: Icon files not found. Using default icons.',
-    }).show();
-  }
+      // Clean up any stale preview files from previous sessions
+      cleanupStalePreviewFiles();
 
-  // Check if this is first run (no .env file)
-  const envPath = path.join(PROJECT_ROOT, '.env');
-  if (!fs.existsSync(envPath)) {
-    setTimeout(() => {
-      openSetupWizard();
-      new Notification({
-        title: 'Welcome to Hello Club!',
-        body: 'Opening setup wizard to help you get started...',
-        icon: path.join(ICONS_PATH, 'icon-green.png'),
-      }).show();
-    }, 1000);
-  }
+      // Check if icons exist, show warning if not
+      if (!fs.existsSync(ICONS_PATH)) {
+        logToFile('Icons path does not exist: ' + ICONS_PATH);
+        new Notification({
+          title: 'Tray App Started',
+          body: 'Warning: Icon files not found. Using default icons.',
+        }).show();
+      }
+
+      // Check if this is first run (no .env file)
+      const envPath = path.join(PROJECT_ROOT, '.env');
+      if (!fs.existsSync(envPath)) {
+        setTimeout(() => {
+          openSetupWizard();
+          new Notification({
+            title: 'Welcome to Hello Club!',
+            body: 'Opening setup wizard to help you get started...',
+            icon: path.join(ICONS_PATH, 'icon-green.png'),
+          }).show();
+        }, 1000);
+      }
+    } catch (error) {
+      logToFile('Error in app.whenReady', error);
+    }
+  })
+  .catch((error) => {
+    logToFile('Failed to start app', error);
+  });
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+  logToFile('Uncaught exception', error);
+});
+
+process.on('unhandledRejection', (reason, _promise) => {
+  logToFile('Unhandled rejection: ' + (reason && reason.message ? reason.message : reason));
 });
 
 app.on('window-all-closed', (e) => {
@@ -875,5 +946,8 @@ app.on('before-quit', () => {
   }
   if (logWatchInterval) {
     clearInterval(logWatchInterval);
+  }
+  if (appWindow && !appWindow.isDestroyed()) {
+    appWindow.destroy();
   }
 });

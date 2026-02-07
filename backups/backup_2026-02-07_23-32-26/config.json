@@ -1,0 +1,42 @@
+{
+  "categories": ["NBA - Junior Events", "Pickleball"],
+  "preEventQueryMinutes": 5,
+  "fetchWindowHours": 168,
+  "serviceRunIntervalHours": 1,
+  "printMode": "email",
+  "outputFilename": "attendees.pdf",
+  "pdfLayout": {
+    "fontSize": 10,
+    "columns": [
+      {
+        "id": "name",
+        "header": "Name",
+        "width": 140
+      },
+      {
+        "id": "phone",
+        "header": "Phone",
+        "width": 100
+      },
+      {
+        "id": "signUpDate",
+        "header": "Signed up",
+        "width": 100
+      },
+      {
+        "id": "fee",
+        "header": "Fee",
+        "width": 60
+      },
+      {
+        "id": "status",
+        "header": "Status",
+        "width": 90
+      }
+    ]
+  },
+  "webhook": {
+    "enabled": false,
+    "url": null
+  }
+}

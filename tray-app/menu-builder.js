@@ -3,7 +3,7 @@
  * Builds and updates the tray context menu based on service status
  */
 
-const { Menu, Notification, nativeImage } = require('electron');
+const { Menu, Notification } = require('electron');
 const { exec } = require('child_process');
 const { checkServiceStatus, startService, stopService, restartService } = require('./service-manager');
 
@@ -42,7 +42,7 @@ function buildContextMenu(tray, options) {
       {
         label: 'Hello Club Event Attendance',
         enabled: false,
-        icon: nativeImage.createFromPath(getTrayIcon(currentServiceStatus)).resize({ width: 16, height: 16 }),
+        icon: getTrayIcon(currentServiceStatus),
       },
       { type: 'separator' },
       {

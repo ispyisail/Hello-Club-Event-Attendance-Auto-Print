@@ -1,0 +1,84 @@
+{
+  "period": "Last 30 days",
+  "generated_at": "2026-02-07T09:52:04.297Z",
+  "events": {
+    "total": 9,
+    "byStatus": {
+      "pending": 9
+    },
+    "successRate": "0.00%"
+  },
+  "jobs": {
+    "total": 6,
+    "byStatus": {
+      "scheduled": {
+        "count": 6,
+        "avgRetries": "0"
+      }
+    },
+    "requiredRetries": 0,
+    "retryRate": "0.00%"
+  },
+  "performance": {},
+  "recentActivity": [
+    {
+      "eventId": "65c63e0b653d9da1fa04d6e1",
+      "eventName": "Monday Pickleball",
+      "status": "scheduled",
+      "retryCount": 0,
+      "error": null,
+      "lastUpdated": "2026-02-07 09:51:59",
+      "eventDate": "2026-02-09T00:00:00.000Z"
+    },
+    {
+      "eventId": "696c88744e086c5676a48e04",
+      "eventName": "Tuesday High School Badminton - Term 1, 2026",
+      "status": "scheduled",
+      "retryCount": 0,
+      "error": null,
+      "lastUpdated": "2026-02-07 09:51:59",
+      "eventDate": "2026-02-10T03:00:00.000Z"
+    },
+    {
+      "eventId": "65c8e0ff7295214fa41524da",
+      "eventName": "Wednesday Pickleball",
+      "status": "scheduled",
+      "retryCount": 0,
+      "error": null,
+      "lastUpdated": "2026-02-07 09:51:59",
+      "eventDate": "2026-02-11T05:30:00.000Z"
+    },
+    {
+      "eventId": "696c88e64e086c5676a4a319",
+      "eventName": "Thursday High School Badminton - Term 1, 2026",
+      "status": "scheduled",
+      "retryCount": 0,
+      "error": null,
+      "lastUpdated": "2026-02-07 09:51:59",
+      "eventDate": "2026-02-12T03:00:00.000Z"
+    },
+    {
+      "eventId": "68d9fbe6a16a9aac0c936334",
+      "eventName": "Friday Pickleball - Competative -  DUPR scoring",
+      "status": "scheduled",
+      "retryCount": 0,
+      "error": null,
+      "lastUpdated": "2026-02-07 09:51:59",
+      "eventDate": "2026-02-12T21:00:00.000Z"
+    },
+    {
+      "eventId": "69672f6c78e6e77cd1f40efb",
+      "eventName": "Friday - Primary / Inter School - Term 1, 2026",
+      "status": "scheduled",
+      "retryCount": 0,
+      "error": null,
+      "lastUpdated": "2026-02-07 09:51:59",
+      "eventDate": "2026-02-13T03:00:00.000Z"
+    }
+  ],
+  "currentStatus": {
+    "pending": 6,
+    "failed": 0,
+    "retrying": 0
+  }
+}

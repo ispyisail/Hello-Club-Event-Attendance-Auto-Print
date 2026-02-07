@@ -1,0 +1,16 @@
+{
+  "timestamp": "2026-02-07T10:32:26.121Z",
+  "description": "asdf",
+  "files": [
+    {
+      "name": ".env",
+      "size": 268,
+      "backedUp": true
+    },
+    {
+      "name": "config.json",
+      "size": 827,
+      "backedUp": true
+    }
+  ]
+}

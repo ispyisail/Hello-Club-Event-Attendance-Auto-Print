@@ -1,0 +1,36 @@
+{
+  "timestamp": "2026-02-07T09:51:59.297Z",
+  "status": "healthy",
+  "uptime": 0.4365466,
+  "memory": {
+    "rss": 84791296,
+    "heapTotal": 39477248,
+    "heapUsed": 26761680,
+    "external": 4517489,
+    "arrayBuffers": 643583
+  },
+  "checks": {
+    "database": {
+      "status": "ok",
+      "eventCount": 3
+    },
+    "logging": {
+      "status": "ok",
+      "activityLog": true,
+      "errorLog": true
+    },
+    "cache": {
+      "status": "ok",
+      "total": 0,
+      "maxSize": 1000,
+      "valid": 0,
+      "expired": 0,
+      "utilizationPercent": 0
+    },
+    "jobs": {
+      "status": "ok",
+      "pending": 0,
+      "failed": 0
+    }
+  }
+}
