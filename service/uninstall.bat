@@ -47,6 +47,13 @@ if %errorlevel% neq 0 (
     REM Elevate using VBS script (silent, no password prompt)
     cscript.exe //nologo "service\elevate.vbs" "!ADMIN_SCRIPT!"
 
+    REM Keep this window open so user can see the elevation happened
+    echo.
+    echo Elevated uninstaller window should open above...
+    echo.
+    echo Press any key to close this window...
+    pause >nul
+
     REM Clean up temp script after a delay (give it time to start)
     timeout /t 1 /nobreak >nul
     if exist "!ADMIN_SCRIPT!" del /f /q "!ADMIN_SCRIPT!" >nul 2>&1
