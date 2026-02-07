@@ -1,5 +1,4 @@
 const path = require('path');
-const dotenv = require('dotenv');
 
 /**
  * Test API connection to Hello Club API
@@ -9,18 +8,39 @@ async function testApiConnection() {
   const startTime = Date.now();
 
   try {
-    // Load environment variables
+    // Load environment variables directly from .env file (not from process.env which may be stale)
+    const fs = require('fs');
     const envPath = path.join(__dirname, '..', '.env');
-    dotenv.config({ path: envPath });
+
+    const envConfig = {};
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      envContent.split('\n').forEach((line) => {
+        line = line.trim();
+        if (line && !line.startsWith('#')) {
+          const match = line.match(/^([^=]+)=(.*)$/);
+          if (match) {
+            const key = match[1].trim();
+            let value = match[2].trim();
+            value = value.replace(/^["']|["']$/g, '');
+            envConfig[key] = value;
+          }
+        }
+      });
+    }
 
     // Check if API_KEY is set
-    if (!process.env.API_KEY) {
+    if (!envConfig.API_KEY) {
       return {
         success: false,
         message: 'API_KEY not configured. Please add it in Settings.',
-        details: { error: 'Missing API_KEY' }
+        details: { error: 'Missing API_KEY' },
       };
     }
+
+    // Set environment variables for API client
+    process.env.API_KEY = envConfig.API_KEY;
+    process.env.API_BASE_URL = envConfig.API_BASE_URL;
 
     // Import API client
     const { getUpcomingEvents } = require('../src/core/api-client');
@@ -35,10 +55,9 @@ async function testApiConnection() {
       details: {
         eventsFound: events ? events.length : 0,
         responseTime: duration,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     };
-
   } catch (error) {
     const duration = Date.now() - startTime;
     return {
@@ -47,8 +66,8 @@ async function testApiConnection() {
       details: {
         error: error.message,
         responseTime: duration,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     };
   }
 }
@@ -61,19 +80,36 @@ async function testEmailConnection() {
   const startTime = Date.now();
 
   try {
-    // Load environment variables
+    // Load environment variables directly from .env file (not from process.env which may be stale)
+    const fs = require('fs');
     const envPath = path.join(__dirname, '..', '.env');
-    dotenv.config({ path: envPath });
+
+    const envConfig = {};
+    if (fs.existsSync(envPath)) {
+      const envContent = fs.readFileSync(envPath, 'utf8');
+      envContent.split('\n').forEach((line) => {
+        line = line.trim();
+        if (line && !line.startsWith('#')) {
+          const match = line.match(/^([^=]+)=(.*)$/);
+          if (match) {
+            const key = match[1].trim();
+            let value = match[2].trim();
+            value = value.replace(/^["']|["']$/g, '');
+            envConfig[key] = value;
+          }
+        }
+      });
+    }
 
     // Check if required SMTP variables are set
     const requiredVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS'];
-    const missingVars = requiredVars.filter(varName => !process.env[varName]);
+    const missingVars = requiredVars.filter((varName) => !envConfig[varName]);
 
     if (missingVars.length > 0) {
       return {
         success: false,
         message: `Missing SMTP configuration: ${missingVars.join(', ')}. Please add them in Settings.`,
-        details: { error: 'Missing SMTP configuration', missingVars }
+        details: { error: 'Missing SMTP configuration', missingVars },
       };
     }
 
@@ -82,16 +118,16 @@ async function testEmailConnection() {
 
     // Create transporter with timeout
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT),
-      secure: process.env.SMTP_PORT == 465,
+      host: envConfig.SMTP_HOST,
+      port: parseInt(envConfig.SMTP_PORT),
+      secure: envConfig.SMTP_PORT == 465,
       auth: {
-        user: process.env.SMTP_USER,
+        user: envConfig.SMTP_USER,
         // Strip spaces from password (Google App passwords may have spaces)
-        pass: (process.env.SMTP_PASS || '').replace(/\s/g, '')
+        pass: (envConfig.SMTP_PASS || '').replace(/\s/g, ''),
       },
       connectionTimeout: 10000, // 10 second timeout
-      greetingTimeout: 10000
+      greetingTimeout: 10000,
     });
 
     // Verify connection (does not send email)
@@ -102,14 +138,13 @@ async function testEmailConnection() {
       success: true,
       message: `SMTP connected successfully (${duration}ms)`,
       details: {
-        host: process.env.SMTP_HOST,
-        port: process.env.SMTP_PORT,
-        user: process.env.SMTP_USER,
+        host: envConfig.SMTP_HOST,
+        port: envConfig.SMTP_PORT,
+        user: envConfig.SMTP_USER,
         responseTime: duration,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     };
-
   } catch (error) {
     const duration = Date.now() - startTime;
     return {
@@ -118,8 +153,8 @@ async function testEmailConnection() {
       details: {
         error: error.message,
         responseTime: duration,
-        timestamp: new Date().toISOString()
-      }
+        timestamp: new Date().toISOString(),
+      },
     };
   }
 }
@@ -138,8 +173,12 @@ function parseApiError(error) {
   }
 
   // Check for network errors
-  if (errorMsg.includes('ENOTFOUND') || errorMsg.includes('ECONNREFUSED') ||
-      errorMsg.includes('ETIMEDOUT') || errorMsg.includes('ENETUNREACH')) {
+  if (
+    errorMsg.includes('ENOTFOUND') ||
+    errorMsg.includes('ECONNREFUSED') ||
+    errorMsg.includes('ETIMEDOUT') ||
+    errorMsg.includes('ENETUNREACH')
+  ) {
     return 'Cannot reach Hello Club API. Check your internet connection.';
   }
 
@@ -162,14 +201,22 @@ function parseSmtpError(error) {
   const errorCode = error.code || '';
 
   // Check for authentication errors
-  if (errorMsg.includes('Invalid login') || errorMsg.includes('authentication failed') ||
-      errorMsg.includes('535') || errorCode === 'EAUTH') {
+  if (
+    errorMsg.includes('Invalid login') ||
+    errorMsg.includes('authentication failed') ||
+    errorMsg.includes('535') ||
+    errorCode === 'EAUTH'
+  ) {
     return 'SMTP authentication failed. Check your credentials in Settings.';
   }
 
   // Check for network errors
-  if (errorCode === 'ENOTFOUND' || errorCode === 'ECONNREFUSED' ||
-      errorCode === 'ETIMEDOUT' || errorCode === 'ENETUNREACH') {
+  if (
+    errorCode === 'ENOTFOUND' ||
+    errorCode === 'ECONNREFUSED' ||
+    errorCode === 'ETIMEDOUT' ||
+    errorCode === 'ENETUNREACH'
+  ) {
     return 'Cannot reach SMTP server. Check host and port in Settings.';
   }
 
@@ -189,5 +236,5 @@ function parseSmtpError(error) {
 
 module.exports = {
   testApiConnection,
-  testEmailConnection
+  testEmailConnection,
 };
