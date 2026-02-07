@@ -106,10 +106,17 @@ async function testEmailConnection() {
     const missingVars = requiredVars.filter((varName) => !envConfig[varName]);
 
     if (missingVars.length > 0) {
+      // Debug: show what we actually found in the .env file
+      const debugInfo = {
+        error: 'Missing SMTP configuration',
+        missingVars,
+        foundVars: Object.keys(envConfig),
+        envFileExists: fs.existsSync(envPath),
+      };
       return {
         success: false,
         message: `Missing SMTP configuration: ${missingVars.join(', ')}. Please add them in Settings.`,
-        details: { error: 'Missing SMTP configuration', missingVars },
+        details: debugInfo,
       };
     }
 
@@ -207,7 +214,10 @@ function parseSmtpError(error) {
     errorMsg.includes('535') ||
     errorCode === 'EAUTH'
   ) {
-    return 'SMTP authentication failed. Check your credentials in Settings.';
+    return (
+      'SMTP authentication failed. For Gmail: ensure you use an App Password (not your regular password), and 2FA is enabled. Details: ' +
+      errorMsg
+    );
   }
 
   // Check for network errors
@@ -217,17 +227,17 @@ function parseSmtpError(error) {
     errorCode === 'ETIMEDOUT' ||
     errorCode === 'ENETUNREACH'
   ) {
-    return 'Cannot reach SMTP server. Check host and port in Settings.';
+    return 'Cannot reach SMTP server. Check host (smtp.gmail.com) and port (587) in Settings. Details: ' + errorMsg;
   }
 
   // Check for connection errors
   if (errorMsg.includes('connect ECONNREFUSED')) {
-    return 'SMTP server refused connection. Check host and port in Settings.';
+    return 'SMTP server refused connection. Check host and port in Settings. Details: ' + errorMsg;
   }
 
   // Check for timeout
   if (errorMsg.includes('timeout') || errorCode === 'ETIMEDOUT') {
-    return 'SMTP connection timed out. Check your internet connection.';
+    return 'SMTP connection timed out. Check your internet connection. Details: ' + errorMsg;
   }
 
   // Generic error
