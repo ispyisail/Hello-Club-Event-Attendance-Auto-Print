@@ -70,12 +70,19 @@ function buildContextMenu(tray, options) {
       {
         label: 'Check Status Now',
         click: () => {
-          updateTrayStatus();
-          new Notification({
-            title: 'Status Check',
-            body: `Service is ${result.running ? 'running' : 'stopped'}`,
-            icon: getTrayIcon(currentServiceStatus),
-          }).show();
+          checkServiceStatus((statusResult) => {
+            const statusText = statusResult.running ? '✓ Running' : '✗ Stopped';
+            const installedText = statusResult.installed ? '✓ Installed' : '✗ Not Installed';
+
+            new Notification({
+              title: `Service Status: ${statusText}`,
+              body: `Service: ${statusText}\nInstalled: ${installedText}`,
+              icon: getTrayIcon(statusResult.running ? 'running' : 'stopped'),
+              timeoutType: 'never',
+            }).show();
+
+            updateTrayStatus();
+          });
         },
       },
       { type: 'separator' },
