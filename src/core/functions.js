@@ -1,5 +1,5 @@
 const logger = require('../services/logger');
-const { print } = require('pdf-to-printer');
+const { printPdf } = require('../services/cups-printer');
 const { sendEmailWithAttachment } = require('../services/email-service');
 const PdfGenerator = require('../services/pdf-generator');
 const { sanitizeOutputPath } = require('../services/pdf-generator');
@@ -197,9 +197,9 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
   }
 
   if (printMode === 'local') {
-    logger.info(`Printing PDF locally...`);
+    logger.info(`Printing PDF locally via CUPS...`);
     try {
-      const msg = await print(safeOutputPath);
+      const msg = await printPdf(safeOutputPath);
       logger.info(msg);
     } catch (err) {
       logger.error('Failed to print locally:', err);

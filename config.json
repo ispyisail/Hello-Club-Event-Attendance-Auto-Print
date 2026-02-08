@@ -3,7 +3,7 @@
   "preEventQueryMinutes": 5,
   "fetchWindowHours": 168,
   "serviceRunIntervalHours": 1,
-  "printMode": "local",
+  "printMode": "email",
   "outputFilename": "attendees.pdf",
   "retry": {
     "maxAttempts": 3,

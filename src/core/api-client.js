@@ -3,7 +3,17 @@ const logger = require('../services/logger');
 const cache = require('../utils/cache');
 
 const API_KEY = process.env.API_KEY;
-const BASE_URL = process.env.API_BASE_URL || 'https://api.helloclub.com';
+const RAW_BASE_URL = process.env.API_BASE_URL;
+// Validate and sanitize the base URL - reject invalid values like "undefined"
+let BASE_URL = 'https://api.helloclub.com';
+if (RAW_BASE_URL && RAW_BASE_URL !== 'undefined') {
+  try {
+    new URL(RAW_BASE_URL);
+    BASE_URL = RAW_BASE_URL;
+  } catch (_e) {
+    logger.error(`Invalid API_BASE_URL in .env: "${RAW_BASE_URL}". Using default: ${BASE_URL}`);
+  }
+}
 // API request timeout in milliseconds (default: 30 seconds)
 // Can be overridden via API_TIMEOUT environment variable
 const API_TIMEOUT = parseInt(process.env.API_TIMEOUT) || 30000;

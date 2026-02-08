@@ -1,6 +1,6 @@
 // Mock other dependencies
 jest.mock('../src/core/database');
-jest.mock('pdf-to-printer');
+jest.mock('../src/services/cups-printer');
 jest.mock('../src/services/email-service');
 jest.mock('../src/services/logger');
 jest.mock('../src/core/api-client');
@@ -27,7 +27,7 @@ const { fetchAndStoreUpcomingEvents, processScheduledEvents } = require('../src/
 const { getDb } = require('../src/core/database');
 const PdfGenerator = require('../src/services/pdf-generator');
 const logger = require('../src/services/logger');
-const { print } = require('pdf-to-printer');
+const { printPdf } = require('../src/services/cups-printer');
 const { getAllAttendees, getEventDetails, getUpcomingEvents } = require('../src/core/api-client');
 
 describe('Event Processing Logic', () => {
@@ -172,7 +172,7 @@ describe('Event Processing Logic', () => {
       // Check that PDF was generated and printed with the sanitized path
       // The constructor is called, so we check that print was called with the safe path
       expect(PdfGenerator).toHaveBeenCalled();
-      expect(print).toHaveBeenCalledWith(expect.stringContaining('test.pdf'));
+      expect(printPdf).toHaveBeenCalledWith(expect.stringContaining('test.pdf'));
 
       // Check that the event status was updated to 'processed'
       expect(mockDb.prepare).toHaveBeenCalledWith("UPDATE events SET status = 'processed' WHERE id = ?");

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hello Club Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <span class="status-dot unknown" id="status-dot"></span>
+      <h1>Hello Club Event Attendance</h1>
+      <span class="header-status" id="header-status">Connecting...</span>
+    </header>
+
+    <nav class="tabs">
+      <button class="tab active" data-tab="dashboard">Dashboard</button>
+      <button class="tab" data-tab="logs">Logs</button>
+      <button class="tab" data-tab="config">Config</button>
+      <button class="tab" data-tab="backup">Backup</button>
+    </nav>
+
+    <main class="content">
+      <!-- Dashboard Panel -->
+      <section class="panel active" id="panel-dashboard">
+        <div id="dashboard-alert" class="alert"></div>
+
+        <div class="card">
+          <div class="card-title">Service Control</div>
+          <div class="btn-group">
+            <button class="btn btn-success" id="btn-start" onclick="serviceAction('start')">Start</button>
+            <button class="btn btn-danger" id="btn-stop" onclick="serviceAction('stop')">Stop</button>
+            <button class="btn" id="btn-restart" onclick="serviceAction('restart')">Restart</button>
+            <button class="btn" onclick="loadDashboard()">Refresh</button>
+          </div>
+        </div>
+
+        <div class="grid">
+          <div class="card">
+            <div class="card-title">Events (Last 7 Days)</div>
+            <div class="stat"><span class="stat-label">Total</span><span class="stat-value" id="events-total">—</span></div>
+            <div class="stat"><span class="stat-label">Processed</span><span class="stat-value ok" id="events-processed">—</span></div>
+            <div class="stat"><span class="stat-label">Failed</span><span class="stat-value bad" id="events-failed">—</span></div>
+            <div class="stat"><span class="stat-label">Success Rate</span><span class="stat-value" id="events-rate">—</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Jobs (Last 7 Days)</div>
+            <div class="stat"><span class="stat-label">Total</span><span class="stat-value" id="jobs-total">—</span></div>
+            <div class="stat"><span class="stat-label">Completed</span><span class="stat-value ok" id="jobs-completed">—</span></div>
+            <div class="stat"><span class="stat-label">Failed</span><span class="stat-value bad" id="jobs-failed">—</span></div>
+            <div class="stat"><span class="stat-label">Retry Rate</span><span class="stat-value warn" id="jobs-retry-rate">—</span></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Current Queue</div>
+            <div class="stat"><span class="stat-label">Pending</span><span class="stat-value" id="q-pending">—</span></div>
+            <div class="stat"><span class="stat-label">Retrying</span><span class="stat-value warn" id="q-retrying">—</span></div>
+            <div class="stat"><span class="stat-label">Failed</span><span class="stat-value bad" id="q-failed">—</span></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Recent Activity</div>
+          <div id="recent-activity"><div class="empty-state">No recent activity</div></div>
+        </div>
+
+        <p class="text-muted" style="font-size:11px;margin-top:8px;">
+          Auto-refreshes every 30s &mdash; Last updated: <span id="last-updated">—</span>
+        </p>
+      </section>
+
+      <!-- Logs Panel -->
+      <section class="panel" id="panel-logs">
+        <div class="card">
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+            Live Log Stream
+            <span class="btn-group">
+              <button class="btn btn-sm" id="btn-pause" onclick="togglePause()">Pause</button>
+              <button class="btn btn-sm" onclick="clearLogs()">Clear</button>
+            </span>
+          </div>
+          <div class="log-container" id="log-container"></div>
+          <p class="text-muted mt-2" style="font-size:11px;" id="ws-status">Connecting to log stream...</p>
+        </div>
+      </section>
+
+      <!-- Config Panel -->
+      <section class="panel" id="panel-config">
+        <div id="config-alert" class="alert"></div>
+
+        <div class="card">
+          <div class="card-title">.env — Secrets & Environment</div>
+          <textarea class="form-control" id="env-editor" rows="14" spellcheck="false" placeholder="Loading..."></textarea>
+          <div class="btn-group mt-2">
+            <button class="btn btn-primary" onclick="saveEnv()">Save .env</button>
+            <button class="btn" onclick="testApi()">Test API Connection</button>
+            <button class="btn" onclick="testEmail()">Test Email Connection</button>
+            <button class="btn" onclick="testPrint()">Test Print (CUPS)</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">config.json — Application Settings</div>
+          <textarea class="form-control" id="json-editor" rows="20" spellcheck="false" placeholder="Loading..."></textarea>
+          <div class="btn-group mt-2">
+            <button class="btn btn-primary" onclick="saveJson()">Save config.json</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Backup Panel -->
+      <section class="panel" id="panel-backup">
+        <div id="backup-alert" class="alert"></div>
+
+        <div class="card">
+          <div class="card-title">Create Backup</div>
+          <div class="form-group">
+            <label class="form-label">Description (optional)</label>
+            <input type="text" class="form-control" id="backup-description" placeholder="e.g. Before config change">
+          </div>
+          <button class="btn btn-primary" onclick="createBackup()">Create Backup</button>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Saved Backups</div>
+          <div id="backup-list"><div class="empty-state">Loading...</div></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

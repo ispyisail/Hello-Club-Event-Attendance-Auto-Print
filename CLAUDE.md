@@ -1,6 +1,6 @@
 # Hello Club Event Attendance Auto-Print
 
-Windows service + Electron tray app for automating Hello Club event attendance printing.
+Automated service for printing Hello Club event attendance lists. Runs on Raspberry Pi 5 as a systemd service with a web dashboard for monitoring.
 
 ## Architecture
 
@@ -14,12 +14,12 @@ src/core/             Business logic
 src/services/
   pdf-generator.js    PDFKit-based PDF generation
   email-service.js    Nodemailer SMTP
+  cups-printer.js     CUPS local printing (lp command wrapper)
   logger.js           Winston logging (activity.log, error.log)
 src/utils/
   config-schema.js    Joi validation
   cache.js            In-memory cache with stale fallback
-service/              Windows service scripts (node-windows)
-tray-app/main.js      Electron system tray application
+web-dashboard/        Express + WebSocket web dashboard
 tests/                Jest unit tests
 ```
 
@@ -51,12 +51,6 @@ tests/                Jest unit tests
 - Exponential backoff retry (5min, 10min, 20min, max 3 retries)
 - 15-minute heartbeat logging
 
-**Electron:**
-
-- Context isolation enabled, preload scripts for IPC
-- Single instance lock via `app.requestSingleInstanceLock()`
-- BrowserWindow for log viewer, settings, dashboard
-
 ## Common Commands
 
 ```bash
@@ -64,10 +58,13 @@ npm test                    # Run Jest tests
 npm run lint                # ESLint check
 npm run lint:fix            # Auto-fix lint errors
 npm run coverage            # Test coverage report
-npm run service:install     # Install Windows service (admin required)
-npm run service:uninstall   # Remove Windows service
-npm run tray                # Start Electron tray app
 npm run validate            # Lint + test
+
+# On Raspberry Pi
+sudo systemctl start helloclub    # Start service
+sudo systemctl stop helloclub     # Stop service
+sudo systemctl status helloclub   # Check status
+journalctl -u helloclub -f        # Follow logs
 ```
 
 ## Config Files
@@ -94,6 +91,6 @@ npm run validate            # Lint + test
 ## Troubleshooting
 
 - 401 errors: Check API_KEY in .env
-- Service not starting: Run as Administrator, check error.log
+- Service not starting: Check `journalctl -u helloclub -xe`, verify .env path
 - No events processing: Verify categories in config.json match API
 - SMTP failures: Gmail requires App Password, not account password

@@ -1,0 +1,21 @@
+[Unit]
+Description=Hello Club Event Attendance Auto-Print Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=helloclub
+WorkingDirectory=/opt/helloclub/app
+ExecStart=/usr/local/bin/node src/index.js start-service
+Restart=always
+RestartSec=10
+EnvironmentFile=/opt/helloclub/app/.env
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/helloclub/app
+
+[Install]
+WantedBy=multi-user.target

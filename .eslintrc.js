@@ -15,4 +15,16 @@ module.exports = {
     'prefer-const': 'error',
     'no-var': 'error',
   },
+  overrides: [
+    {
+      files: ['web-dashboard/public/**/*.js'],
+      env: {
+        browser: true,
+        node: false,
+      },
+      rules: {
+        'no-unused-vars': 'off',
+      },
+    },
+  ],
 };

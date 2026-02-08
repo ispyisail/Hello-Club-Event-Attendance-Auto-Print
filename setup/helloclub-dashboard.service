@@ -1,0 +1,21 @@
+[Unit]
+Description=Hello Club Event Attendance Web Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=helloclub
+WorkingDirectory=/opt/helloclub/app
+ExecStart=/usr/local/bin/node web-dashboard/server.js
+Restart=always
+RestartSec=5
+EnvironmentFile=/opt/helloclub/app/.env
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/helloclub/app
+
+[Install]
+WantedBy=multi-user.target
