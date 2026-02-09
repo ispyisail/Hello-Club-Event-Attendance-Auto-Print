@@ -82,23 +82,146 @@
       <section class="panel" id="panel-config">
         <div id="config-alert" class="alert"></div>
 
-        <div class="card">
-          <div class="card-title">.env — Secrets & Environment</div>
-          <textarea class="form-control" id="env-editor" rows="14" spellcheck="false" placeholder="Loading..."></textarea>
-          <div class="btn-group mt-2">
-            <button class="btn btn-primary" onclick="saveEnv()">Save .env</button>
-            <button class="btn" onclick="testApi()">Test API Connection</button>
-            <button class="btn" onclick="testEmail()">Test Email Connection</button>
-            <button class="btn" onclick="testPrint()">Test Print (CUPS)</button>
+        <!-- Section 1: API Settings -->
+        <div class="config-section" id="section-api">
+          <div class="config-section-header" onclick="toggleSection('section-api')">
+            <span class="config-section-arrow">&#9660;</span>
+            API Settings
+          </div>
+          <div class="config-section-body">
+            <div class="form-group">
+              <label class="form-label" for="cfg-api-key">API Key</label>
+              <div class="password-wrapper">
+                <input type="password" class="form-control" id="cfg-api-key" placeholder="Enter Hello Club API key">
+                <button type="button" class="password-toggle" onclick="togglePassword('cfg-api-key')" title="Show/hide">&#128065;</button>
+              </div>
+              <div class="field-hint">Required. Your Hello Club API key for authentication.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfg-api-base-url">API Base URL</label>
+              <input type="text" class="form-control" id="cfg-api-base-url" placeholder="https://api.helloclub.com">
+              <div class="field-hint">Optional. Override the default API endpoint.</div>
+            </div>
+            <div class="btn-group mt-2">
+              <button class="btn" onclick="testApi()">Test API Connection</button>
+            </div>
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-title">config.json — Application Settings</div>
-          <textarea class="form-control" id="json-editor" rows="20" spellcheck="false" placeholder="Loading..."></textarea>
-          <div class="btn-group mt-2">
-            <button class="btn btn-primary" onclick="saveJson()">Save config.json</button>
+        <!-- Section 2: Email & Printing -->
+        <div class="config-section" id="section-printing">
+          <div class="config-section-header" onclick="toggleSection('section-printing')">
+            <span class="config-section-arrow">&#9660;</span>
+            Email &amp; Printing
           </div>
+          <div class="config-section-body">
+            <div class="form-group">
+              <label class="form-label" for="cfg-print-mode">Print Mode</label>
+              <select class="form-control" id="cfg-print-mode" onchange="updatePrintModeFields()">
+                <option value="email">Email to Printer</option>
+                <option value="local">Local Printer (CUPS)</option>
+              </select>
+            </div>
+
+            <div id="email-fields">
+              <div class="form-group">
+                <label class="form-label" for="cfg-printer-email">Printer Email</label>
+                <input type="email" class="form-control" id="cfg-printer-email" placeholder="your.printer@hp.com">
+                <div class="field-hint">The email address of your network printer.</div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-smtp-host">SMTP Host</label>
+                <input type="text" class="form-control" id="cfg-smtp-host" placeholder="smtp.gmail.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-smtp-port">SMTP Port</label>
+                <input type="number" class="form-control" id="cfg-smtp-port" placeholder="587">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-smtp-user">SMTP User</label>
+                <input type="text" class="form-control" id="cfg-smtp-user" placeholder="your.email@gmail.com">
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-smtp-pass">SMTP Password</label>
+                <div class="password-wrapper">
+                  <input type="password" class="form-control" id="cfg-smtp-pass" placeholder="App password">
+                  <button type="button" class="password-toggle" onclick="togglePassword('cfg-smtp-pass')" title="Show/hide">&#128065;</button>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-email-from">Email From</label>
+                <input type="email" class="form-control" id="cfg-email-from" placeholder="sender@example.com">
+                <div class="field-hint">Optional. Defaults to SMTP User if blank.</div>
+              </div>
+              <div class="btn-group mt-2">
+                <button class="btn" onclick="testEmail()">Test Email Connection</button>
+              </div>
+            </div>
+
+            <div id="local-fields" style="display:none;">
+              <div class="form-group">
+                <label class="form-label" for="cfg-printer-name">Printer Name</label>
+                <input type="text" class="form-control" id="cfg-printer-name" placeholder="e.g. HP_LaserJet">
+                <div class="field-hint">Optional. CUPS printer name. Leave blank for default printer.</div>
+              </div>
+              <div class="btn-group mt-2">
+                <button class="btn" onclick="testPrint()">Test Print (CUPS)</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Event Categories -->
+        <div class="config-section" id="section-categories">
+          <div class="config-section-header" onclick="toggleSection('section-categories')">
+            <span class="config-section-arrow">&#9660;</span>
+            Event Categories
+          </div>
+          <div class="config-section-body">
+            <div class="field-hint" style="margin-bottom:8px;">Only events matching these categories will be processed. Leave empty to process all events.</div>
+            <div class="category-list" id="category-list"></div>
+            <div class="form-group mt-2" style="display:flex;gap:6px;">
+              <input type="text" class="form-control" id="cfg-new-category" placeholder="Add a category..." style="flex:1;" onkeydown="if(event.key==='Enter'){addCategory();event.preventDefault();}">
+              <button class="btn" onclick="addCategory()">Add</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Advanced Settings -->
+        <div class="config-section collapsed" id="section-advanced">
+          <div class="config-section-header" onclick="toggleSection('section-advanced')">
+            <span class="config-section-arrow">&#9660;</span>
+            Advanced Settings
+          </div>
+          <div class="config-section-body">
+            <div class="form-group">
+              <label class="form-label" for="cfg-pre-event-minutes">Pre-Event Query (minutes)</label>
+              <input type="number" class="form-control" id="cfg-pre-event-minutes" placeholder="5">
+              <div class="field-hint">How many minutes before an event to fetch attendees.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfg-fetch-window-hours">Fetch Window (hours)</label>
+              <input type="number" class="form-control" id="cfg-fetch-window-hours" placeholder="168">
+              <div class="field-hint">How far ahead to look for upcoming events (168 = 1 week).</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfg-service-interval">Service Run Interval (hours)</label>
+              <input type="number" class="form-control" id="cfg-service-interval" placeholder="1">
+              <div class="field-hint">How often the service checks for new events.</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfg-output-filename">Output Filename</label>
+              <input type="text" class="form-control" id="cfg-output-filename" placeholder="attendees.pdf">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="cfg-pdf-font-size">PDF Font Size</label>
+              <input type="number" class="form-control" id="cfg-pdf-font-size" placeholder="10">
+            </div>
+          </div>
+        </div>
+
+        <div class="btn-group mt-2" style="margin-bottom:14px;">
+          <button class="btn btn-primary" onclick="saveAllConfig()">Save All Settings</button>
         </div>
       </section>
     </main>

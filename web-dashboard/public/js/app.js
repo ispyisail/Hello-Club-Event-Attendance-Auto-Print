@@ -156,30 +156,169 @@ function clearLogs() {
 }
 
 // --- Config ---
+let currentCategories = [];
+let currentJsonConfig = {};
+
+function parseEnv(str) {
+  const env = {};
+  for (const line of str.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const eqIdx = trimmed.indexOf('=');
+    if (eqIdx === -1) continue;
+    const key = trimmed.substring(0, eqIdx).trim();
+    const val = trimmed.substring(eqIdx + 1).trim();
+    env[key] = val;
+  }
+  return env;
+}
+
+function buildEnv(env) {
+  return Object.entries(env)
+    .filter(([_, v]) => v !== '' && v !== undefined)
+    .map(([k, v]) => `${k}=${v}`)
+    .join('\n');
+}
+
+function togglePassword(fieldId) {
+  const input = $('#' + fieldId);
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+function toggleSection(sectionId) {
+  const section = $('#' + sectionId);
+  section.classList.toggle('collapsed');
+}
+
+function updatePrintModeFields() {
+  const mode = $('#cfg-print-mode').value;
+  $('#email-fields').style.display = mode === 'email' ? '' : 'none';
+  $('#local-fields').style.display = mode === 'local' ? '' : 'none';
+}
+
+function renderCategories() {
+  const list = $('#category-list');
+  if (!currentCategories.length) {
+    list.innerHTML =
+      '<span class="text-muted" style="font-size:12px;">No categories — all events will be processed.</span>';
+    return;
+  }
+  list.innerHTML = currentCategories
+    .map(
+      (cat) =>
+        `<span class="category-tag">${esc(cat)}<button type="button" onclick="removeCategory('${esc(cat.replace(/'/g, "\\'"))}')" title="Remove">&times;</button></span>`
+    )
+    .join('');
+}
+
+function addCategory() {
+  const input = $('#cfg-new-category');
+  const val = input.value.trim();
+  if (!val) return;
+  if (currentCategories.includes(val)) {
+    showAlert('config', 'error', 'Category already exists');
+    return;
+  }
+  currentCategories.push(val);
+  renderCategories();
+  input.value = '';
+}
+
+function removeCategory(name) {
+  currentCategories = currentCategories.filter((c) => c !== name);
+  renderCategories();
+}
+
 async function loadConfig() {
   try {
     const [envRes, jsonRes] = await Promise.all([api('GET', '/config/env'), api('GET', '/config/json')]);
-    if (envRes.success) $('#env-editor').value = envRes.data;
-    else $('#env-editor').placeholder = 'Error: ' + envRes.error;
-    if (jsonRes.success) $('#json-editor').value = JSON.stringify(jsonRes.data, null, 2);
-    else $('#json-editor').placeholder = 'Error: ' + jsonRes.error;
+
+    if (envRes.success) {
+      const env = parseEnv(envRes.data);
+      $('#cfg-api-key').value = env.API_KEY || '';
+      $('#cfg-api-base-url').value = env.API_BASE_URL || '';
+      $('#cfg-printer-email').value = env.PRINTER_EMAIL || '';
+      $('#cfg-smtp-host').value = env.SMTP_HOST || '';
+      $('#cfg-smtp-port').value = env.SMTP_PORT || '';
+      $('#cfg-smtp-user').value = env.SMTP_USER || '';
+      $('#cfg-smtp-pass').value = env.SMTP_PASS || '';
+      $('#cfg-email-from').value = env.EMAIL_FROM || '';
+      $('#cfg-printer-name').value = env.PRINTER_NAME || '';
+    } else {
+      showAlert('config', 'error', 'Failed to load .env: ' + envRes.error);
+    }
+
+    if (jsonRes.success) {
+      currentJsonConfig = jsonRes.data;
+      const cfg = jsonRes.data;
+      $('#cfg-print-mode').value = cfg.printMode || 'email';
+      currentCategories = cfg.categories || [];
+      renderCategories();
+      $('#cfg-pre-event-minutes').value = cfg.preEventQueryMinutes ?? '';
+      $('#cfg-fetch-window-hours').value = cfg.fetchWindowHours ?? '';
+      $('#cfg-service-interval').value = cfg.serviceRunIntervalHours ?? '';
+      $('#cfg-output-filename').value = cfg.outputFilename || '';
+      $('#cfg-pdf-font-size').value = cfg.pdfLayout?.fontSize ?? '';
+      updatePrintModeFields();
+    } else {
+      showAlert('config', 'error', 'Failed to load config.json: ' + jsonRes.error);
+    }
   } catch (e) {
     showAlert('config', 'error', 'Failed to load config: ' + e.message);
   }
 }
 
-async function saveEnv() {
-  const result = await api('PUT', '/config/env', { content: $('#env-editor').value });
-  showAlert('config', result.success ? 'success' : 'error', result.success ? '.env saved' : result.error);
-}
-
-async function saveJson() {
+async function saveAllConfig() {
   try {
-    const data = JSON.parse($('#json-editor').value);
-    const result = await api('PUT', '/config/json', data);
-    showAlert('config', result.success ? 'success' : 'error', result.success ? 'config.json saved' : result.error);
+    // Build .env content
+    const env = {};
+    const val = (id) => $('#' + id).value.trim();
+    if (val('cfg-api-key')) env.API_KEY = val('cfg-api-key');
+    if (val('cfg-api-base-url')) env.API_BASE_URL = val('cfg-api-base-url');
+    if (val('cfg-printer-email')) env.PRINTER_EMAIL = val('cfg-printer-email');
+    if (val('cfg-smtp-host')) env.SMTP_HOST = val('cfg-smtp-host');
+    if (val('cfg-smtp-port')) env.SMTP_PORT = val('cfg-smtp-port');
+    if (val('cfg-smtp-user')) env.SMTP_USER = val('cfg-smtp-user');
+    if (val('cfg-smtp-pass')) env.SMTP_PASS = val('cfg-smtp-pass');
+    if (val('cfg-email-from')) env.EMAIL_FROM = val('cfg-email-from');
+    if (val('cfg-printer-name')) env.PRINTER_NAME = val('cfg-printer-name');
+    const envContent = buildEnv(env);
+
+    // Build config.json by merging into existing config
+    const jsonData = Object.assign({}, currentJsonConfig);
+    jsonData.printMode = $('#cfg-print-mode').value;
+    jsonData.categories = [...currentCategories];
+
+    const preEvent = $('#cfg-pre-event-minutes').value;
+    if (preEvent !== '') jsonData.preEventQueryMinutes = parseInt(preEvent, 10);
+    const fetchWindow = $('#cfg-fetch-window-hours').value;
+    if (fetchWindow !== '') jsonData.fetchWindowHours = parseInt(fetchWindow, 10);
+    const interval = $('#cfg-service-interval').value;
+    if (interval !== '') jsonData.serviceRunIntervalHours = parseInt(interval, 10);
+    const filename = $('#cfg-output-filename').value.trim();
+    if (filename) jsonData.outputFilename = filename;
+    const fontSize = $('#cfg-pdf-font-size').value;
+    if (fontSize !== '') {
+      if (!jsonData.pdfLayout) jsonData.pdfLayout = {};
+      jsonData.pdfLayout.fontSize = parseInt(fontSize, 10);
+    }
+
+    // Save both
+    const [envRes, jsonRes] = await Promise.all([
+      api('PUT', '/config/env', { content: envContent }),
+      api('PUT', '/config/json', jsonData),
+    ]);
+
+    if (envRes.success && jsonRes.success) {
+      showAlert('config', 'success', 'All settings saved successfully');
+    } else {
+      const errors = [];
+      if (!envRes.success) errors.push('.env: ' + envRes.error);
+      if (!jsonRes.success) errors.push('config.json: ' + jsonRes.error);
+      showAlert('config', 'error', 'Save failed — ' + errors.join('; '));
+    }
   } catch (e) {
-    showAlert('config', 'error', 'Invalid JSON: ' + e.message);
+    showAlert('config', 'error', 'Failed to save: ' + e.message);
   }
 }
 
