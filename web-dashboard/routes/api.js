@@ -6,11 +6,39 @@ const { execFile } = require('child_process');
 const { promisify } = require('util');
 const fs = require('fs');
 const path = require('path');
+const multer = require('multer');
 const { testApiConnection, testEmailConnection } = require('../connection-tests');
 
 const execFileAsync = promisify(execFile);
 const APP_DIR = path.resolve(__dirname, '../..');
 const SERVICE_NAME = 'helloclub';
+
+// Configure multer for logo uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const assetsDir = path.join(APP_DIR, 'assets');
+    if (!fs.existsSync(assetsDir)) {
+      fs.mkdirSync(assetsDir, { recursive: true });
+    }
+    cb(null, assetsDir);
+  },
+  filename: (req, file, cb) => {
+    // Always overwrite with 'logo.png'
+    cb(null, 'logo.png');
+  },
+});
+
+const upload = multer({
+  storage,
+  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+  fileFilter: (req, file, cb) => {
+    if (/^image\/(png|jpe?g)$/i.test(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only PNG and JPEG images are allowed'));
+    }
+  },
+});
 
 // --- Service Control ---
 
@@ -135,6 +163,171 @@ router.post('/test/email', async (req, res) => {
 router.post('/test/print', async (req, res) => {
   const { testPrintConnection } = require('../connection-tests');
   res.json(await testPrintConnection());
+});
+
+// --- PDF Preview ---
+
+router.post('/preview-pdf', async (req, res) => {
+  try {
+    // Load current config
+    const config = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'config.json'), 'utf8'));
+    const pdfLayout = config.pdfLayout || {};
+
+    // Generate sample event data
+    const sampleEvent = {
+      name: 'Sample Event Preview',
+      startDate: new Date().toISOString(),
+      endDate: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      timezone: 'UTC',
+    };
+
+    // Generate sample attendee data
+    const sampleAttendees = [
+      {
+        firstName: 'John',
+        lastName: 'Doe',
+        phone: '555-0100',
+        signUpDate: new Date().toISOString(),
+        isPaid: true,
+        hasFee: true,
+        rule: { name: 'Standard', fee: 25 },
+      },
+      {
+        firstName: 'Jane',
+        lastName: 'Smith',
+        phone: '555-0101',
+        signUpDate: new Date(Date.now() - 86400000).toISOString(),
+        isPaid: false,
+        hasFee: true,
+        rule: { name: 'Standard', fee: 25 },
+      },
+      {
+        firstName: 'Bob',
+        lastName: 'Wilson',
+        phone: '555-0102',
+        signUpDate: new Date(Date.now() - 2 * 86400000).toISOString(),
+        isPaid: true,
+        hasFee: true,
+        rule: { name: 'Membership', fee: 0 },
+      },
+      {
+        firstName: 'Alice',
+        lastName: 'Johnson',
+        phone: '555-0103',
+        signUpDate: new Date(Date.now() - 3 * 86400000).toISOString(),
+        isPaid: true,
+        hasFee: true,
+        rule: { name: 'Standard', fee: 25 },
+      },
+      {
+        firstName: 'Charlie',
+        lastName: 'Brown',
+        phone: '555-0104',
+        signUpDate: new Date(Date.now() - 4 * 86400000).toISOString(),
+        isPaid: false,
+        hasFee: true,
+        rule: { name: 'Standard', fee: 25 },
+      },
+      {
+        firstName: 'Emma',
+        lastName: 'Davis',
+        phone: '555-0105',
+        signUpDate: new Date(Date.now() - 5 * 86400000).toISOString(),
+        isPaid: true,
+        hasFee: false,
+        rule: { name: 'Free', fee: 0 },
+      },
+      {
+        firstName: 'David',
+        lastName: 'Miller',
+        phone: '555-0106',
+        signUpDate: new Date(Date.now() - 6 * 86400000).toISOString(),
+        isPaid: true,
+        hasFee: true,
+        rule: { name: 'Membership', fee: 0 },
+      },
+      {
+        firstName: 'Sarah',
+        lastName: 'Taylor',
+        phone: '555-0107',
+        signUpDate: new Date(Date.now() - 7 * 86400000).toISOString(),
+        isPaid: false,
+        hasFee: true,
+        rule: { name: 'Standard', fee: 30 },
+      },
+    ];
+
+    // Generate PDF
+    const PdfGenerator = require('../../src/services/pdf-generator');
+    const generator = new PdfGenerator(sampleEvent, sampleAttendees, pdfLayout);
+    const previewPath = path.join(APP_DIR, 'preview-temp.pdf');
+    generator.generate('preview-temp.pdf');
+
+    // Wait for PDF generation to complete
+    await new Promise((resolve) => setTimeout(resolve, 500));
+
+    // Stream PDF to response
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="preview.pdf"');
+    const stream = fs.createReadStream(previewPath);
+    stream.pipe(res);
+    stream.on('end', () => {
+      // Cleanup temp file
+      try {
+        fs.unlinkSync(previewPath);
+      } catch (_e) {
+        // Ignore cleanup errors
+      }
+    });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
+// --- Logo Upload ---
+
+router.post('/config/logo', upload.single('logo'), (req, res) => {
+  try {
+    if (!req.file) {
+      return res.json({ success: false, error: 'No file uploaded' });
+    }
+
+    const logoPath = 'assets/logo.png';
+
+    // Update config.json with logo path
+    const configPath = path.join(APP_DIR, 'config.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    config.pdfLayout = config.pdfLayout || {};
+    config.pdfLayout.logo = logoPath;
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+
+    res.json({ success: true, path: logoPath });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
+router.delete('/config/logo', (req, res) => {
+  try {
+    const logoPath = path.join(APP_DIR, 'assets', 'logo.png');
+
+    // Delete logo file if it exists
+    if (fs.existsSync(logoPath)) {
+      fs.unlinkSync(logoPath);
+    }
+
+    // Update config.json to remove logo
+    const configPath = path.join(APP_DIR, 'config.json');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    if (config.pdfLayout) {
+      config.pdfLayout.logo = null;
+    }
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n');
+
+    res.json({ success: true });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
 });
 
 // --- Fetch Categories from Hello Club ---

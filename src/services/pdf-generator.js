@@ -64,10 +64,15 @@ class PdfGenerator {
     const startY = this.doc.y;
     const pageWidth = this.doc.page.width - this.doc.page.margins.left - this.doc.page.margins.right;
 
+    // Get base font size from config (default 10)
+    const baseFontSize = this.layout.fontSize || 10;
+    const titleSize = baseFontSize * 2; // Title is 2x base size
+    const timestampSize = baseFontSize; // Timestamp uses base size
+
     // Event name (title) on the left
     this.doc
       .font('Helvetica')
-      .fontSize(20)
+      .fontSize(titleSize)
       .text(this.event.name, this.doc.page.margins.left, startY, {
         width: pageWidth * 0.6,
         align: 'left',
@@ -81,7 +86,7 @@ class PdfGenerator {
       .toUpperCase();
     this.doc
       .font('Helvetica')
-      .fontSize(10)
+      .fontSize(timestampSize)
       .text(`Attendees as of ${formattedDate}, ${formattedTime}`, this.doc.page.margins.left, this.doc.y + 5, {
         width: pageWidth * 0.6,
         align: 'left',
@@ -107,25 +112,29 @@ class PdfGenerator {
     const y = this.doc.y;
     const startX = this.doc.page.margins.left;
 
-    // Fixed columns matching the screenshot layout
-    const columns = [
-      { header: 'Name', width: 200 },
-      { header: 'Phone', width: 120 },
-      { header: 'Signed up', width: 100 },
-      { header: 'Fee', width: 80 },
+    // Use columns from config, or fall back to default columns
+    const columns = this.layout.columns || [
+      { id: 'name', header: 'Name', width: 200 },
+      { id: 'phone', header: 'Phone', width: 120 },
+      { id: 'signUpDate', header: 'Signed up', width: 100 },
+      { id: 'fee', header: 'Fee', width: 80 },
     ];
+
+    // Get base font size from config (default 10)
+    const baseFontSize = this.layout.fontSize || 10;
+    const headerFontSize = baseFontSize + 1; // Headers slightly larger than body
 
     let x = startX + this.checkboxSize + 10; // Start after checkbox space
 
     // Draw column headers
-    this.doc.font('Helvetica-Bold').fontSize(11);
+    this.doc.font('Helvetica-Bold').fontSize(headerFontSize);
     columns.forEach((column) => {
       this.doc.text(column.header, x, y, { width: column.width, align: 'left' });
       x += column.width;
     });
 
     this.doc.moveDown(1.5);
-    this.doc.font('Helvetica').fontSize(11);
+    this.doc.font('Helvetica').fontSize(baseFontSize);
   }
 
   /**
@@ -251,18 +260,39 @@ class PdfGenerator {
     const checkboxY = y + 1; // Align top of checkbox with text
     this.doc.rect(startX, checkboxY, this.checkboxSize, this.checkboxSize).stroke();
 
-    // Fixed column widths matching header
-    const columns = [
-      { value: this._formatName(attendee), width: 200, color: 'black' },
-      { value: this._formatPhone(attendee), width: 120, color: 'black' },
-      { value: this._formatSignUpDate(attendee), width: 100, color: 'black' },
-      { value: this._formatFee(attendee), width: 80, color: this._getFeeColor(attendee) },
+    // Use columns from config, or fall back to default columns
+    const configColumns = this.layout.columns || [
+      { id: 'name', header: 'Name', width: 200 },
+      { id: 'phone', header: 'Phone', width: 120 },
+      { id: 'signUpDate', header: 'Signed up', width: 100 },
+      { id: 'fee', header: 'Fee', width: 80 },
     ];
+
+    // Map column IDs to formatters
+    const formatters = {
+      name: (att) => this._formatName(att),
+      phone: (att) => this._formatPhone(att),
+      signUpDate: (att) => this._formatSignUpDate(att),
+      fee: (att) => this._formatFee(att),
+      status: (att) => (att.isPaid ? 'Paid' : att.hasFee ? 'Unpaid' : 'No Fee'),
+    };
+
+    // Build column data with dynamic formatting
+    const columns = configColumns.map((col) => {
+      const formatter = formatters[col.id] || (() => '');
+      const value = formatter(attendee);
+      // Apply color coding for fee column
+      const color = col.id === 'fee' ? this._getFeeColor(attendee) : 'black';
+      return { value, width: col.width, color };
+    });
 
     let x = startX + this.checkboxSize + 10;
 
+    // Get base font size from config (default 10)
+    const baseFontSize = this.layout.fontSize || 10;
+
     // Draw column values with appropriate colors
-    this.doc.font('Helvetica').fontSize(11);
+    this.doc.font('Helvetica').fontSize(baseFontSize);
     columns.forEach((column) => {
       this.doc.fillColor(column.color);
       this.doc.text(column.value, x, y, { width: column.width, align: 'left' });

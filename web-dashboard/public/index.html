@@ -217,6 +217,33 @@
             <div class="form-group">
               <label class="form-label" for="cfg-pdf-font-size">PDF Font Size</label>
               <input type="number" class="form-control" id="cfg-pdf-font-size" placeholder="10">
+              <div class="field-hint">Base font size for PDF (default: 10pt).</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Logo</label>
+              <div id="logo-upload-area" class="logo-upload-area">
+                <input type="file" id="logo-file-input" accept="image/png,image/jpeg" style="display:none;" onchange="handleLogoSelect(event)">
+                <div id="logo-drop-zone" class="logo-drop-zone" onclick="document.getElementById('logo-file-input').click()">
+                  <div id="logo-preview-container" style="display:none;">
+                    <img id="logo-preview" class="logo-preview" alt="Logo preview">
+                    <button type="button" class="btn btn-sm" onclick="removeLogo();event.stopPropagation()">Remove</button>
+                  </div>
+                  <div id="logo-upload-prompt">
+                    <span>📷 Click or drag image here</span>
+                    <div class="field-hint">PNG or JPEG, max 2MB</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Column Configuration</label>
+              <div class="field-hint" style="margin-bottom:8px;">Drag to reorder columns. Uncheck to hide.</div>
+              <div id="column-config-list" class="column-config-list"></div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">PDF Preview</label>
+              <button class="btn" onclick="generatePreview()">Generate Sample PDF</button>
+              <div class="field-hint">Creates a sample PDF with mock data using current layout settings</div>
             </div>
           </div>
         </div>

@@ -260,6 +260,16 @@ async function loadConfig() {
       $('#cfg-output-filename').value = cfg.outputFilename || '';
       $('#cfg-pdf-font-size').value = cfg.pdfLayout?.fontSize ?? '';
       updatePrintModeFields();
+
+      // Load logo preview
+      if (cfg.pdfLayout?.logo) {
+        displayLogoPreview(cfg.pdfLayout.logo);
+      } else {
+        hideLogoPreview();
+      }
+
+      // Load column configuration
+      renderColumnConfig(cfg.pdfLayout?.columns);
     } else {
       showAlert('config', 'error', 'Failed to load config.json: ' + jsonRes.error);
     }
@@ -479,6 +489,235 @@ function addSelectedCategories() {
   }
 }
 
+// --- Logo Upload ---
+let draggedColumn = null;
+
+function setupLogoDragDrop() {
+  const dropZone = $('#logo-drop-zone');
+  if (!dropZone) return;
+
+  dropZone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.add('drag-over');
+  });
+
+  dropZone.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.remove('drag-over');
+  });
+
+  dropZone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    dropZone.classList.remove('drag-over');
+
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      uploadLogo(files[0]);
+    }
+  });
+}
+
+function handleLogoSelect(event) {
+  const file = event.target.files[0];
+  if (file) uploadLogo(file);
+}
+
+async function uploadLogo(file) {
+  // Validate file type
+  if (!file.type.match(/^image\/(png|jpe?g)$/)) {
+    showAlert('config', 'error', 'Only PNG and JPEG images are allowed');
+    return;
+  }
+
+  // Validate file size (2MB)
+  if (file.size > 2 * 1024 * 1024) {
+    showAlert('config', 'error', 'Image must be smaller than 2MB');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('logo', file);
+
+  try {
+    const response = await fetch('/api/config/logo', {
+      method: 'POST',
+      body: formData,
+    });
+    const result = await response.json();
+
+    if (result.success) {
+      displayLogoPreview(result.path);
+      showAlert('config', 'success', 'Logo uploaded successfully');
+      // Update config in memory
+      currentJsonConfig.pdfLayout = currentJsonConfig.pdfLayout || {};
+      currentJsonConfig.pdfLayout.logo = result.path;
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    showAlert('config', 'error', 'Failed to upload logo: ' + error.message);
+  }
+}
+
+async function removeLogo() {
+  try {
+    const result = await api('DELETE', '/config/logo');
+    if (result.success) {
+      hideLogoPreview();
+      showAlert('config', 'success', 'Logo removed');
+      if (currentJsonConfig.pdfLayout) {
+        currentJsonConfig.pdfLayout.logo = null;
+      }
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    showAlert('config', 'error', 'Failed to remove logo: ' + error.message);
+  }
+}
+
+function displayLogoPreview(logoPath) {
+  $('#logo-preview').src = '/' + logoPath + '?' + Date.now(); // Cache bust
+  $('#logo-preview-container').style.display = 'block';
+  $('#logo-upload-prompt').style.display = 'none';
+}
+
+function hideLogoPreview() {
+  $('#logo-preview-container').style.display = 'none';
+  $('#logo-upload-prompt').style.display = 'block';
+  $('#logo-file-input').value = '';
+}
+
+// --- Column Management ---
+function setupColumnDragDrop() {
+  const list = $('#column-config-list');
+  if (!list) return;
+
+  list.addEventListener('dragstart', (e) => {
+    if (e.target.classList.contains('column-config-item')) {
+      draggedColumn = e.target;
+      e.target.classList.add('dragging');
+    }
+  });
+
+  list.addEventListener('dragend', (e) => {
+    if (e.target.classList.contains('column-config-item')) {
+      e.target.classList.remove('dragging');
+      draggedColumn = null;
+      updateColumnsFromUI();
+    }
+  });
+
+  list.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    const afterElement = getDragAfterElement(list, e.clientY);
+    if (afterElement == null) {
+      list.appendChild(draggedColumn);
+    } else {
+      list.insertBefore(draggedColumn, afterElement);
+    }
+  });
+}
+
+function getDragAfterElement(container, y) {
+  const draggableElements = [...container.querySelectorAll('.column-config-item:not(.dragging)')];
+
+  return draggableElements.reduce(
+    (closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    },
+    { offset: Number.NEGATIVE_INFINITY }
+  ).element;
+}
+
+function renderColumnConfig(columns) {
+  const list = $('#column-config-list');
+  if (!list) return;
+
+  // Default columns if none provided
+  const defaultColumns = [
+    { id: 'name', header: 'Name', width: 200 },
+    { id: 'phone', header: 'Phone', width: 120 },
+    { id: 'signUpDate', header: 'Signed up', width: 100 },
+    { id: 'fee', header: 'Fee', width: 80 },
+  ];
+
+  const cols = columns && columns.length > 0 ? columns : defaultColumns;
+
+  list.innerHTML = cols
+    .map(
+      (col) => `
+    <div class="column-config-item" draggable="true" data-column-id="${col.id}">
+      <span class="drag-handle">&#8801;</span>
+      <label class="column-checkbox">
+        <input type="checkbox" checked onchange="updateColumnsFromUI()">
+        <span class="column-name">${col.id}</span>
+      </label>
+      <input type="text" class="column-header-input form-control" value="${esc(col.header)}" onchange="updateColumnsFromUI()" placeholder="Header">
+      <input type="number" class="column-width-input form-control" value="${col.width}" min="50" max="300" onchange="updateColumnsFromUI()">
+    </div>
+  `
+    )
+    .join('');
+}
+
+function updateColumnsFromUI() {
+  const items = document.querySelectorAll('.column-config-item');
+  const columns = [];
+
+  items.forEach((item) => {
+    const id = item.dataset.columnId;
+    const enabled = item.querySelector('input[type="checkbox"]').checked;
+    const header = item.querySelector('.column-header-input').value;
+    const width = parseInt(item.querySelector('.column-width-input').value);
+
+    if (enabled) {
+      columns.push({ id, header, width });
+    }
+  });
+
+  // Update currentJsonConfig
+  currentJsonConfig.pdfLayout = currentJsonConfig.pdfLayout || {};
+  currentJsonConfig.pdfLayout.columns = columns;
+}
+
+// --- PDF Preview ---
+async function generatePreview() {
+  try {
+    showAlert('config', 'info', 'Generating preview...', false);
+
+    const response = await fetch('/api/preview-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate preview');
+    }
+
+    // Open PDF in new tab
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, '_blank');
+
+    showAlert('config', 'success', 'Preview generated');
+  } catch (error) {
+    showAlert('config', 'error', 'Failed to generate preview: ' + error.message);
+  }
+}
+
 // --- Init ---
 loadDashboard();
 dashboardTimer = setInterval(loadDashboard, 30000);
+setupLogoDragDrop();
+setupColumnDragDrop();

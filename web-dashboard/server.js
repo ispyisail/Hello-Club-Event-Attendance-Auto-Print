@@ -15,10 +15,12 @@ const wss = new WebSocketServer({ server, path: '/ws/logs' });
 
 const PORT = parseInt(process.env.DASHBOARD_PORT) || 3000;
 const LOG_FILE = path.resolve(__dirname, '..', 'activity.log');
+const APP_DIR = path.resolve(__dirname, '..');
 
 app.use(express.json());
 app.use(auth);
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/assets', express.static(path.join(APP_DIR, 'assets')));
 app.use('/api', apiRoutes);
 
 // WebSocket: stream live logs
