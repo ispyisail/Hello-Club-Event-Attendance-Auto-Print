@@ -4,8 +4,11 @@
 # Hello Club Event Attendance Auto-Print
 #
 # Run after first SSH login on a fresh Raspberry Pi OS Lite (64-bit) install.
-# Handles: system update, static IP, firewall, SSH hardening, fail2ban,
+# Handles: system update, firewall, SSH hardening, fail2ban,
 #          unattended-upgrades, helloclub service user, /opt/helloclub dirs.
+#
+# Network: Uses DHCP (access via hostname.local)
+# SSH: Password authentication enabled (kept simple)
 # =============================================================================
 
 set -euo pipefail
@@ -33,17 +36,14 @@ echo "========================================================"
 echo ""
 echo "This script will configure:"
 echo "  • System update"
-echo "  • Static IP address"
 echo "  • UFW firewall (SSH + dashboard port)"
-echo "  • SSH hardening (disable password auth)"
-echo "  • fail2ban"
+echo "  • fail2ban (brute-force protection)"
 echo "  • Automatic security updates"
 echo "  • helloclub service user"
 echo "  • /opt/helloclub directory structure"
 echo ""
-warn "IMPORTANT: SSH key authentication must already be working."
-warn "Password auth will be disabled. If you get locked out,"
-warn "connect a keyboard/monitor to re-enable it."
+echo "Network: DHCP (using hostname)"
+echo "SSH: Password authentication enabled"
 echo ""
 read -r -p "Continue? [y/N] " CONFIRM
 if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
@@ -60,36 +60,18 @@ sudo apt full-upgrade -y
 ok "System updated"
 
 # =============================================================================
-# Step 2: Static IP
+# Step 2: Network Configuration
 # =============================================================================
-step "Step 2: Static IP Configuration"
+step "Step 2: Network Configuration"
 
-# Detect active interface and connection
-IFACE=$(ip route get 8.8.8.8 2>/dev/null | awk '{print $5; exit}' || echo "eth0")
-CONN_NAME=$(nmcli -t -f NAME,DEVICE con show --active 2>/dev/null | grep ":${IFACE}$" | cut -d: -f1 || echo "Wired connection 1")
-CURRENT_IP=$(ip -4 addr show "$IFACE" 2>/dev/null | grep -oP '(?<=inet\s)\d+(\.\d+){3}' || echo "unknown")
-CURRENT_GW=$(ip route | grep default | awk '{print $3}' | head -1 || echo "unknown")
+# Get current hostname and IP
+HOSTNAME=$(hostname)
+CURRENT_IP=$(hostname -I | awk '{print $1}')
 
-echo "Detected interface: $IFACE"
-echo "Detected connection: $CONN_NAME"
-echo "Current IP: $CURRENT_IP"
-echo "Current gateway: $CURRENT_GW"
+echo "Current hostname: $HOSTNAME"
+echo "Current IP (DHCP): $CURRENT_IP"
 echo ""
-
-read -r -p "Desired static IP (e.g. 192.168.1.50): " STATIC_IP
-read -r -p "Subnet prefix (e.g. 24 for 255.255.255.0): " PREFIX
-read -r -p "Gateway (e.g. $CURRENT_GW): " GATEWAY
-read -r -p "DNS servers (e.g. 8.8.8.8 8.8.4.4): " DNS_SERVERS
-
-sudo nmcli con modify "$CONN_NAME" \
-    ipv4.method manual \
-    ipv4.addresses "${STATIC_IP}/${PREFIX}" \
-    ipv4.gateway "$GATEWAY" \
-    ipv4.dns "$DNS_SERVERS"
-sudo nmcli con up "$CONN_NAME" 2>/dev/null || true
-
-ok "Static IP configured: ${STATIC_IP}/${PREFIX} via ${GATEWAY}"
-warn "If SSH disconnects, reconnect to: ssh $(whoami)@${STATIC_IP}"
+ok "Using DHCP - connect via: ssh $(whoami)@${HOSTNAME}.local or ssh $(whoami)@${CURRENT_IP}"
 
 # =============================================================================
 # Step 3: UFW Firewall
@@ -113,18 +95,17 @@ step "Step 4: SSH Hardening"
 
 SSHD_CONFIG="/etc/ssh/sshd_config"
 
-# Disable password authentication
-sudo sed -i 's/^#\?PasswordAuthentication.*/PasswordAuthentication no/' "$SSHD_CONFIG"
-# Disable root login
+# Keep password authentication enabled for simplicity
+# Disable root login for security
 sudo sed -i 's/^#\?PermitRootLogin.*/PermitRootLogin no/' "$SSHD_CONFIG"
 # Disable empty passwords
 sudo sed -i 's/^#\?PermitEmptyPasswords.*/PermitEmptyPasswords no/' "$SSHD_CONFIG"
 
 # Verify the settings took effect
-grep -E "^PasswordAuthentication|^PermitRootLogin|^PermitEmptyPasswords" "$SSHD_CONFIG"
+grep -E "^PermitRootLogin|^PermitEmptyPasswords" "$SSHD_CONFIG"
 
 sudo systemctl restart ssh
-ok "SSH hardened (password auth disabled, root login disabled)"
+ok "SSH hardened (root login disabled, password auth enabled)"
 
 # =============================================================================
 # Step 5: fail2ban
@@ -198,14 +179,15 @@ echo -e " ${GREEN}Phase 1 Complete!${NC}"
 echo "========================================================"
 echo ""
 echo "Summary:"
-echo "  Static IP:  ${STATIC_IP}"
-echo "  SSH:        $(whoami)@${STATIC_IP}"
+echo "  Hostname:   $(hostname)"
+echo "  IP (DHCP):  $(hostname -I | awk '{print $1}')"
+echo "  SSH:        $(whoami)@$(hostname).local or $(whoami)@$(hostname -I | awk '{print $1}')"
 echo "  Firewall:   UFW enabled (ports 22, 3000)"
 echo "  fail2ban:   active"
 echo "  Service user: helloclub"
 echo "  App dir:    /opt/helloclub/app"
 echo ""
-echo "Next: Phase 2 - Software Migration"
-echo "  See: setup/pi-install-node.sh"
+echo "Next: Phase 2 - Application Installation"
+echo "  Run: bash setup/pi-install-app.sh"
 echo ""
-warn "If you've been disconnected, reconnect to: ssh $(whoami)@${STATIC_IP}"
+ok "Connect via hostname: ssh $(whoami)@$(hostname).local"
