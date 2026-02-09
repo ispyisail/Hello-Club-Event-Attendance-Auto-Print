@@ -37,7 +37,6 @@ document.querySelectorAll('.tab').forEach((tab) => {
 
     if (tab.dataset.tab === 'logs') initLogs();
     if (tab.dataset.tab === 'config') loadConfig();
-    if (tab.dataset.tab === 'backup') loadBackups();
   });
 });
 
@@ -200,49 +199,6 @@ async function testPrint() {
   showAlert('config', 'info', 'Testing CUPS printer...', false);
   const result = await api('POST', '/test/print');
   showAlert('config', result.success ? 'success' : 'error', result.message);
-}
-
-// --- Backup ---
-async function loadBackups() {
-  try {
-    const result = await api('GET', '/backup');
-    const container = $('#backup-list');
-    if (!result.success || !result.data.length) {
-      container.innerHTML = '<div class="empty-state">No backups yet</div>';
-      return;
-    }
-    container.innerHTML = result.data
-      .map(
-        (b) => `<div class="backup-item">
-          <div>
-            <div class="backup-name">${esc(b.name)}</div>
-            <div class="backup-meta">${new Date(b.timestamp).toLocaleString()}${b.description ? ` · ${esc(b.description)}` : ''}</div>
-          </div>
-          <button class="btn btn-sm" onclick="restoreBackup('${esc(b.name)}')">Restore</button>
-        </div>`
-      )
-      .join('');
-  } catch (e) {
-    showAlert('backup', 'error', 'Failed to load backups: ' + e.message);
-  }
-}
-
-async function createBackup() {
-  const desc = $('#backup-description').value;
-  const result = await api('POST', '/backup', { description: desc });
-  if (result.success) {
-    showAlert('backup', 'success', `Backup created: ${result.backupName}`);
-    $('#backup-description').value = '';
-    loadBackups();
-  } else {
-    showAlert('backup', 'error', result.error);
-  }
-}
-
-async function restoreBackup(name) {
-  if (!confirm(`Restore backup "${name}"? Current config files will be overwritten.`)) return;
-  const result = await api('POST', `/backup/${encodeURIComponent(name)}/restore`);
-  showAlert('backup', result.success ? 'success' : 'error', result.success ? result.message : result.error);
 }
 
 // --- Init ---

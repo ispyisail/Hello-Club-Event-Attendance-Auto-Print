@@ -7,7 +7,6 @@ const { promisify } = require('util');
 const fs = require('fs');
 const path = require('path');
 const { testApiConnection, testEmailConnection } = require('../connection-tests');
-const { createBackup, listBackups, restoreBackup } = require('../../src/utils/backup');
 
 const execFileAsync = promisify(execFile);
 const APP_DIR = path.resolve(__dirname, '../..');
@@ -136,20 +135,6 @@ router.post('/test/email', async (req, res) => {
 router.post('/test/print', async (req, res) => {
   const { testPrintConnection } = require('../connection-tests');
   res.json(await testPrintConnection());
-});
-
-// --- Backup ---
-
-router.get('/backup', (req, res) => {
-  res.json({ success: true, data: listBackups(APP_DIR) });
-});
-
-router.post('/backup', (req, res) => {
-  res.json(createBackup(APP_DIR, (req.body || {}).description || ''));
-});
-
-router.post('/backup/:name/restore', (req, res) => {
-  res.json(restoreBackup(APP_DIR, req.params.name));
 });
 
 module.exports = router;
