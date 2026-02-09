@@ -31,9 +31,8 @@ Complete setup guide for running Hello Club Event Attendance Auto-Print on a Ras
 5. Click **Next** → **Edit Settings** and configure:
    - **Hostname:** `helloclub-pi`
    - **Username:** `pi` (or your preferred username)
-   - **Password:** strong password
-   - **Enable SSH:** checked, **Allow public-key authentication only**
-   - Paste your SSH public key (`cat ~/.ssh/id_ed25519.pub` on your PC)
+   - **Password:** strong password (remember this!)
+   - **Enable SSH:** checked, **Use password authentication** (simpler, still secure with fail2ban)
    - **Timezone:** your local timezone
    - **Locale:** your locale
 
@@ -47,11 +46,25 @@ Complete setup guide for running Hello Club Event Attendance Auto-Print on a Ras
 
 Wait ~60 seconds for first boot, then connect:
 
+**From Linux/Mac:**
+
 ```bash
 ssh pi@helloclub-pi.local
 ```
 
-If `.local` doesn't resolve, check your router's DHCP leases for the Pi's IP and use that directly.
+**From Windows:**
+
+```powershell
+# Open PowerShell or Command Prompt
+ssh pi@helloclub-pi.local
+
+# Or use PuTTY: enter helloclub-pi.local as hostname, port 22
+```
+
+**If `.local` doesn't work:**
+
+- Windows may need [Bonjour](https://support.apple.com/downloads/bonjour-for-windows) for `.local` resolution
+- Or find the IP from your router and use: `ssh pi@192.168.1.X`
 
 Verify you're on a Pi 5 with 64-bit OS:
 
@@ -67,33 +80,40 @@ cat /proc/cpuinfo | grep "Model"  # Should show: Raspberry Pi 5
 The `setup/pi-configure.sh` script handles everything from here:
 
 ```bash
-# Clone the repo first to get the script, OR copy it manually
-# Option A: Clone
+# Clone the repo to get the script
 git clone https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git ~/helloclub-setup
-bash ~/helloclub-setup/setup/pi-configure.sh
+cd ~/helloclub-setup
 
-# Option B: Copy script from your PC
-scp setup/pi-configure.sh pi@helloclub-pi.local:~/
-ssh pi@helloclub-pi.local "bash ~/pi-configure.sh"
+# Run the configuration script
+bash setup/pi-configure.sh
 ```
 
-The script will prompt you for:
+**What the script does:**
 
-- Desired static IP address
-- Subnet prefix (usually `24`)
-- Gateway IP
-- DNS servers
+- ✅ System update (apt full-upgrade)
+- ✅ UFW firewall (ports 22, 3000)
+- ✅ fail2ban for brute-force protection
+- ✅ Automatic security updates
+- ✅ Creates helloclub service user
+- ✅ Sets up /opt/helloclub directory structure
 
-**Important:** SSH key authentication must be working before you run the script — it will disable password authentication as part of hardening. If you get locked out, connect a keyboard/monitor to the Pi to re-enable it.
+**What it DOESN'T do (kept simple):**
+
+- ❌ No static IP configuration (uses DHCP + hostname)
+- ❌ Keeps SSH password authentication enabled (user-friendly)
+
+Just press `y` when prompted and let it run!
 
 ---
 
 ## Step 4: Verify Setup
 
-After the script completes, reconnect with the static IP:
+After the script completes, you'll still be connected via SSH. Verify everything worked:
 
 ```bash
-ssh pi@192.168.1.XX   # use your chosen static IP
+# Check hostname and IP
+hostname
+hostname -I
 ```
 
 Check everything is running:
@@ -118,10 +138,10 @@ ls -la /opt/helloclub/
 
 | Component                     | Purpose                                          |
 | ----------------------------- | ------------------------------------------------ |
-| System update                 | Latest packages before hardening                 |
-| Static IP (nmcli)             | Stable address for SSH and dashboard access      |
+| System update                 | Latest packages (full-upgrade)                   |
+| Network                       | DHCP (access via hostname.local)                 |
 | UFW firewall                  | Allow only SSH (22) and dashboard (3000)         |
-| SSH hardening                 | Disable password auth, disable root login        |
+| SSH hardening                 | Disable root login, keep password auth enabled   |
 | fail2ban                      | Block brute-force SSH attempts                   |
 | unattended-upgrades           | Automatic security patches                       |
 | `helloclub` service user      | Runs the Node.js service with minimal privileges |
