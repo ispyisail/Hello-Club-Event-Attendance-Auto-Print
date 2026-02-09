@@ -125,15 +125,6 @@ sudo systemctl daemon-reload
 sudo systemctl enable helloclub helloclub-dashboard
 ok "helloclub.service and helloclub-dashboard.service installed and enabled"
 
-# Configure passwordless sudo for dashboard service control
-# (limited to start/stop/restart of the helloclub service only)
-SUDOERS_FILE="/etc/sudoers.d/helloclub"
-sudo tee "$SUDOERS_FILE" > /dev/null <<'EOF'
-helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl start helloclub, /usr/bin/systemctl stop helloclub, /usr/bin/systemctl restart helloclub
-EOF
-sudo chmod 440 "$SUDOERS_FILE"
-ok "Passwordless sudo configured for helloclub service control"
-
 # =============================================================================
 # Step 6: Optional CUPS Local Printing
 # =============================================================================

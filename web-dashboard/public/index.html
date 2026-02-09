@@ -26,14 +26,9 @@
       <section class="panel active" id="panel-dashboard">
         <div id="dashboard-alert" class="alert"></div>
 
-        <div class="card">
-          <div class="card-title">Service Control</div>
-          <div class="btn-group">
-            <button class="btn btn-success" id="btn-start" onclick="serviceAction('start')">Start</button>
-            <button class="btn btn-danger" id="btn-stop" onclick="serviceAction('stop')">Stop</button>
-            <button class="btn" id="btn-restart" onclick="serviceAction('restart')">Restart</button>
-            <button class="btn" onclick="loadDashboard()">Refresh</button>
-          </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <h2 style="margin: 0; font-size: 18px;">Service Statistics</h2>
+          <button class="btn" onclick="loadDashboard()">Refresh Dashboard</button>
         </div>
 
         <div class="grid">

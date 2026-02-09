@@ -104,24 +104,6 @@ async function loadDashboard() {
   }
 }
 
-async function serviceAction(action) {
-  const btn = $(`#btn-${action}`);
-  if (btn) btn.disabled = true;
-  try {
-    const result = await api('POST', `/service/${action}`);
-    if (result.success) {
-      showAlert('dashboard', 'success', `Service ${action} successful`);
-    } else {
-      showAlert('dashboard', 'error', `Failed to ${action}: ${result.error}`);
-    }
-    await loadDashboard();
-  } catch (e) {
-    showAlert('dashboard', 'error', e.message);
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
 // --- Logs ---
 function initLogs() {
   if (ws && ws.readyState !== WebSocket.CLOSED) return;
