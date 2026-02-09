@@ -183,6 +183,7 @@
             <div class="form-group mt-2" style="display:flex;gap:6px;">
               <input type="text" class="form-control" id="cfg-new-category" placeholder="Add a category..." style="flex:1;" onkeydown="if(event.key==='Enter'){addCategory();event.preventDefault();}">
               <button class="btn" onclick="addCategory()">Add</button>
+              <button class="btn" onclick="openCategoryFetchModal()">Fetch from Hello Club</button>
             </div>
           </div>
         </div>
@@ -225,6 +226,47 @@
         </div>
       </section>
     </main>
+
+    <!-- Category Fetch Modal -->
+    <div class="modal" id="category-fetch-modal">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3>Fetch Categories from Hello Club</h3>
+          <button class="modal-close" onclick="closeCategoryFetchModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-group" style="display:flex;gap:6px;align-items:flex-end;">
+            <div style="flex:1;">
+              <label class="form-label" for="fetch-days">Search ahead (days)</label>
+              <input type="number" class="form-control" id="fetch-days" value="30" min="1" max="100">
+              <div class="field-hint">Default: 30 days, Maximum: 100 days</div>
+            </div>
+            <button class="btn btn-primary" onclick="fetchCategoriesFromApi()">Search</button>
+          </div>
+
+          <div id="category-fetch-results" style="display:none;">
+            <div style="margin:16px 0 8px 0;display:flex;justify-content:space-between;align-items:center;">
+              <div id="category-fetch-summary" style="font-size:12px;color:#666;"></div>
+              <div style="font-size:11px;color:#888;" id="category-fetch-timestamp"></div>
+            </div>
+
+            <div id="category-fetch-list" class="fetched-category-list"></div>
+
+            <div class="btn-group mt-2">
+              <button class="btn" onclick="selectAllFetchedCategories()">Select All</button>
+              <button class="btn" onclick="deselectAllFetchedCategories()">Deselect All</button>
+              <button class="btn btn-primary" onclick="addSelectedCategories()">Add Selected</button>
+            </div>
+          </div>
+
+          <div id="category-fetch-loading" style="display:none;text-align:center;padding:20px;">
+            <div style="font-size:14px;color:#666;">Fetching categories from Hello Club...</div>
+          </div>
+
+          <div id="category-fetch-error" style="display:none;" class="alert alert-error show"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <script src="/js/app.js"></script>

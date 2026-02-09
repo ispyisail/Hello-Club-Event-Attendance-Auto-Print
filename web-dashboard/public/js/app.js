@@ -340,6 +340,145 @@ async function testPrint() {
   showAlert('config', result.success ? 'success' : 'error', result.message);
 }
 
+// --- Category Fetch Modal ---
+let fetchedCategoriesData = [];
+
+function openCategoryFetchModal() {
+  $('#category-fetch-modal').style.display = 'flex';
+  $('#category-fetch-results').style.display = 'none';
+  $('#category-fetch-loading').style.display = 'none';
+  $('#category-fetch-error').style.display = 'none';
+}
+
+function closeCategoryFetchModal() {
+  $('#category-fetch-modal').style.display = 'none';
+  fetchedCategoriesData = [];
+}
+
+async function fetchCategoriesFromApi() {
+  const days = Math.min(Math.max(parseInt($('#fetch-days').value) || 30, 1), 100);
+
+  $('#category-fetch-results').style.display = 'none';
+  $('#category-fetch-error').style.display = 'none';
+  $('#category-fetch-loading').style.display = 'block';
+
+  try {
+    const result = await api('GET', `/fetch-categories?days=${days}`);
+
+    if (result.success) {
+      fetchedCategoriesData = result.data.categories;
+      renderFetchedCategories(result.data);
+      $('#category-fetch-loading').style.display = 'none';
+      $('#category-fetch-results').style.display = 'block';
+    } else {
+      throw new Error(result.error || 'Failed to fetch categories');
+    }
+  } catch (error) {
+    $('#category-fetch-loading').style.display = 'none';
+    $('#category-fetch-error').style.display = 'block';
+    $('#category-fetch-error').textContent =
+      error.message || 'Failed to fetch categories. Check your API key and try again.';
+  }
+}
+
+function renderFetchedCategories(data) {
+  const { categories, totalEvents, searchDays } = data;
+
+  $('#category-fetch-summary').textContent =
+    `Found ${categories.length} categories (${totalEvents} events) in next ${searchDays} days`;
+  $('#category-fetch-timestamp').textContent = `Last fetched: ${new Date().toLocaleTimeString()}`;
+
+  const list = $('#category-fetch-list');
+  if (!categories.length) {
+    list.innerHTML = '<div class="empty-state">No events found in the specified time range.</div>';
+    return;
+  }
+
+  list.innerHTML = categories
+    .map((cat, idx) => {
+      const isAdded = currentCategories.includes(cat.name);
+      const dateFrom = new Date(cat.dateRange.from).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+      const dateTo = new Date(cat.dateRange.to).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+      return `
+        <div class="fetched-category-item ${isAdded ? 'already-added' : ''}">
+          <div class="fetched-category-header">
+            <label class="fetched-category-checkbox">
+              <input type="checkbox" id="fetch-cat-${idx}" ${isAdded ? 'disabled' : ''} data-category="${esc(cat.name)}">
+              <span class="fetched-category-name">${esc(cat.name)}</span>
+              <span class="fetched-category-count">(${cat.eventCount} event${cat.eventCount !== 1 ? 's' : ''})</span>
+              ${isAdded ? '<span class="already-added-badge">Already added</span>' : ''}
+            </label>
+            <button class="fetched-category-toggle" onclick="toggleCategoryEvents(${idx})" title="Show/hide events">
+              <span id="toggle-arrow-${idx}">&#9660;</span>
+            </button>
+          </div>
+          <div class="fetched-category-meta">${dateFrom} - ${dateTo}</div>
+          <div class="fetched-category-events collapsed" id="category-events-${idx}">
+            ${cat.events
+              .map((evt) => {
+                const evtDate = new Date(evt.date).toLocaleDateString(undefined, {
+                  month: 'short',
+                  day: 'numeric',
+                  year: 'numeric',
+                });
+                return `<div class="fetched-event-item">${esc(evt.name)} <span style="color:#999;">(${evtDate})</span></div>`;
+              })
+              .join('')}
+          </div>
+        </div>
+      `;
+    })
+    .join('');
+}
+
+function toggleCategoryEvents(idx) {
+  const eventsDiv = $(`#category-events-${idx}`);
+  const arrow = $(`#toggle-arrow-${idx}`);
+  const isCollapsed = eventsDiv.classList.contains('collapsed');
+
+  if (isCollapsed) {
+    eventsDiv.classList.remove('collapsed');
+    arrow.textContent = '▲';
+  } else {
+    eventsDiv.classList.add('collapsed');
+    arrow.textContent = '▼';
+  }
+}
+
+function selectAllFetchedCategories() {
+  document.querySelectorAll('#category-fetch-list input[type="checkbox"]:not([disabled])').forEach((cb) => {
+    cb.checked = true;
+  });
+}
+
+function deselectAllFetchedCategories() {
+  document.querySelectorAll('#category-fetch-list input[type="checkbox"]').forEach((cb) => {
+    cb.checked = false;
+  });
+}
+
+function addSelectedCategories() {
+  const checkboxes = document.querySelectorAll('#category-fetch-list input[type="checkbox"]:checked');
+  let addedCount = 0;
+
+  checkboxes.forEach((cb) => {
+    const categoryName = cb.dataset.category;
+    if (!currentCategories.includes(categoryName)) {
+      currentCategories.push(categoryName);
+      addedCount++;
+    }
+  });
+
+  if (addedCount > 0) {
+    renderCategories();
+    showAlert('config', 'success', `Added ${addedCount} categor${addedCount !== 1 ? 'ies' : 'y'}`);
+    closeCategoryFetchModal();
+  } else {
+    showAlert('config', 'info', 'No new categories selected');
+  }
+}
+
 // --- Init ---
 loadDashboard();
 dashboardTimer = setInterval(loadDashboard, 30000);

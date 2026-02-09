@@ -137,4 +137,68 @@ router.post('/test/print', async (req, res) => {
   res.json(await testPrintConnection());
 });
 
+// --- Fetch Categories from Hello Club ---
+
+router.get('/fetch-categories', async (req, res) => {
+  try {
+    const days = Math.min(parseInt(req.query.days) || 30, 100); // Default 30, max 100
+    const fetchWindowHours = days * 24;
+
+    // Import api-client dynamically to use current .env
+    delete require.cache[require.resolve('../../src/core/api-client')];
+    const { getUpcomingEvents } = require('../../src/core/api-client');
+
+    // Fetch events from Hello Club API
+    const events = await getUpcomingEvents(fetchWindowHours, { allowStale: false });
+
+    // Group events by category
+    const categoryMap = {};
+
+    events.forEach((event) => {
+      const categoryName = event.category || 'Uncategorized';
+      if (!categoryMap[categoryName]) {
+        categoryMap[categoryName] = {
+          name: categoryName,
+          events: [],
+        };
+      }
+      categoryMap[categoryName].events.push({
+        id: event.id,
+        name: event.name,
+        date: event.startDate,
+      });
+    });
+
+    // Convert to array and sort by event count (descending)
+    const categories = Object.values(categoryMap)
+      .map((cat) => ({
+        name: cat.name,
+        eventCount: cat.events.length,
+        events: cat.events.sort((a, b) => new Date(a.date) - new Date(b.date)), // Sort events by date
+        dateRange:
+          cat.events.length > 0
+            ? {
+                from: cat.events[0].date,
+                to: cat.events[cat.events.length - 1].date,
+              }
+            : null,
+      }))
+      .sort((a, b) => b.eventCount - a.eventCount); // Sort categories by event count
+
+    res.json({
+      success: true,
+      data: {
+        categories,
+        totalEvents: events.length,
+        searchDays: days,
+      },
+    });
+  } catch (error) {
+    res.json({
+      success: false,
+      error: error.message || 'Failed to fetch categories from Hello Club API',
+    });
+  }
+});
+
 module.exports = router;
