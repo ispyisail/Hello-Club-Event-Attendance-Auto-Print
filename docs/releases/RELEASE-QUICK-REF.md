@@ -11,11 +11,13 @@ This interactive script will guide you through the entire process!
 ## 📋 Quick Commands
 
 ### Automated Release (Recommended)
+
 ```bash
 npm run release              # Interactive guided release
 ```
 
 ### Manual Release
+
 ```bash
 npm run release:patch        # Bug fixes (1.0.0 → 1.0.1)
 npm run release:minor        # New features (1.0.0 → 1.1.0)
@@ -23,6 +25,7 @@ npm run release:major        # Breaking changes (1.0.0 → 2.0.0)
 ```
 
 ### Build Portable Package Only
+
 ```bash
 npm run build:portable       # Creates ZIP in dist/
 ```
@@ -47,6 +50,7 @@ npm run build:portable       # Creates ZIP in dist/
 ## 📦 What Gets Released
 
 The GitHub Release includes:
+
 - ✅ **Portable ZIP** - Ready-to-use package
 - ✅ **CHANGELOG.md** - Full changelog
 - ✅ **Release notes** - Auto-generated from commits
@@ -55,11 +59,13 @@ The GitHub Release includes:
 ## 🔍 Check Release Status
 
 ### See Workflow Progress
+
 ```
 https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print/actions
 ```
 
 ### See Releases
+
 ```
 https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print/releases
 ```
@@ -80,26 +86,30 @@ If you need more control, see [docs/RELEASE-PROCESS.md](docs/RELEASE-PROCESS.md)
 ## 🆘 Common Issues
 
 **"Version mismatch"**
+
 - Delete the tag and fix package.json version
 
 **"Tests failing"**
+
 - Fix tests before releasing: `npm test`
 
 **"ZIP not created"**
+
 - Check: `npm run build:portable`
 
 **"Release already exists"**
+
 - Delete on GitHub and re-push tag
 
 See [docs/RELEASE-PROCESS.md](docs/RELEASE-PROCESS.md) for detailed troubleshooting.
 
 ## 📝 Version Types
 
-| Type | Example | When to Use |
-|------|---------|-------------|
-| **Patch** | 1.0.0 → 1.0.1 | Bug fixes only |
+| Type      | Example       | When to Use                        |
+| --------- | ------------- | ---------------------------------- |
+| **Patch** | 1.0.0 → 1.0.1 | Bug fixes only                     |
 | **Minor** | 1.0.0 → 1.1.0 | New features, backwards compatible |
-| **Major** | 1.0.0 → 2.0.0 | Breaking changes |
+| **Major** | 1.0.0 → 2.0.0 | Breaking changes                   |
 
 ## ✅ Pre-Release Checklist
 

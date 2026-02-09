@@ -41,6 +41,7 @@ type activity.log
 ```
 
 You should see messages like:
+
 - "Configuration validated successfully"
 - "Service started successfully"
 - "Scheduler loop finished"
@@ -59,12 +60,14 @@ npm run service:install
 ```
 
 The installer will:
+
 1. Create the Windows service
 2. Configure auto-start on boot
 3. Start the service immediately
 4. Display confirmation messages
 
 **Expected Output:**
+
 ```
 Installing Hello Club Event Attendance service...
 Script path: C:\Projects\Hello-Club-Event-Attendance-Auto-Print\src\index.js
@@ -91,6 +94,7 @@ npm run service:status
 ```
 
 This will show:
+
 - Service installation status
 - Current running state
 - Recent activity logs
@@ -109,26 +113,31 @@ This will show:
 ## Managing the Service
 
 ### Check Status
+
 ```bash
 npm run service:status
 ```
 
 ### Start Service (if stopped)
+
 ```bash
 net start HelloClubEventAttendance
 ```
 
 ### Stop Service
+
 ```bash
 net stop HelloClubEventAttendance
 ```
 
 ### Restart Service
+
 ```bash
 net stop HelloClubEventAttendance && net start HelloClubEventAttendance
 ```
 
 ### Uninstall Service
+
 ```bash
 # Run as Administrator
 npm run service:uninstall
@@ -139,11 +148,13 @@ npm run service:uninstall
 ### View Real-Time Logs
 
 **PowerShell:**
+
 ```powershell
 Get-Content activity.log -Wait -Tail 20
 ```
 
 **Command Prompt:**
+
 ```bash
 type activity.log
 ```
@@ -151,6 +162,7 @@ type activity.log
 ### Heartbeat Monitoring
 
 The service logs a heartbeat every 15 minutes:
+
 ```
 2025-12-19 20:42:36 info: Service heartbeat: Running normally. 3 event(s) scheduled for processing.
 ```
@@ -170,16 +182,19 @@ Advanced monitoring through Event Viewer:
 ### Service Won't Install
 
 **Error: "Access Denied"**
+
 - **Cause**: Not running as Administrator
 - **Solution**: Right-click PowerShell/CMD and select "Run as Administrator"
 
 **Error: "Service already installed"**
+
 - **Cause**: Service is already installed
 - **Solution**: First uninstall with `npm run service:uninstall`, then reinstall
 
 ### Service Won't Start
 
 **Check Event Logs:**
+
 ```bash
 npm run service:status
 ```
@@ -201,11 +216,13 @@ npm run service:status
 ### Service Keeps Crashing
 
 1. Stop the service:
+
    ```bash
    net stop HelloClubEventAttendance
    ```
 
 2. Check error log:
+
    ```bash
    type error.log
    ```
@@ -229,17 +246,20 @@ npm run service:status
 To update the application code:
 
 1. **Stop the service:**
+
    ```bash
    net stop HelloClubEventAttendance
    ```
 
 2. **Update your code:**
+
    ```bash
    git pull
    # or edit files manually
    ```
 
 3. **If dependencies changed:**
+
    ```bash
    npm install
    ```
@@ -264,11 +284,13 @@ The service reads configuration on startup, so changes require a restart.
 ## Service Auto-Restart Behavior
 
 The service automatically restarts if:
+
 - Application crashes (unhandled error)
 - Node.js process dies unexpectedly
 - System resources become available
 
 **Restart Policy:**
+
 - Initial delay: 2 seconds
 - Max attempts: 10 restarts
 - Backoff: 0.5x multiplier per retry
@@ -280,14 +302,17 @@ After 10 failed restarts, the service stops and requires manual intervention.
 When you need to remove the service:
 
 1. **Run as Administrator:**
+
    ```bash
    npm run service:uninstall
    ```
 
 2. **Verify removal:**
+
    ```bash
    npm run service:status
    ```
+
    Should show: "SERVICE NOT INSTALLED"
 
 3. **Cleanup (optional):**

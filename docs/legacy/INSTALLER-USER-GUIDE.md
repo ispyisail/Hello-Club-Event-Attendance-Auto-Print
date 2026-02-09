@@ -25,6 +25,7 @@ This guide walks you through installing the Hello Club Event Attendance applicat
 ### Step 1: Download the Installer
 
 1. Download the installer file:
+
    ```
    HelloClubEventAttendance-Setup-1.1.0.exe
    ```
@@ -91,9 +92,11 @@ Choose what you want:
 ![API Configuration](images/api-config.png)
 
 **Required:**
+
 - **Hello Club API Key:** Enter your API key from Hello Club
 
 **Optional (for email printing):**
+
 - **Printer Email Address:** Your printer's email address
   - Example: `myprinter@print.epsonconnect.com`
 
@@ -106,15 +109,17 @@ Click **"Next"**
 If you entered a printer email, configure SMTP:
 
 **For Gmail:**
+
 - **SMTP Username:** your.email@gmail.com
-- **SMTP Password:** Your app-specific password*
+- **SMTP Password:** Your app-specific password\*
 - **SMTP Host:** smtp.gmail.com
 - **SMTP Port:** 587
 
 **For other providers:**
+
 - Check your email provider's SMTP settings
 
-*Gmail requires an "App Password" - [Learn how to create one](https://support.google.com/accounts/answer/185833)
+\*Gmail requires an "App Password" - [Learn how to create one](https://support.google.com/accounts/answer/185833)
 
 Click **"Next"**
 
@@ -123,6 +128,7 @@ Click **"Next"**
 ![Ready to Install](images/ready.png)
 
 Review your selections:
+
 - Install location
 - Selected options
 - Configuration entered
@@ -168,6 +174,7 @@ After installation:
 Success! The application is now installed.
 
 **Options:**
+
 - ✓ **Launch Tray Monitor** (Recommended)
   - Starts the system tray app immediately
 
@@ -210,11 +217,13 @@ Press the Windows key and type "Hello Club" to see:
 ### 1. Check Service Status
 
 **Method A: Tray App**
+
 1. Right-click tray icon
 2. Click "Check Status Now"
 3. Should show "Service is running"
 
 **Method B: Command Line**
+
 1. Open Start Menu → Type "Service Status"
 2. Click "Hello Club Event Attendance - Service Status"
 3. Review the output
@@ -244,6 +253,7 @@ Press the Windows key and type "Hello Club" to see:
 **Problem:** Node.js is not installed
 
 **Solution:**
+
 1. Download Node.js from https://nodejs.org/
 2. Install Node.js
 3. Restart your computer
@@ -254,15 +264,18 @@ Press the Windows key and type "Hello Club" to see:
 **Problem:** No internet connection or npm registry issue
 
 **Solution:**
+
 1. Check your internet connection
 2. Installation will continue
 3. After installation, open Command Prompt:
+
    ```
    cd "%LOCALAPPDATA%\Hello Club Event Attendance"
    npm install
    ```
 
    Or if you have a legacy installation in Program Files:
+
    ```
    cd "C:\Program Files\Hello Club Event Attendance"
    npm install
@@ -273,6 +286,7 @@ Press the Windows key and type "Hello Club" to see:
 **Problem:** Configuration error or port conflict
 
 **Solution:**
+
 1. Open installation folder:
    - Start Menu → "Open Project Folder"
 2. Check `.env` file contains your API key
@@ -285,6 +299,7 @@ Press the Windows key and type "Hello Club" to see:
 **Problem:** Tray app didn't start or icon is hidden
 
 **Solution:**
+
 1. Click the up arrow (^) in system tray
 2. Look for Hello Club icon in hidden icons
 3. Drag icon to always-visible area
@@ -295,6 +310,7 @@ Press the Windows key and type "Hello Club" to see:
 **Problem:** Not running as Administrator
 
 **Solution:**
+
 1. Right-click the installer
 2. Select "Run as Administrator"
 3. If prompted, click "Yes"
@@ -307,6 +323,7 @@ Press the Windows key and type "Hello Club" to see:
    - Start Menu → "Hello Club Event Attendance" → "Open Project Folder"
 
 2. Edit `.env` file in Notepad:
+
    ```
    API_KEY=your_new_api_key_here
    ```
@@ -321,6 +338,7 @@ Press the Windows key and type "Hello Club" to see:
 1. Open `config.json` in installation folder
 
 2. Edit the `categories` array:
+
    ```json
    "categories": ["NBA - Junior Events", "NBA - Senior Events"]
    ```
@@ -334,9 +352,11 @@ Press the Windows key and type "Hello Club" to see:
 1. Open `config.json`
 
 2. Change `serviceRunIntervalHours`:
+
    ```json
    "serviceRunIntervalHours": 2
    ```
+
    (Default is 1 hour)
 
 3. Save and restart service
@@ -370,11 +390,13 @@ To remove everything including configuration:
 1. Uninstall using standard method above
 
 2. Delete installation folder (if not automatically removed):
+
    ```
    %LOCALAPPDATA%\Hello Club Event Attendance\
    ```
 
    Or for legacy installations:
+
    ```
    C:\Program Files\Hello Club Event Attendance\
    ```
@@ -432,11 +454,13 @@ The service runs independently:
 Use the tray app with manual execution:
 
 1. Stop the service:
+
    ```
    net stop HelloClubEventAttendance
    ```
 
 2. Run manually in a console:
+
    ```
    cd "%LOCALAPPDATA%\Hello Club Event Attendance"
    npm start
@@ -449,16 +473,19 @@ Use the tray app with manual execution:
 As Administrator:
 
 **Start:**
+
 ```
 net start HelloClubEventAttendance
 ```
 
 **Stop:**
+
 ```
 net stop HelloClubEventAttendance
 ```
 
 **Check Status:**
+
 ```
 sc query HelloClubEventAttendance
 ```
@@ -510,6 +537,7 @@ When a new version is released:
 You've successfully installed Hello Club Event Attendance!
 
 The application will now:
+
 - ✓ Monitor for upcoming events automatically
 - ✓ Generate and print attendee lists
 - ✓ Run in the background 24/7

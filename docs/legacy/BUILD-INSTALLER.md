@@ -11,6 +11,7 @@ npm run build:installer
 ```
 
 This will:
+
 - ✅ Run all tests
 - ✅ Sync version from package.json
 - ✅ Compile installer with Inno Setup
@@ -55,33 +56,40 @@ npm install
 The automated build script (`scripts/build-installer.js`) performs these steps:
 
 ### Step 1: Pre-flight Checks
+
 - Verifies `package.json` exists
 - Verifies `installer/setup.iss` exists
 - Creates `dist/` directory if needed
 
 ### Step 2: Locate Inno Setup
+
 - Searches common installation paths
 - Exits with error if not found
 
 ### Step 3: Read Version
+
 - Reads version from `package.json`
 - Example: `1.0.0`
 
 ### Step 4: Update setup.iss
+
 - Updates `#define MyAppVersion` line
 - Ensures installer version matches package version
 
 ### Step 5: Run Tests
+
 - Executes full test suite
 - Ensures code quality before building
 - Can be skipped with `--skip-tests` flag
 
 ### Step 6: Compile Installer
+
 - Runs Inno Setup compiler
 - Compiles `installer/setup.iss`
 - Outputs to `dist/HelloClubEventAttendance-Setup-{version}.exe`
 
 ### Step 7: Verify Output
+
 - Checks file exists
 - Verifies file size (warns if < 100KB)
 - Reports final file size
@@ -103,12 +111,14 @@ File size: Typically 150-200 MB (includes Node.js dependencies)
 The installer is built automatically on GitHub Actions when you:
 
 1. **Push a version tag:**
+
    ```bash
    git tag v1.0.0
    git push origin v1.0.0
    ```
 
 2. **Use npm version commands:**
+
    ```bash
    npm version patch  # 1.0.0 → 1.0.1
    npm version minor  # 1.0.0 → 1.1.0
@@ -123,6 +133,7 @@ The installer is built automatically on GitHub Actions when you:
 ### GitHub Release
 
 When you push a tag, GitHub Actions will:
+
 1. Build the installer
 2. Run all tests
 3. Create a GitHub Release
@@ -133,6 +144,7 @@ When you push a tag, GitHub Actions will:
 ### Updating the Version
 
 1. **Update package.json version:**
+
    ```bash
    npm version patch  # or minor, or major
    ```
@@ -160,6 +172,7 @@ The version in `setup.iss` will be automatically updated to match `package.json`
 **Problem:** The build script can't find Inno Setup compiler.
 
 **Solution:**
+
 1. Install Inno Setup 6.x from https://jrsoftware.org/isdl.php
 2. Use default installation path
 3. If installed elsewhere, add to PATH or update `ISCC_PATHS` in `scripts/build-installer.js`
@@ -169,6 +182,7 @@ The version in `setup.iss` will be automatically updated to match `package.json`
 **Problem:** Test suite failed, preventing build.
 
 **Solution:**
+
 1. Fix failing tests first (recommended)
 2. Or skip tests: `npm run build:installer:skip-tests` (not recommended)
 
@@ -179,6 +193,7 @@ The version in `setup.iss` will be automatically updated to match `package.json`
 **Cause:** Build likely failed but didn't error.
 
 **Solution:**
+
 1. Check Inno Setup output for errors
 2. Verify all files are included in `[Files]` section
 3. Check `installer/setup.iss` for syntax errors
@@ -188,6 +203,7 @@ The version in `setup.iss` will be automatically updated to match `package.json`
 **Problem:** Can't write to `dist/` folder.
 
 **Solution:**
+
 1. Run Command Prompt as Administrator
 2. Check folder permissions
 3. Close any programs using files in `dist/`
@@ -197,6 +213,7 @@ The version in `setup.iss` will be automatically updated to match `package.json`
 If you need to build manually without the script:
 
 1. **Update version in setup.iss:**
+
    ```iss
    #define MyAppVersion "1.0.0"
    ```
@@ -236,11 +253,13 @@ Before distributing:
 ### File Naming
 
 Installers follow this pattern:
+
 ```
 HelloClubEventAttendance-Setup-{version}.exe
 ```
 
 Examples:
+
 - `HelloClubEventAttendance-Setup-1.0.0.exe`
 - `HelloClubEventAttendance-Setup-1.2.3.exe`
 

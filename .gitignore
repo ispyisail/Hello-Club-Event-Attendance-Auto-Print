@@ -19,9 +19,8 @@
 *.pdf
 *.csv
 
-# Logo files (user-uploaded)
+# User-uploaded logo files (but keep project logo in docs/assets/)
 logo.png
-logo.jpg
 logo.jpeg
 logo.gif
 

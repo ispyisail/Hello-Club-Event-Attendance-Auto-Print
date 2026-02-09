@@ -1,10 +1,11 @@
 # Hello Club Event Attendance Auto-Print
 
-> Automated Windows service for printing Hello Club event attendance lists with system tray monitoring
+> Automated Raspberry Pi service for printing Hello Club event attendance lists with web dashboard monitoring
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
 [![Tests](https://img.shields.io/badge/tests-118%20passing-success)](./tests)
+[![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%205-c51a4a)](https://www.raspberrypi.com/)
 
 ## 📋 Table of Contents
 
@@ -22,7 +23,7 @@
 
 ## 🎯 Overview
 
-Hello Club Event Attendance Auto-Print is a professional Windows application that automatically fetches, monitors, and prints attendee lists for upcoming Hello Club events. It runs as a Windows Service in the background and provides a system tray interface for easy monitoring and control.
+Hello Club Event Attendance Auto-Print is a professional Raspberry Pi service that automatically fetches, monitors, and prints attendee lists for upcoming Hello Club events. It runs as a systemd service in the background and provides a modern web dashboard for remote monitoring and control.
 
 ### How It Works
 
@@ -36,26 +37,28 @@ The application uses a smart two-stage process:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    System Tray App                      │
-│              (Electron-based Monitor)                   │
-│  • Visual status indicator (green/yellow/red)           │
+│                  Web Dashboard                          │
+│             (Express + WebSocket)                       │
+│  • Real-time log streaming                              │
 │  • Service control (start/stop/restart)                 │
-│  • Log viewer & notifications                           │
+│  • Configuration editor                                 │
+│  • Connection tests & statistics                        │
 └────────────────────┬────────────────────────────────────┘
-                     │
+                     │ HTTP/WS (Port 3000)
                      ▼
 ┌─────────────────────────────────────────────────────────┐
-│                  Windows Service                        │
+│                  systemd Service                        │
 │            (Always-Running Background)                  │
 │  • Fetches events every N hours                         │
 │  • Schedules processing for each event                  │
 │  • Auto-restarts on failure                             │
+│  • Health monitoring & statistics                       │
 └────────────────────┬────────────────────────────────────┘
                      │
         ┌────────────┼────────────┐
         ▼            ▼            ▼
    [Hello Club]  [SQLite DB]  [Printer]
-      API        (Event Queue)  (Local/Email)
+      API        (Event Queue)  (CUPS/Email)
 ```
 
 ## ✨ Features
@@ -68,22 +71,24 @@ The application uses a smart two-stage process:
 - ✅ **Flexible Printing** - Print locally or send via email to network printers
 - ✅ **Category Filtering** - Only process events from specified categories
 
-### Windows Service Features
+### Raspberry Pi Service Features
 
-- ✅ **Always Running** - Starts automatically with Windows
+- ✅ **Always Running** - Starts automatically with Raspberry Pi via systemd
 - ✅ **Self-Healing** - Automatically restarts if it crashes
-- ✅ **Background Operation** - Runs without user interaction
-- ✅ **Production Ready** - Built with `node-windows` for reliability
+- ✅ **Background Operation** - Runs headless without user interaction
+- ✅ **Production Ready** - Battle-tested systemd service management
+- ✅ **Low Power** - Energy-efficient 24/7 operation
 
-### System Tray Features
+### Web Dashboard Features
 
-- 🟢 **Visual Status** - Color-coded icon (Green=Running, Red=Stopped, Yellow=Warning)
-- 📊 **Real-time Monitoring** - Shows service status and recent activity
-- 📝 **Log Viewer** - Browse activity and error logs in a clean interface
-- 🔔 **Notifications** - Desktop alerts when events are processed
-- 🎛️ **Service Control** - Start, stop, and restart the service from the tray
-- ⚙️ **Settings GUI** - Edit configuration and credentials without touching files
-- 🔌 **Connection Tests** - Test API and Email connections with one click
+- 🌐 **Remote Access** - Monitor from any device on your network
+- 📊 **Real-time Monitoring** - Live log streaming via WebSocket
+- 📝 **Log Viewer** - Browse activity and error logs with auto-scroll
+- 📈 **Statistics** - Events processed, success rates, and trends
+- 🎛️ **Service Control** - Start, stop, and restart the service remotely
+- ⚙️ **Settings Editor** - Edit configuration and credentials via web UI
+- 🔌 **Connection Tests** - Test API, Email, and Printer with one click
+- 💾 **Backup Management** - Create and restore configuration backups
 
 ### Developer Features
 
@@ -97,27 +102,26 @@ The application uses a smart two-stage process:
 
 ### For End Users (Recommended)
 
-**Download and run the installer** - The easiest way to get started:
+**Raspberry Pi Deployment** - The recommended way to run in production:
 
-1. Download `HelloClubEventAttendance-Setup-1.1.0.exe` from the [Releases](https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print/releases) page
-2. Run the installer (**No administrator rights required!**)
-   - Installs to your user folder (`%LOCALAPPDATA%\Hello Club Event Attendance`)
-   - Administrator privileges only needed if you want the optional Windows service
-3. Follow the friendly setup wizard:
+1. Get a **Raspberry Pi 5** with 8GB RAM (see [hardware list](./docs/RASPBERRY-PI-SETUP.md#hardware-shopping-list))
+2. Follow the [Raspberry Pi Setup Guide](./docs/RASPBERRY-PI-SETUP.md):
+   - Flash Raspberry Pi OS Lite 64-bit
+   - Configure static IP and SSH
+   - Run the automated setup script
+3. Access the **Web Dashboard** at `http://helloclub-pi.local:3000`
+4. Configure your settings via the dashboard:
    - Enter your Hello Club API key
-   - Configure email printing (optional)
-   - Optionally install Windows service (requires admin, unchecked by default)
-4. The installer automatically:
-   - Installs Node.js dependencies
-   - Creates your configuration file
-   - Launches the tray monitor
+   - Configure email printing
+   - Set event categories
 
-**That's it!** The tray icon will appear in your taskbar. Right-click it to:
+**That's it!** The service runs 24/7 in the background. Use the web dashboard to:
 
-- View logs and status
-- Edit settings
+- View real-time logs
+- Monitor service status
+- Edit configuration
 - Test API and Email connections
-- Control the service (if installed)
+- Control the service (start/stop/restart)
 
 ### For Developers
 
@@ -132,14 +136,15 @@ cd Hello-Club-Event-Attendance-Auto-Print
 npm install
 
 # 3. Configure your API key
-copy .env.example .env
+cp .env.example .env
 # Edit .env and add your API_KEY
 
-# 4. Install the Windows Service (requires admin)
-npm run service:install
+# 4. Run the service (foreground)
+npm start
 
-# 5. Start the tray monitor
-npm run tray
+# 5. Or run with web dashboard
+npm run dashboard  # In separate terminal
+npm start          # Main service
 ```
 
 ## 📦 Installation
@@ -148,11 +153,10 @@ npm run tray
 
 #### 1. System Requirements
 
-- **Operating System**: Windows 10 or later
-- **Node.js**: Version 16.0.0 or higher
-- **Build Tools**: Required for native modules
-  - Windows: Install [Visual Studio Build Tools](https://visualstudio.microsoft.com/downloads/)
-  - Or install via npm: `npm install --global windows-build-tools`
+- **Hardware**: Raspberry Pi 5 (8GB recommended) or any Linux server
+- **Operating System**: Raspberry Pi OS Lite 64-bit (Debian/Ubuntu also supported)
+- **Node.js**: Version 18.0.0 or higher
+- **Network**: Ethernet connection recommended for reliability
 
 #### 2. Install Dependencies
 
@@ -215,34 +219,34 @@ SMTP_PORT=587
 }
 ```
 
-#### 4. Install as Windows Service (Optional)
+#### 4. Install as systemd Service
 
-**Important**: This step requires Administrator privileges and is **optional**. You can use the tray monitor without the service.
-
-The Windows service provides:
-
-- Automatic start with Windows
-- Background operation even when not logged in
-- Auto-restart on failure
-
-To install the service:
+Create and enable the systemd service:
 
 ```bash
-# Open PowerShell or Command Prompt as Administrator
-npm run service:install
+# Create service file
+sudo nano /etc/systemd/system/helloclub.service
+
+# Copy the service configuration from setup/helloclub.service
+# Then enable and start:
+sudo systemctl daemon-reload
+sudo systemctl enable helloclub
+sudo systemctl start helloclub
 ```
 
-The service will be installed as "HelloClubEventAttendance" and set to start automatically with Windows.
+See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for the complete systemd service configuration.
 
-**Without the service**: Simply run the tray monitor (`npm run tray`) and it will handle event processing while you're logged in.
+#### 5. Access the Web Dashboard
 
-#### 5. Start the Tray Monitor
+Open a browser and navigate to:
 
-```bash
-npm run tray
+```
+http://helloclub-pi.local:3000
 ```
 
-The tray icon will appear in your system tray (bottom-right corner of Windows taskbar).
+Or use the Pi's IP address: `http://192.168.1.XX:3000`
+
+Login with the credentials from your `.env` file.
 
 ### Using the Installer (Recommended for End Users)
 
@@ -383,30 +387,27 @@ Enable webhook notifications to receive real-time updates when events are proces
 
 ## 📖 Usage
 
-### System Tray Interface
+### Web Dashboard Interface
 
-The system tray icon provides quick access to all functionality:
+The web dashboard provides comprehensive remote management:
 
-**Icon Colors:**
+**Access:** `http://helloclub-pi.local:3000`
 
-- 🟢 **Green** - Service running normally
-- 🔴 **Red** - Service stopped or error
-- 🟡 **Yellow** - Service starting or warning
+**Main Features:**
 
-**Right-click Menu:**
+- 📊 **Dashboard Home** - Service status, statistics, and recent activity
+- 📝 **Live Logs** - Real-time log streaming with auto-scroll
+- 🎛️ **Service Control** - Start/Stop/Restart the systemd service
+- ⚙️ **Configuration Editor** - Edit .env and config.json via web UI
+- 🔌 **Connection Tests** - Test API, Email, and Printer connectivity
+- 💾 **Backup Manager** - Create and restore configuration backups
+- 📈 **Statistics** - Events processed, success rates, and trends
 
-- **View Logs** - Open log viewer window with real-time updates
-- **Settings** ⚙️ **NEW!** - Edit configuration via GUI
-  - Environment variables (API key, SMTP credentials)
-  - Application settings (categories, timing, PDF layout)
-  - Automatic validation and backup
-- **Test API Connection** 🔌 **NEW!** - Verify Hello Club API connectivity
-- **Test Email Connection** 🔌 **NEW!** - Verify SMTP settings
-- **Check Status Now** - Force status refresh
-- **Start/Stop/Restart Service** - Control the service
-- **Open Services Manager** - Windows services.msc
-- **Open Project Folder** - Browse application files
-- **Quit** - Exit tray application (service continues running)
+**Service Status Indicators:**
+
+- 🟢 **Running** - Service active and healthy
+- 🔴 **Stopped** - Service not running
+- 🟡 **Starting** - Service initialization in progress
 
 ### New Features Guide
 
@@ -446,61 +447,83 @@ Verify your configuration before processing events:
 You can also run the application from the command line:
 
 ```bash
-# Fetch events once
+# Fetch events once (manual run)
 node src/index.js fetch-events
 
 # Process pending events once
 node src/index.js process-schedule
 
-# Run as continuous service (in console)
+# Run as continuous service (foreground)
 node src/index.js start-service
 
 # View help
 node src/index.js --help
 ```
 
-### Service Management
+### Service Management (systemd)
 
 ```bash
-# Install the service
-npm run service:install
-
 # Check service status
-npm run service:status
+sudo systemctl status helloclub
 
-# Uninstall the service
-npm run service:uninstall
+# Start service
+sudo systemctl start helloclub
 
-# Windows services.msc
-services.msc
+# Stop service
+sudo systemctl stop helloclub
+
+# Restart service
+sudo systemctl restart helloclub
+
+# View logs
+journalctl -u helloclub -f
+
+# Enable auto-start on boot
+sudo systemctl enable helloclub
 ```
 
 ### Log Files
 
-Logs are written to the project root:
+Logs are written to the project directory (`/opt/helloclub/app/`):
 
 - **`activity.log`** - Normal operations, events processed
 - **`error.log`** - Errors and warnings only
 
 View logs via:
 
-- System tray → "View Logs"
-- Open files directly in any text editor
-- Command: `npm run logs` (if you add this script)
+- **Web Dashboard** → "Live Logs" (real-time streaming)
+- **Terminal**: `tail -f /opt/helloclub/app/activity.log`
+- **systemd**: `journalctl -u helloclub -f`
+- **SSH**: Any text editor (nano, vim, cat)
 
 ## 📚 Documentation
 
-| Document                                                    | Description                            |
-| ----------------------------------------------------------- | -------------------------------------- |
-| [ARCHITECTURE.md](./docs/ARCHITECTURE.md)                   | System design and architecture         |
-| [API.md](./docs/API.md)                                     | Module and function reference          |
-| [CONFIGURATION.md](./docs/CONFIGURATION.md)                 | Detailed configuration guide           |
-| [DEVELOPMENT.md](./docs/DEVELOPMENT.md)                     | Developer setup and contribution guide |
-| [WINDOWS-SERVICE-SETUP.md](./docs/WINDOWS-SERVICE-SETUP.md) | Windows service installation guide     |
-| [TRAY-APP-GUIDE.md](./docs/TRAY-APP-GUIDE.md)               | System tray application guide          |
-| [INSTALLER-USER-GUIDE.md](./docs/INSTALLER-USER-GUIDE.md)   | Installer creation guide               |
-| [TESTING-GUIDE.md](./docs/TESTING-GUIDE.md)                 | Testing documentation                  |
-| [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)             | Common issues and solutions            |
+### User Guides
+
+| Document                                                  | Description                           |
+| --------------------------------------------------------- | ------------------------------------- |
+| [CONFIGURATION.md](./docs/CONFIGURATION.md)               | Detailed configuration guide          |
+| [INSTALLER-USER-GUIDE.md](./docs/INSTALLER-USER-GUIDE.md) | Installer creation guide              |
+| [TRAY-APP-GUIDE.md](./docs/TRAY-APP-GUIDE.md)             | System tray application guide         |
+| [WEB-DASHBOARD.md](./docs/WEB-DASHBOARD.md)               | Web dashboard usage and API reference |
+| [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)           | Common issues and solutions           |
+
+### Deployment Guides
+
+| Document                                              | Description                                  |
+| ----------------------------------------------------- | -------------------------------------------- |
+| [DEPLOYMENT.md](./docs/DEPLOYMENT.md)                 | Complete deployment guide (Pi/Windows/Linux) |
+| [RASPBERRY-PI-SETUP.md](./docs/RASPBERRY-PI-SETUP.md) | Raspberry Pi 5 setup and hardening           |
+| [legacy/](./docs/legacy/)                             | Archived Windows documentation               |
+
+### Developer Documentation
+
+| Document                                    | Description                            |
+| ------------------------------------------- | -------------------------------------- |
+| [ARCHITECTURE.md](./docs/ARCHITECTURE.md)   | System design and architecture         |
+| [API.md](./docs/API.md)                     | Module and function reference          |
+| [DEVELOPMENT.md](./docs/DEVELOPMENT.md)     | Developer setup and contribution guide |
+| [TESTING-GUIDE.md](./docs/TESTING-GUIDE.md) | Testing documentation                  |
 
 ## 📁 Project Structure
 
@@ -521,21 +544,23 @@ hello-club-event-attendance/
 │   │   └── config-schema.js      # Configuration validation
 │   └── index.js                  # Application entry point
 │
-├── service/                      # Windows Service management
-│   ├── install.js                # Service installation script
-│   ├── uninstall.js              # Service removal script
-│   └── status.js                 # Service status checker
+├── web-dashboard/                # Express web dashboard
+│   ├── server.js                 # Express + WebSocket server
+│   ├── connection-tests.js       # API/Email/Print tests
+│   ├── middleware/
+│   │   └── auth.js               # Authentication middleware
+│   ├── routes/
+│   │   └── api.js                # REST API endpoints
+│   └── public/                   # Frontend assets
+│       ├── index.html            # Dashboard UI
+│       ├── js/app.js             # Frontend JavaScript
+│       └── css/                  # Styling
 │
-├── tray-app/                     # Electron system tray app
-│   ├── main.js                   # Electron main process
-│   ├── log-viewer.html           # Log viewer UI
-│   ├── icons/                    # Tray icons
-│   └── start-tray.bat            # Tray launcher script
-│
-├── installer/                    # Inno Setup installer
-│   ├── setup.iss                 # Inno Setup script
-│   ├── build-installer.bat       # Build automation
-│   └── *.bat                     # Helper scripts
+├── setup/                        # Raspberry Pi setup scripts
+│   ├── pi-configure.sh           # System hardening script
+│   ├── pi-install-app.sh         # Application installation
+│   ├── helloclub.service         # systemd service file
+│   └── helloclub-dashboard.service # Dashboard service file
 │
 ├── tests/                        # Unit tests (118 tests)
 │   ├── api-client.test.js        # API client tests
@@ -546,17 +571,16 @@ hello-club-event-attendance/
 │   ├── service.test.js           # Service scheduling tests
 │   └── webhook.test.js           # Webhook notification tests
 │
-├── migrations/                   # Database migrations
-│   └── 001-initial-schema.sql    # Initial database schema
-│
 ├── docs/                         # Documentation
-│   ├── ARCHITECTURE.md
-│   ├── API.md
-│   ├── CONFIGURATION.md
+│   ├── RASPBERRY-PI-SETUP.md     # Pi setup guide
+│   ├── WEB-DASHBOARD.md          # Dashboard guide
+│   ├── DEPLOYMENT.md             # Deployment guide
+│   ├── ARCHITECTURE.md           # System architecture
+│   ├── API.md                    # API reference
+│   ├── legacy/                   # Archived Windows docs
 │   └── ...
 │
-├── bin/                          # Generated binaries (gitignored)
-│   └── daemon/                   # Windows service daemon files
+├── backups/                      # Configuration backups (gitignored)
 │
 ├── .env                          # Environment variables (gitignored)
 ├── .env.example                  # Environment template
@@ -602,26 +626,30 @@ Current test coverage:
 
 **Service won't start**
 
-- Ensure you installed as Administrator
-- Check `error.log` for details
+- Check service status: `sudo systemctl status helloclub`
+- View error logs: `journalctl -u helloclub -xe`
 - Verify API_KEY in `.env` is correct
+- Check file permissions: `/opt/helloclub/app/`
 
 **No events being processed**
 
 - Check category filters in `config.json`
 - Verify events exist in the time window
-- Run `node src/index.js fetch-events` manually
+- Run manually: `node src/index.js fetch-events`
+- Check logs: `tail -f activity.log`
 
-**Tray icon not showing**
+**Dashboard not accessible**
 
-- Check Windows notification area settings
-- Restart the tray app: `npm run tray`
-- Look for errors in console
+- Check service is running: `sudo systemctl status helloclub`
+- Verify firewall: `sudo ufw status`
+- Test locally: `curl http://localhost:3000`
+- Check dashboard port in `.env`
 
 **PDF not printing**
 
-- Local mode: Install SumatraPDF on Windows
 - Email mode: Verify SMTP credentials in `.env`
+- Local mode: Check CUPS configuration: `lpstat -p`
+- Test email: Use dashboard "Test Email Connection"
 - Check `error.log` for printing errors
 
 **401 Unauthorized errors**
