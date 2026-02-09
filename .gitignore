@@ -9,6 +9,8 @@
 
 # Logs
 *.log
+*.log.*
+logs/
 
 # Environment variables
 .env
@@ -44,3 +46,7 @@ service-health.json
 
 # Claude Code
 .claude/
+
+# Scripts output
+scripts/output/
+scripts/*.log
