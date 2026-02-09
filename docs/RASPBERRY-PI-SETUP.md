@@ -149,6 +149,76 @@ ls -la /opt/helloclub/
 
 ---
 
+## Step 5: Install Application
+
+Run the application installation script:
+
+```bash
+cd ~/helloclub-setup
+bash setup/pi-install-app.sh
+```
+
+**When prompted, enter the repository URL:**
+
+```
+https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git
+```
+
+**What the script does:**
+
+1. **Installs Node.js v20** system-wide via NodeSource (accessible to all users/services)
+2. **Clones repository** to `/opt/helloclub/app` as the `helloclub` user
+3. **Installs dependencies** with `npm install --production --ignore-scripts`
+4. **Rebuilds native modules** (better-sqlite3) for ARM64 architecture
+5. **Creates `.env` file** from template
+6. **Installs systemd services** (helloclub + helloclub-dashboard)
+7. **Asks about CUPS** for local printing (optional)
+
+The script takes 5-10 minutes to complete.
+
+---
+
+## Step 6: Configure via Web Dashboard
+
+Start the dashboard service:
+
+```bash
+sudo systemctl start helloclub-dashboard
+```
+
+Get your Pi's IP address:
+
+```bash
+hostname -I
+```
+
+Open your web browser and navigate to: `http://[Pi-IP]:3000`
+
+**In the Config tab:**
+
+1. **Edit `.env`** (top editor):
+   - Add your Hello Club API key: `API_KEY=your_key_here`
+   - Add SMTP settings if using email printing
+   - Click **"Save .env"**
+
+2. **Edit `config.json`** (bottom editor):
+   - Update `"categories"` array with your event categories
+   - Adjust timing and print settings as needed
+   - Click **"Save config.json"**
+
+3. **Test connections:**
+   - Click **"Test API Connection"** to verify API key
+   - Click **"Test Email Connection"** to verify SMTP
+   - Click **"Test Print (CUPS)"** if using local printing
+
+4. **Start the main service:**
+
+   ```bash
+   sudo systemctl start helloclub
+   ```
+
+5. **Go to Dashboard tab** to monitor service status and view statistics!
+
 ---
 
 ## Printing Setup
@@ -207,13 +277,127 @@ lp -d MyPrinter /opt/helloclub/app/attendees.pdf
 
 ---
 
-## Next Steps
+## Verifying Installation
 
-Once Phase 1 is complete, proceed to `setup/pi-install-app.sh` to install Node.js, clone the repo, and configure systemd.
+After starting both services, verify everything is working:
 
-See the deployment checklist:
+```bash
+# Check service status
+sudo systemctl status helloclub
+sudo systemctl status helloclub-dashboard
 
-1. `npm test` passes on ARM64
-2. `node src/index.js fetch-events` confirms API connectivity
-3. systemd service starts/stops/restarts cleanly
-4. Web dashboard accessible at `http://helloclub-pi.local:3000`
+# View live logs
+journalctl -u helloclub -f
+
+# Test event fetching manually
+sudo -u helloclub bash -c 'cd /opt/helloclub/app && node src/index.js fetch-events'
+
+# Check database was created
+sudo -u helloclub ls -lh /opt/helloclub/app/events.db
+```
+
+**Access the web dashboard:** Open `http://[Pi-IP]:3000` in your browser
+
+**View logs in real-time:** Go to the "Logs" tab in the dashboard
+
+---
+
+## Troubleshooting
+
+### Dashboard Won't Start - "Permission Denied" on /usr/bin/node
+
+**Symptom:** `systemctl status helloclub-dashboard` shows exit code 203/EXEC
+
+**Cause:** Node.js was installed via nvm (user-specific) instead of system-wide
+
+**Fix:**
+
+```bash
+# Install Node.js system-wide
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Update service files to use /usr/bin/node
+sudo sed -i 's|/usr/local/bin/node|/usr/bin/node|g' /etc/systemd/system/helloclub-dashboard.service
+sudo sed -i 's|/usr/local/bin/node|/usr/bin/node|g' /etc/systemd/system/helloclub.service
+
+# Reload and restart
+sudo systemctl daemon-reload
+sudo systemctl restart helloclub-dashboard
+```
+
+### npm install Fails with "husky: not found"
+
+**Symptom:** `npm install` fails during prepare script
+
+**Fix:**
+
+```bash
+# Install with --ignore-scripts
+sudo -u helloclub bash -c 'cd /opt/helloclub/app && npm install --production --ignore-scripts'
+sudo -u helloclub bash -c 'cd /opt/helloclub/app && npm rebuild better-sqlite3'
+```
+
+### Can't Access Dashboard from Windows
+
+**Symptom:** Browser shows "This site can't be reached"
+
+**Fixes:**
+
+```bash
+# 1. Check firewall allows port 3000
+sudo ufw status
+sudo ufw allow 3000/tcp
+
+# 2. Verify dashboard is running
+sudo systemctl status helloclub-dashboard
+
+# 3. Check you're using the correct IP
+hostname -I
+
+# 4. Try accessing via IP instead of hostname
+# http://192.168.1.XX:3000 instead of http://helloclub-pi.local:3000
+```
+
+### Service Fails to Start - API_KEY Error
+
+**Symptom:** Service logs show "API_KEY is required"
+
+**Fix:**
+
+```bash
+# Edit .env file via dashboard (easier) or command line
+sudo -u helloclub nano /opt/helloclub/app/.env
+
+# Add your API key
+API_KEY=your_actual_api_key_here
+
+# Restart service
+sudo systemctl restart helloclub
+```
+
+### Permission Denied When Accessing /opt/helloclub/app
+
+**This is normal and expected!** The directory is owned by the `helloclub` service user for security.
+
+**To run commands:**
+
+```bash
+# Prefix with sudo -u helloclub
+sudo -u helloclub bash -c 'cd /opt/helloclub/app && node src/index.js fetch-events'
+```
+
+---
+
+## Additional Resources
+
+- [Main README](../README.md) - Project overview
+- [Configuration Guide](./CONFIGURATION.md) - Detailed config options
+- [API Documentation](./API.md) - Module reference
+- [Troubleshooting](./TROUBLESHOOTING.md) - Common issues
+
+---
+
+**Setup Complete!** 🎉
+
+Your Hello Club Event Attendance system is now running on Raspberry Pi. Access the dashboard at `http://[Pi-IP]:3000` to monitor events and configure settings.

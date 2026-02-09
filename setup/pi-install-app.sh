@@ -3,8 +3,8 @@
 # Raspberry Pi 5 Application Installation Script
 # Hello Club Event Attendance Auto-Print
 #
-# Run after pi-configure.sh. Installs Node.js via nvm, clones the repo,
-# installs dependencies, and configures systemd.
+# Run after pi-configure.sh. Installs Node.js system-wide via NodeSource,
+# clones the repo, installs dependencies, and configures systemd.
 # =============================================================================
 
 set -euo pipefail
@@ -43,32 +43,26 @@ if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
 fi
 
 # =============================================================================
-# Step 1: Install Node.js via nvm
+# Step 1: Install Node.js System-Wide
 # =============================================================================
-step "Step 1: Install Node.js v${NODE_VERSION} via nvm"
+step "Step 1: Install Node.js v${NODE_VERSION} System-Wide"
 
-# Install nvm
-export NVM_DIR="$HOME/.nvm"
-if [ ! -d "$NVM_DIR" ]; then
-    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-    ok "nvm installed"
+# Check if Node.js is already installed
+if command -v node &> /dev/null; then
+    CURRENT_VERSION=$(node --version)
+    warn "Node.js $CURRENT_VERSION already installed, skipping"
 else
-    warn "nvm already installed, skipping"
+    # Install Node.js from NodeSource repository (accessible to all users/services)
+    echo "Installing Node.js from NodeSource repository..."
+    curl -fsSL https://deb.nodesource.com/setup_${NODE_VERSION}.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+    ok "Node.js $(node --version) installed at /usr/bin/node"
 fi
 
-# Load nvm
-# shellcheck source=/dev/null
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-
-# Install Node.js
-nvm install "$NODE_VERSION"
-nvm alias default "$NODE_VERSION"
-ok "Node.js $(node --version) installed"
-
-# Make node available system-wide for systemd
-NODE_BIN=$(which node)
-sudo ln -sf "$NODE_BIN" /usr/local/bin/node
-ok "Symlinked node to /usr/local/bin/node"
+# Verify installation
+if [ ! -x "/usr/bin/node" ]; then
+    err "Node.js not found at /usr/bin/node - installation failed"
+fi
 
 # =============================================================================
 # Step 2: Clone Repository
