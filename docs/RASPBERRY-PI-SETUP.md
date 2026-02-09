@@ -302,6 +302,62 @@ sudo -u helloclub ls -lh /opt/helloclub/app/events.db
 
 ---
 
+## Upgrading to Latest Version
+
+To upgrade your Pi installation to the latest code from GitHub:
+
+```bash
+cd /opt/helloclub/app
+sudo bash setup/pi-upgrade.sh
+```
+
+**What the upgrade script does:**
+
+1. **Stops services** (helloclub + helloclub-dashboard)
+2. **Backs up configs** (.env, config.json, attendance.db) to `/opt/helloclub/backups/upgrade_TIMESTAMP/`
+3. **Pulls latest code** from GitHub (git reset --hard origin/main)
+4. **Updates dependencies** (npm install + rebuild)
+5. **Restores your configs** (preserves your settings)
+6. **Updates systemd services** (if service files changed)
+7. **Restarts services**
+
+The entire process takes ~2 minutes. Your configuration is automatically preserved.
+
+**To check what version you're running:**
+
+```bash
+cd /opt/helloclub/app
+git log -1 --oneline
+```
+
+**Manual upgrade (if script fails):**
+
+```bash
+# Stop services
+sudo systemctl stop helloclub helloclub-dashboard
+
+# Backup configs
+cp /opt/helloclub/app/.env ~/env-backup
+cp /opt/helloclub/app/config.json ~/config-backup
+
+# Pull latest code
+cd /opt/helloclub/app
+sudo -u helloclub git pull origin main
+
+# Update dependencies
+sudo -u helloclub npm install --production --ignore-scripts
+sudo -u helloclub npm rebuild better-sqlite3
+
+# Restore configs
+sudo -u helloclub cp ~/env-backup /opt/helloclub/app/.env
+sudo -u helloclub cp ~/config-backup /opt/helloclub/app/config.json
+
+# Restart services
+sudo systemctl start helloclub helloclub-dashboard
+```
+
+---
+
 ## Troubleshooting
 
 ### Dashboard Won't Start - "Permission Denied" on /usr/bin/node

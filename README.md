@@ -123,6 +123,15 @@ The application uses a smart two-stage process:
 - Test API and Email connections
 - Control the service (start/stop/restart)
 
+**To upgrade to the latest version:**
+
+```bash
+cd /opt/helloclub/app
+sudo bash setup/pi-upgrade.sh
+```
+
+The upgrade script automatically pulls the latest code, preserves your settings, and restarts services. See the [Raspberry Pi Setup Guide](./docs/RASPBERRY-PI-SETUP.md#upgrading-to-latest-version) for details.
+
 ### For Developers
 
 If you want to run from source or contribute:
