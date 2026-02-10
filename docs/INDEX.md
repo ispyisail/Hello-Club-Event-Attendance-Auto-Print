@@ -9,12 +9,13 @@ Complete documentation for the Hello Club Event Attendance Auto-Print system.
 **New to the project?** Start here:
 
 1. **[README.md](../README.md)** - Project overview and quick start
-2. **Choose your platform:**
-   - **Raspberry Pi** → [RASPBERRY-PI-SETUP.md](./RASPBERRY-PI-SETUP.md) → [DEPLOYMENT.md](./DEPLOYMENT.md)
-   - **Windows** → [INSTALLER-USER-GUIDE.md](./INSTALLER-USER-GUIDE.md) or [WINDOWS-SERVICE-SETUP.md](./WINDOWS-SERVICE-SETUP.md)
-3. **[CONFIGURATION.md](./CONFIGURATION.md)** - Configure the application
-4. **[WEB-DASHBOARD.md](./WEB-DASHBOARD.md)** - Use the web dashboard
-5. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Fix common issues
+2. **[RASPBERRY-PI-SETUP.md](./RASPBERRY-PI-SETUP.md)** - ⭐ **Recommended:** Complete Raspberry Pi setup guide
+3. **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Production deployment instructions
+4. **[CONFIGURATION.md](./CONFIGURATION.md)** - Configure the application
+5. **[WEB-DASHBOARD.md](./WEB-DASHBOARD.md)** - Use the web dashboard
+6. **[TROUBLESHOOTING.md](./TROUBLESHOOTING.md)** - Fix common issues
+
+> **💡 Platform Note:** This project is optimized for **Raspberry Pi 5** with systemd service management. Windows deployment is no longer recommended but remains supported via legacy documentation (see [Legacy Documentation](#-legacy-documentation) below).
 
 ---
 
@@ -22,19 +23,17 @@ Complete documentation for the Hello Club Event Attendance Auto-Print system.
 
 ### Installation & Setup
 
-| Document                                         | Description                                 | Audience                 |
-| ------------------------------------------------ | ------------------------------------------- | ------------------------ |
-| [RASPBERRY-PI-SETUP.md](./RASPBERRY-PI-SETUP.md) | Complete Raspberry Pi setup from scratch    | Admins (Raspberry Pi) ⭐ |
-| [DEPLOYMENT.md](./DEPLOYMENT.md)                 | Production deployment guide (all platforms) | DevOps/Admins            |
-| [legacy/](./legacy/)                             | Windows-specific documentation (archived)   | Legacy Windows users     |
+| Document                                         | Description                              | Platform        |
+| ------------------------------------------------ | ---------------------------------------- | --------------- |
+| [RASPBERRY-PI-SETUP.md](./RASPBERRY-PI-SETUP.md) | Complete Raspberry Pi setup from scratch | Raspberry Pi ⭐ |
+| [DEPLOYMENT.md](./DEPLOYMENT.md)                 | Production deployment guide              | All platforms   |
 
 ### Configuration & Usage
 
-| Document                                 | Description                           | Audience      |
-| ---------------------------------------- | ------------------------------------- | ------------- |
-| [CONFIGURATION.md](./CONFIGURATION.md)   | Detailed configuration reference      | All users     |
-| [WEB-DASHBOARD.md](./WEB-DASHBOARD.md)   | Web dashboard guide and API reference | All users     |
-| [TRAY-APP-GUIDE.md](./TRAY-APP-GUIDE.md) | Windows system tray application guide | Windows users |
+| Document                               | Description                           | Audience  |
+| -------------------------------------- | ------------------------------------- | --------- |
+| [CONFIGURATION.md](./CONFIGURATION.md) | Detailed configuration reference      | All users |
+| [WEB-DASHBOARD.md](./WEB-DASHBOARD.md) | Web dashboard guide and API reference | All users |
 
 ### Support
 
@@ -60,11 +59,10 @@ Complete documentation for the Hello Club Event Attendance Auto-Print system.
 | [DEVELOPMENT.md](./DEVELOPMENT.md)     | Developer setup and contribution guide | Contributing to project |
 | [TESTING-GUIDE.md](./TESTING-GUIDE.md) | Testing strategy and guidelines        | Writing tests           |
 
-### Build & Release
+### Release Process
 
 | Document                                   | Description                   | Purpose             |
 | ------------------------------------------ | ----------------------------- | ------------------- |
-| [BUILD-INSTALLER.md](./BUILD-INSTALLER.md) | Building Windows installers   | Creating releases   |
 | [RELEASE-PROCESS.md](./RELEASE-PROCESS.md) | Release checklist and process | Publishing releases |
 
 ---
@@ -106,8 +104,8 @@ Complete documentation for the Hello Club Event Attendance Auto-Print system.
 ### Service & Scheduling
 
 - [service-patterns.md](../.claude/rules/service-patterns.md) - Scheduling patterns
-- [WINDOWS-SERVICE-SETUP.md](./WINDOWS-SERVICE-SETUP.md) - Windows service
 - [DEPLOYMENT.md](./DEPLOYMENT.md) - systemd service (Linux)
+- [RASPBERRY-PI-SETUP.md](./RASPBERRY-PI-SETUP.md) - Service configuration
 
 ### PDF Generation & Printing
 
@@ -131,15 +129,9 @@ Complete documentation for the Hello Club Event Attendance Auto-Print system.
 
 ## 🎯 Documentation by Role
 
-### End Users (Non-Technical)
+### End Users (Raspberry Pi)
 
-**Windows Users:**
-
-1. [INSTALLER-USER-GUIDE.md](./INSTALLER-USER-GUIDE.md) - Installation
-2. [TRAY-APP-GUIDE.md](./TRAY-APP-GUIDE.md) - Using tray app
-3. [TROUBLESHOOTING.md](./TROUBLESHOOTING.md) - Fixing issues
-
-**Raspberry Pi Users:**
+**Recommended for new deployments:**
 
 1. [RASPBERRY-PI-SETUP.md](./RASPBERRY-PI-SETUP.md) - Hardware setup
 2. [WEB-DASHBOARD.md](./WEB-DASHBOARD.md) - Using dashboard
@@ -148,7 +140,7 @@ Complete documentation for the Hello Club Event Attendance Auto-Print system.
 
 ### System Administrators
 
-**All Platforms:**
+**Production Deployment:**
 
 1. [DEPLOYMENT.md](./DEPLOYMENT.md) - Production deployment
 2. [CONFIGURATION.md](./CONFIGURATION.md) - Configuration reference
@@ -157,13 +149,8 @@ Complete documentation for the Hello Club Event Attendance Auto-Print system.
 
 **Raspberry Pi Specific:**
 
-- [RASPBERRY-PI-SETUP.md](./RASPBERRY-PI-SETUP.md) - System setup
+- [RASPBERRY-PI-SETUP.md](./RASPBERRY-PI-SETUP.md) - System setup and hardening
 - [DEPLOYMENT.md](./DEPLOYMENT.md#raspberry-pi-5-deployment-recommended) - systemd service
-
-**Windows Specific:**
-
-- [WINDOWS-SERVICE-SETUP.md](./WINDOWS-SERVICE-SETUP.md) - Windows service
-- [BUILD-INSTALLER.md](./BUILD-INSTALLER.md) - Creating installers
 
 ### Developers & Contributors
 
@@ -184,8 +171,7 @@ Complete documentation for the Hello Club Event Attendance Auto-Print system.
 **Releasing:**
 
 1. [TESTING-GUIDE.md](./TESTING-GUIDE.md) - Run full test suite
-2. [BUILD-INSTALLER.md](./BUILD-INSTALLER.md) - Build installers
-3. [RELEASE-PROCESS.md](./RELEASE-PROCESS.md) - Release checklist
+2. [RELEASE-PROCESS.md](./RELEASE-PROCESS.md) - Release checklist
 
 ---
 
@@ -234,6 +220,32 @@ find . -name "*keyword*.md"
 
 ---
 
+## 🗂️ Legacy Documentation
+
+**Windows Platform Support (Archived)**
+
+Previous versions (v1.0.x) supported Windows as the primary platform using node-windows service wrapper and Electron tray application. Starting with v2.0, the project has migrated to Raspberry Pi with systemd service management and web dashboard.
+
+Windows deployment is **no longer recommended** but remains supported via manual installation. All Windows-specific documentation has been archived in the `legacy/` folder.
+
+### Legacy Windows Documentation
+
+| Document                                                             | Description                              | Status   |
+| -------------------------------------------------------------------- | ---------------------------------------- | -------- |
+| [legacy/WINDOWS-SERVICE-SETUP.md](./legacy/WINDOWS-SERVICE-SETUP.md) | Windows service installation             | Archived |
+| [legacy/TRAY-APP-GUIDE.md](./legacy/TRAY-APP-GUIDE.md)               | Windows system tray application guide    | Archived |
+| [legacy/INSTALLER-USER-GUIDE.md](./legacy/INSTALLER-USER-GUIDE.md)   | Windows installer user guide             | Archived |
+| [legacy/BUILD-INSTALLER.md](./legacy/BUILD-INSTALLER.md)             | Building Windows installers (Inno Setup) | Archived |
+| [legacy/README.md](./legacy/README.md)                               | Overview of legacy Windows platform      | Archived |
+
+**Note for Windows Users:**
+
+- If you're currently running on Windows (v1.0.x), you can continue to use it with the legacy documentation
+- For new deployments, we strongly recommend Raspberry Pi for better reliability, lower cost, and 24/7 operation
+- Migration guide from Windows to Raspberry Pi: See [RASPBERRY-PI-SETUP.md](./RASPBERRY-PI-SETUP.md)
+
+---
+
 ## 📋 Documentation Standards
 
 ### File Organization
@@ -241,8 +253,11 @@ find . -name "*keyword*.md"
 ```
 docs/                      # User and admin documentation
   ├── INDEX.md            # This file
-  ├── *.md                # Topic-specific guides
-  └── ...
+  ├── *.md                # Topic-specific guides (current platform)
+  ├── legacy/             # Archived Windows documentation
+  │   ├── README.md
+  │   └── *.md
+  └── releases/           # Release notes
 
 .claude/rules/             # Code patterns and guidelines
   ├── code-style.md       # General coding standards
@@ -314,6 +329,8 @@ Found a gap in documentation? Please contribute!
 
 ---
 
-**Last Updated:** 2025-02-09
+**Last Updated:** 2025-02-10
 
-**Documentation Version:** 1.1.0 (matches application version)
+**Documentation Version:** 2.0.0 (Raspberry Pi focused)
+
+**Primary Platform:** Raspberry Pi 5 with Raspberry Pi OS Lite 64-bit

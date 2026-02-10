@@ -175,12 +175,15 @@ npm install
 
 This installs all required packages including:
 
-- `node-windows` - Windows service management
-- `electron` - System tray application
 - `better-sqlite3` - Local database
 - `pdfkit` - PDF generation
 - `winston` - Logging
+- `express` - Web dashboard
+- `axios` - API client
+- `nodemailer` - Email service
 - And more...
+
+**Note:** Some dependencies (`node-windows`, `electron`) are legacy Windows-only packages not needed for Raspberry Pi deployment.
 
 #### 3. Configure the Application
 
@@ -257,75 +260,39 @@ Or use the Pi's IP address: `http://192.168.1.XX:3000`
 
 Login with the credentials from your `.env` file.
 
-### Using the Installer (Recommended for End Users)
+### Legacy Windows Installation
 
-The installer provides a professional, guided setup experience with a modern wizard:
+> **⚠️ Note:** Windows deployment is no longer recommended. For new deployments, use Raspberry Pi 5 (see above).
 
-#### What You Get:
+**For Existing Windows Users (v1.0.x):**
 
-**🎨 Modern Setup Wizard:**
+If you're currently running on Windows, you can continue using it with manual installation:
 
-- Friendly welcome screen with prerequisites checklist
-- Node.js detection and guidance
-- Step-by-step API configuration with helpful hints
-- Optional email printing setup with Gmail-specific tips
-- Smart validation (checks API key format)
-- Real-time progress with emoji indicators
-- **No admin required** for standard installation
+1. Clone repository: `git clone https://github.com/ispyisail/Hello-Club-Event-Attendance-Auto-Print.git`
+2. Install dependencies: `npm install`
+3. Create `.env` file with your credentials
+4. Run: `node src/index.js start-service`
 
-**⚙️ Automatic Setup:**
+**Windows-specific documentation:**
 
-1. Installs all files to `%LOCALAPPDATA%\Hello Club Event Attendance` (your user folder)
-2. Runs `npm install` for you (3-5 minutes)
-3. Creates `.env` file from your input
-4. **Optionally** installs and starts the Windows service (requires admin, unchecked by default)
-5. Creates Start Menu and Desktop shortcuts
-6. Launches the tray monitor
+- [Windows Service Setup](./docs/legacy/WINDOWS-SERVICE-SETUP.md)
+- [Tray App Guide](./docs/legacy/TRAY-APP-GUIDE.md)
+- [Installer User Guide](./docs/legacy/INSTALLER-USER-GUIDE.md)
+- [Build Installer](./docs/legacy/BUILD-INSTALLER.md)
 
-**📦 What's Included:**
+**Migration to Raspberry Pi:**
 
-- System tray monitor (always included)
-- Windows service (optional, requires admin)
-- All dependencies
-- Complete documentation
-- Automatic updates support
+We recommend migrating to Raspberry Pi for:
 
-**🔑 Installation Modes:**
+- ✅ Lower power consumption (~10W vs 100W+)
+- ✅ Silent 24/7 operation
+- ✅ Better reliability for always-on service
+- ✅ Lower cost (~$80 total)
+- ✅ Remote management via web dashboard
 
-- **Standard (No Admin)**: Tray monitor runs when you're logged in
-- **With Service (Admin)**: Background operation even when logged out
-
-#### To Build Your Own Installer:
-
-```bash
-cd installer
-build-installer.bat
-```
-
-The installer will be created in `dist/HelloClubEventAttendance-Setup-1.1.0.exe` (2MB)
-
-### Upgrading from Previous Versions
-
-**If you installed version 1.0.x or earlier:**
-
-Previous versions installed to `C:\Program Files\Hello Club Event Attendance` and required administrator rights. Starting with version 1.1.0:
-
-- **New installations** use `%LOCALAPPDATA%\Hello Club Event Attendance` (no admin needed)
-- **Existing installations** continue to work from their current location
-- **To migrate**:
-  1. Uninstall the old version (keeps your .env and config.json)
-  2. Install the new version
-  3. Copy your .env and config.json from the old location if needed
-
-Your data and configuration are preserved during upgrades.
+See [RASPBERRY-PI-SETUP.md](./docs/RASPBERRY-PI-SETUP.md) for migration guide.
 
 ## ⚙️ Configuration
-
-### Easy Configuration Options
-
-**For End Users:** Use the **Settings GUI** in the tray app - no file editing needed!
-
-**For Developers:** Edit configuration files manually or use the Settings GUI.
 
 ### Configuration Files
 
@@ -334,7 +301,11 @@ The application uses two configuration files:
 1. **`.env`** - Secrets and credentials (never commit this! Already in .gitignore)
 2. **`config.json`** - Application settings (safe to commit - no secrets)
 
-**Note:** When using the installer, it creates your `.env` file during setup. The Settings GUI allows you to edit both files safely with automatic backups.
+**Configuration Options:**
+
+- **Web Dashboard:** Edit configuration via the dashboard's Settings page (recommended)
+- **Manual Editing:** Edit `.env` and `config.json` files directly
+- **Automatic Backups:** Dashboard creates backups before saving changes
 
 ### Environment Variables (`.env`)
 
@@ -418,36 +389,36 @@ The web dashboard provides comprehensive remote management:
 - 🔴 **Stopped** - Service not running
 - 🟡 **Starting** - Service initialization in progress
 
-### New Features Guide
+### Dashboard Features
 
-**⚙️ Settings GUI:**
-After installation, you can edit all configuration without touching files:
+**⚙️ Configuration Editor:**
+Edit all settings via the web dashboard without touching files:
 
-1. Right-click tray icon → **Settings**
-2. **Environment Variables Tab:**
+1. Access dashboard → **Configuration** tab
+2. **Environment Variables Section:**
    - Edit API key and SMTP credentials
    - Password fields with show/hide toggle
    - Real-time validation
-3. **Configuration Tab:**
+3. **Application Settings Section:**
    - Manage event categories (add/remove)
    - Adjust timing settings
    - Change print mode (local/email)
    - Edit PDF layout
-4. Click **Save** - automatic backups created
-5. Restart service to apply changes
+4. Click **Save** - automatic backups created before changes
+5. Restart service to apply changes (via dashboard Service Control)
 
 **🔌 Connection Tests:**
-Verify your configuration before processing events:
+Verify your configuration via the dashboard:
 
 - **Test API Connection:**
-  - Click to test Hello Club API
+  - One-click test of Hello Club API
   - Shows response time and success/failure
   - Validates API key format
   - Provides troubleshooting hints
 
 - **Test Email Connection:**
-  - Click to verify SMTP settings
-  - Tests connection without sending email
+  - Verify SMTP settings without sending email
+  - Tests connection to SMTP server
   - Detects common Gmail/authentication issues
   - Confirms printer email is configured
 
@@ -507,23 +478,29 @@ View logs via:
 
 ## 📚 Documentation
 
+> **📖 Complete Documentation Index:** See [docs/INDEX.md](./docs/INDEX.md) for organized documentation by role and topic.
+
 ### User Guides
 
-| Document                                                  | Description                           |
-| --------------------------------------------------------- | ------------------------------------- |
-| [CONFIGURATION.md](./docs/CONFIGURATION.md)               | Detailed configuration guide          |
-| [INSTALLER-USER-GUIDE.md](./docs/INSTALLER-USER-GUIDE.md) | Installer creation guide              |
-| [TRAY-APP-GUIDE.md](./docs/TRAY-APP-GUIDE.md)             | System tray application guide         |
-| [WEB-DASHBOARD.md](./docs/WEB-DASHBOARD.md)               | Web dashboard usage and API reference |
-| [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md)           | Common issues and solutions           |
+| Document                                        | Description                           |
+| ----------------------------------------------- | ------------------------------------- |
+| [CONFIGURATION.md](./docs/CONFIGURATION.md)     | Detailed configuration guide          |
+| [WEB-DASHBOARD.md](./docs/WEB-DASHBOARD.md)     | Web dashboard usage and API reference |
+| [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | Common issues and solutions           |
 
 ### Deployment Guides
 
-| Document                                              | Description                                  |
-| ----------------------------------------------------- | -------------------------------------------- |
-| [DEPLOYMENT.md](./docs/DEPLOYMENT.md)                 | Complete deployment guide (Pi/Windows/Linux) |
-| [RASPBERRY-PI-SETUP.md](./docs/RASPBERRY-PI-SETUP.md) | Raspberry Pi 5 setup and hardening           |
-| [legacy/](./docs/legacy/)                             | Archived Windows documentation               |
+| Document                                              | Description                        |
+| ----------------------------------------------------- | ---------------------------------- |
+| [RASPBERRY-PI-SETUP.md](./docs/RASPBERRY-PI-SETUP.md) | Raspberry Pi 5 setup and hardening |
+| [DEPLOYMENT.md](./docs/DEPLOYMENT.md)                 | Production deployment guide        |
+
+### Legacy Documentation
+
+| Document                                    | Description                    |
+| ------------------------------------------- | ------------------------------ |
+| [legacy/](./docs/legacy/)                   | Archived Windows documentation |
+| [legacy/README.md](./docs/legacy/README.md) | Windows platform overview      |
 
 ### Developer Documentation
 
@@ -705,9 +682,11 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 🙏 Acknowledgments
 
 - [Hello Club](https://helloclub.com/) for the excellent event management platform
-- [node-windows](https://github.com/coreybutler/node-windows) for Windows service integration
-- [Electron](https://www.electronjs.org/) for the system tray application
+- [Raspberry Pi Foundation](https://www.raspberrypi.org/) for affordable, reliable hardware
+- [Node.js](https://nodejs.org/) and the open-source community
 - [PDFKit](https://pdfkit.org/) for PDF generation
+- [Express](https://expressjs.com/) for the web dashboard
+- Legacy Windows support: [node-windows](https://github.com/coreybutler/node-windows), [Electron](https://www.electronjs.org/)
 
 ## 📞 Support
 

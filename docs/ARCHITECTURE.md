@@ -15,15 +15,24 @@
 
 ## Overview
 
-Hello Club Event Attendance Auto-Print is built as a multi-process Windows application following the **Service-Oriented Architecture** pattern. The system consists of three main components that work together to provide automated event attendance tracking.
+Hello Club Event Attendance Auto-Print is built as a **headless Linux service** optimized for Raspberry Pi 5, following the **Service-Oriented Architecture** pattern. The system runs 24/7 as a systemd service with a modern web dashboard for remote monitoring and control.
 
 ### Architecture Principles
 
 1. **Separation of Concerns** - Each component has a single, well-defined responsibility
-2. **Process Isolation** - Services run independently to prevent cascading failures
-3. **Event-Driven Design** - Components react to events and scheduled triggers
-4. **Fail-Safe Operation** - Services automatically restart on failure
-5. **User-Friendly Monitoring** - Visual feedback through system tray interface
+2. **Service-Based Design** - Runs as systemd service for reliability and automatic recovery
+3. **Event-Driven Operation** - Components react to scheduled events and triggers
+4. **Self-Healing** - Automatic restart on failure via systemd
+5. **Remote Management** - Web dashboard for monitoring without direct system access
+6. **Production-Ready** - Battle-tested on Raspberry Pi 5 with security hardening
+
+### Platform Focus
+
+**Primary Platform:** Raspberry Pi 5 with Raspberry Pi OS Lite 64-bit
+
+**Also Supported:** Ubuntu/Debian Linux servers, Docker containers
+
+**Legacy Support:** Windows documentation available in [`docs/legacy/`](./legacy/)
 
 ## System Architecture
 
@@ -32,22 +41,44 @@ Hello Club Event Attendance Auto-Print is built as a multi-process Windows appli
 │                         User Layer                              │
 │                                                                 │
 │  ┌──────────────────┐          ┌──────────────────────┐        │
-│  │  System Tray     │          │   Log Viewer         │        │
-│  │  (Electron UI)   │◄─────────┤   (HTML Window)      │        │
+│  │  Web Browser     │          │   Mobile Device      │        │
+│  │  (Any Device)    │◄─────────┤   (Tablet/Phone)     │        │
 │  └────────┬─────────┘          └──────────────────────┘        │
-│           │                                                     │
+│           │ HTTP/WebSocket                                      │
 └───────────┼─────────────────────────────────────────────────────┘
-            │ IPC / Windows Services API
+            │ Port 3000
             │
 ┌───────────▼─────────────────────────────────────────────────────┐
-│                      Service Layer                              │
+│                      Web Dashboard                              │
+│                   (Express + WebSocket)                         │
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │  Windows Service (node-windows)                          │  │
+│  │  • Real-time log streaming                                │  │
+│  │  • Service control (start/stop/restart via sudo)         │  │
+│  │  • Configuration editor (.env, config.json)              │  │
+│  │  • Connection tests (API, Email, Printer)                │  │
+│  │  • Statistics dashboard                                   │  │
+│  │  • Backup management                                      │  │
+│  └──────────────────────────────────────────────────────────┘  │
+└────────────────────┬────────────────────────────────────────────┘
+                     │ IPC / systemctl commands
+                     │
+┌────────────────────▼────────────────────────────────────────────┐
+│                   systemd Service Layer                         │
+│                  (helloclub.service)                            │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────────┐  │
+│  │  Node.js Background Service                              │  │
 │  │  ┌────────────┐  ┌────────────┐  ┌────────────┐         │  │
 │  │  │ Scheduler  │  │  Event     │  │  Processor │         │  │
 │  │  │  Loop      │─►│  Queue     │─►│   Jobs     │         │  │
 │  │  └────────────┘  └────────────┘  └────────────┘         │  │
+│  │                                                           │  │
+│  │  Features:                                                │  │
+│  │  • Automatic restart on failure                          │  │
+│  │  • Memory & CPU limits                                   │  │
+│  │  • Security sandboxing (ProtectSystem, PrivateTmp)       │  │
+│  │  • Journal logging integration                           │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │           │                    │                    │           │
 └───────────┼────────────────────┼────────────────────┼───────────┘
@@ -67,125 +98,206 @@ Hello Club Event Attendance Auto-Print is built as a multi-process Windows appli
 ┌───────────▼────────────────────────────────▼───────────────────┐
 │                    External Services                            │
 │                                                                 │
-│  ┌──────────────┐         ┌──────────────┐                    │
-│  │  Hello Club  │         │    Printer   │                    │
-│  │     API      │         │   (Local/    │                    │
-│  │              │         │    Email)    │                    │
-│  └──────────────┘         └──────────────┘                    │
+│  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐    │
+│  │  Hello Club  │    │    CUPS      │    │     SMTP     │    │
+│  │     API      │    │  (Local      │    │   (Email     │    │
+│  │              │    │   Print)     │    │    Print)    │    │
+│  └──────────────┘    └──────────────┘    └──────────────┘    │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ## Component Design
 
-### 1. Windows Service (Background Daemon)
+### 1. systemd Service (Background Daemon)
 
-**Location**: `src/` + `service/`
+**Location**: `src/` managed by `/etc/systemd/system/helloclub.service`
 
-**Purpose**: Continuous background process that handles all event automation
+**Purpose**: Always-running background process that handles all event automation
 
 **Key Responsibilities**:
+
 - Periodically fetch upcoming events from Hello Club API
 - Schedule event processing based on start times
 - Execute print jobs at the right moment
-- Maintain event queue in local database
-- Log all operations
+- Maintain event queue in SQLite database
+- Log all operations to activity.log and error.log
+- Write health check file for monitoring
 
 **Technology Stack**:
-- **Runtime**: Node.js process wrapped by node-windows
-- **Process Management**: Windows Service Control Manager
-- **Scheduling**: JavaScript setTimeout/setInterval
-- **Persistence**: better-sqlite3
+
+- **Runtime**: Node.js 18+ process
+- **Process Management**: systemd (System and Service Manager)
+- **Scheduling**: JavaScript setTimeout with in-memory job Map
+- **Persistence**: better-sqlite3 (synchronous SQLite)
 
 **Lifecycle**:
+
 ```
-[Boot] → [Service Start] → [Initialize DB] → [Load Config] →
-[Scheduler Loop] → [Fetch Events] → [Schedule Jobs] →
-[Process Events] → [Repeat]
+[System Boot] → [systemd starts service] → [Initialize DB] → [Load Config] →
+[Restore scheduled jobs] → [Scheduler Loop] → [Fetch Events] →
+[Schedule Jobs] → [Process Events] → [Repeat every N hours]
 ```
 
 **Auto-Recovery**:
-- Configured to restart automatically on crash
-- Maximum 10 restarts with exponential backoff
-- All state persisted in SQLite for recovery
 
-### 2. System Tray Application (User Interface)
+- systemd configured with `Restart=always`
+- `RestartSec=10` provides 10-second cooldown between restarts
+- All state persisted in SQLite and scheduled_jobs table
+- On restart, scheduled jobs are restored from database
+- Exponential backoff retry for failed events (3 attempts)
 
-**Location**: `tray-app/`
+**Resource Limits** (configured in service file):
 
-**Purpose**: Visual monitoring and control interface
+```ini
+MemoryMax=512M        # Prevents memory leaks from consuming system
+CPUQuota=50%          # Limits CPU usage
+```
+
+**Security Hardening**:
+
+```ini
+NoNewPrivileges=true  # Prevents privilege escalation
+PrivateTmp=true       # Isolated /tmp directory
+ProtectSystem=strict  # Read-only system directories
+ProtectHome=true      # No access to user home directories
+ReadWritePaths=/opt/helloclub/app  # Only write to app directory
+```
+
+### 2. Web Dashboard (Management Interface)
+
+**Location**: `web-dashboard/`
+
+**Purpose**: Remote monitoring and control interface accessible from any device
 
 **Key Responsibilities**:
-- Display service status via color-coded icon
-- Provide service control (start/stop/restart)
-- Show log viewer window
-- Send desktop notifications
-- Monitor service health
+
+- Display real-time service status
+- Stream live logs via WebSocket
+- Provide service control (start/stop/restart via sudo)
+- Edit configuration files with backup support
+- Test API, Email, and Printer connectivity
+- Display statistics and trends
+- Manage configuration backups
 
 **Technology Stack**:
-- **Framework**: Electron (Chromium + Node.js)
-- **UI**: HTML5 + JavaScript
-- **Process Communication**: Windows command execution (sc query, net start/stop)
-- **Notifications**: Electron Notification API
+
+- **Backend**: Express.js with WebSocket server
+- **Frontend**: Vanilla JavaScript (no framework dependencies)
+- **Real-time**: WebSocket for log streaming
+- **Authentication**: Session-based with bcrypt
+- **Process Control**: Executes `systemctl` commands via sudo
 
 **UI Components**:
 
 ```
-System Tray Icon
-├── Status Indicator (Color)
-│   ├── Green: Running
-│   ├── Red: Stopped/Error
-│   └── Yellow: Starting/Warning
+Dashboard Home
+├── Service Status Card
+│   ├── Status: Running/Stopped/Starting
+│   ├── Uptime display
+│   └── Quick actions (Start/Stop/Restart)
 │
-└── Context Menu
-    ├── Status Display
-    ├── View Logs → Opens Log Viewer Window
-    ├── Service Controls
-    │   ├── Start Service
-    │   ├── Stop Service
-    │   └── Restart Service
-    ├── Utilities
-    │   ├── Check Status Now
-    │   ├── Open Services Manager
-    │   └── Open Project Folder
-    └── Quit
+├── Statistics Card
+│   ├── Events processed today/week/month
+│   ├── Success rate
+│   └── Scheduled events count
+│
+├── Live Logs Panel
+│   ├── Real-time WebSocket streaming
+│   ├── Auto-scroll toggle
+│   ├── Tab: Activity Log / Error Log
+│   └── Refresh button
+│
+├── Configuration Editor
+│   ├── Tab: Environment Variables (.env)
+│   ├── Tab: Application Settings (config.json)
+│   ├── Validation before save
+│   └── Automatic backup creation
+│
+└── Connection Tests
+    ├── Test API Connection
+    ├── Test Email Connection
+    └── Test Printer Connection
 ```
 
-**Log Viewer Window**:
-```html
-┌─────────────────────────────────────────┐
-│  Hello Club Service - Log Viewer       │
-├─────────────────────────────────────────┤
-│  [Activity Log] [Error Log]   [Refresh]│
-├─────────────────────────────────────────┤
-│  2024-12-20 10:30:00 info: Service...  │
-│  2024-12-20 10:35:00 info: Found 3...  │
-│  2024-12-20 10:40:00 info: Event...    │
-│  ...                                    │
-│                                         │
-└─────────────────────────────────────────┘
-```
+**Security Features**:
 
-### 3. Installer (Deployment Package)
+- Authentication required for all operations
+- Session timeout (24 hours)
+- Sudo access limited to specific systemctl commands
+- No plaintext password storage
+- Input validation and sanitization
+- CSRF protection
 
-**Location**: `installer/`
+### 3. Core Processing Engine
 
-**Purpose**: One-click installation wizard
+**Location**: `src/core/`
 
-**Technology Stack**:
-- **Installer**: Inno Setup 6.x
-- **Scripts**: Batch files for automation
+**Purpose**: Business logic for event processing and PDF generation
 
-**Installation Steps**:
-1. Check for Node.js
-2. Copy files to Program Files
-3. Install npm dependencies
-4. Prompt for API key configuration
-5. Create `.env` file
-6. Install Windows Service
-7. Start service
-8. Add tray app to startup
-9. Create shortcuts
+**Modules**:
+
+**`api-client.js`**:
+
+- Axios-based HTTP client with retry logic
+- Caching with stale fallback for graceful degradation
+- Rate limiting (1-second delay between paginated requests)
+- Error handling with context-specific messages
+
+**`database.js`**:
+
+- Singleton pattern for SQLite connection management
+- WAL (Write-Ahead Logging) mode for better concurrency
+- Foreign keys enabled
+- Prepared statements for SQL injection prevention
+
+**`functions.js`**:
+
+- Event processing orchestration
+- PDF generation coordination
+- Print job execution (local or email)
+- Error handling and retry logic
+
+**`service.js`**:
+
+- Scheduler loop implementation
+- Job persistence for crash recovery
+- Exponential backoff retry pattern
+- Health check file writing
+- Heartbeat logging
+
+### 4. Supporting Services
+
+**Location**: `src/services/`
+
+**`pdf-generator.js`**:
+
+- PDFKit-based PDF document generation
+- Configurable layouts (columns, fonts, logos)
+- Table generation with alternating row colors
+- Header and footer support
+
+**`email-service.js`**:
+
+- Nodemailer SMTP client
+- Email printing mode support
+- Attachment handling
+- Error recovery
+
+**`logger.js`**:
+
+- Winston-based logging
+- Separate activity and error logs
+- Log rotation support
+- Structured JSON logging
+- Console and file transports
+
+**`cups-printer.js`** (Raspberry Pi):
+
+- CUPS (Common Unix Printing System) integration
+- Uses `lp` command for local printing
+- Printer availability checking
+- Print queue management
 
 ## Data Flow
 
@@ -228,13 +340,15 @@ System Tray Icon
                    ▼
     ┌──────────────────────────────┐
     │  Calculate Processing Time   │
-    │  (startDate - N minutes)     │
+    │  (startTime - N minutes)     │
     └──────────────┬───────────────┘
                    │
                    ▼
     ┌──────────────────────────────┐
-    │  setTimeout(() => process()  │
-    │         delay: minutes       │
+    │  setTimeout(() => process(), │
+    │         delayMs)              │
+    │  Store in scheduledJobs Map  │
+    │  Persist to scheduled_jobs   │
     └──────────────┬───────────────┘
                    │
 ┌──────────────────▼──────────────────────────────────────────┐
@@ -255,33 +369,62 @@ System Tray Icon
                    │
                    ▼
     ┌──────────────────────────────┐
-    │  Generate PDF                │
-    │  (PDFKit)                    │
+    │  Generate PDF (PDFKit)       │
+    │  Save to file system         │
     └──────────────┬───────────────┘
                    │
                    ▼
     ┌──────────────────────────────┐
     │  Print PDF                   │
-    │  (Local or Email)            │
+    │  • CUPS (lp command)         │
+    │  • Email (Nodemailer)        │
     └──────────────┬───────────────┘
                    │
                    ▼
     ┌──────────────────────────────┐
     │  UPDATE events               │
     │  SET status='processed'      │
+    │  Write to health check file  │
     └──────────────────────────────┘
 ```
 
 ### Print Modes
 
-#### Local Printing
+#### Local Printing (CUPS)
+
 ```
-PDF File → pdf-to-printer → SumatraPDF → Windows Print Spooler → Physical Printer
+PDF File → lp command → CUPS → USB/Network Printer
 ```
 
-#### Email Printing
+**Configuration**:
+
+```json
+{
+  "printMode": "local",
+  "printerName": "Brother_HL_L2350DW"
+}
+```
+
+**Command executed**:
+
+```bash
+lp -d Brother_HL_L2350DW -o fit-to-page attendees.pdf
+```
+
+#### Email Printing (SMTP)
+
 ```
 PDF File → Nodemailer → SMTP Server → Printer Email Address → Network Printer
+```
+
+**Configuration**:
+
+```env
+PRINTER_EMAIL=printer@yourdomain.com
+SMTP_USER=your_email@gmail.com
+SMTP_PASS=your_app_password
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
 ```
 
 ## Database Schema
@@ -290,258 +433,520 @@ PDF File → Nodemailer → SMTP Server → Printer Email Address → Network Pr
 
 **Table: `events`**
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | TEXT PRIMARY KEY | Unique event ID from Hello Club API |
-| `name` | TEXT NOT NULL | Event name |
-| `startDate` | TEXT NOT NULL | ISO 8601 timestamp of event start |
-| `status` | TEXT NOT NULL | Event processing status |
+| Column        | Type                           | Description                           |
+| ------------- | ------------------------------ | ------------------------------------- |
+| `id`          | TEXT PRIMARY KEY               | Unique event ID from Hello Club API   |
+| `name`        | TEXT NOT NULL                  | Event name                            |
+| `startTime`   | TEXT NOT NULL                  | ISO 8601 timestamp of event start     |
+| `category`    | TEXT NOT NULL                  | Event category                        |
+| `status`      | TEXT NOT NULL                  | Event processing status               |
+| `retryCount`  | INTEGER DEFAULT 0              | Number of retry attempts              |
+| `createdAt`   | TEXT DEFAULT CURRENT_TIMESTAMP | When event was discovered             |
+| `processedAt` | TEXT                           | When event was successfully processed |
 
 **Status Values**:
+
 - `'pending'` - Event discovered, waiting to be processed
-- `'processed'` - Event has been printed
+- `'processed'` - Event successfully printed
+- `'failed'` - Event failed after max retries
 
 **Indexes**:
+
 ```sql
-CREATE INDEX idx_status ON events(status);
-CREATE INDEX idx_startDate ON events(startDate);
+CREATE INDEX idx_events_status ON events(status);
+CREATE INDEX idx_events_startTime ON events(startTime);
+CREATE INDEX idx_events_category ON events(category);
 ```
 
+**Table: `scheduled_jobs`**
+
+| Column          | Type             | Description                 |
+| --------------- | ---------------- | --------------------------- |
+| `eventId`       | TEXT PRIMARY KEY | Foreign key to events.id    |
+| `scheduledTime` | TEXT NOT NULL    | When the job should execute |
+
+**Purpose**: Crash recovery - restore scheduled jobs after service restart
+
 **Example Data**:
+
 ```sql
-INSERT INTO events (id, name, startDate, status) VALUES
-  ('evt_123', 'Junior Basketball Practice', '2024-12-25T10:00:00Z', 'pending'),
-  ('evt_124', 'Pickleball Tournament', '2024-12-26T14:00:00Z', 'pending');
+INSERT INTO events (id, name, startTime, category, status) VALUES
+  ('evt_123', 'Junior Basketball Practice', '2025-02-15T10:00:00Z', 'NBA - Junior Events', 'pending'),
+  ('evt_124', 'Pickleball Tournament', '2025-02-16T14:00:00Z', 'Pickleball', 'pending');
+
+INSERT INTO scheduled_jobs (eventId, scheduledTime) VALUES
+  ('evt_123', '2025-02-15T09:55:00Z');
 ```
 
 ## Deployment Architecture
 
-### Directory Structure in Production
+### Raspberry Pi 5 Directory Structure
 
-**Standard Installation (v1.1.0+):**
+**Standard Production Deployment:**
+
 ```
-%LOCALAPPDATA%\Hello Club Event Attendance\
-(e.g., C:\Users\{User}\AppData\Local\Hello Club Event Attendance\)
-├── src/                      # Application code
-├── service/                  # Service management
-├── tray-app/                 # Tray application
-├── installer/                # Installer scripts
-├── node_modules/             # Dependencies
-├── .env                      # Configuration (secrets)
-├── config.json               # Configuration (settings)
-├── events.db                 # SQLite database
-├── activity.log              # Activity log
-├── error.log                 # Error log
-└── attendees.pdf             # Generated PDFs
+/opt/helloclub/
+├── app/                          # Application root
+│   ├── src/                      # Source code
+│   │   ├── core/                 # Business logic
+│   │   ├── services/             # Supporting services
+│   │   ├── utils/                # Utilities
+│   │   └── index.js              # Entry point
+│   │
+│   ├── web-dashboard/            # Web interface
+│   │   ├── server.js             # Express server
+│   │   ├── routes/               # API routes
+│   │   ├── middleware/           # Auth, etc.
+│   │   └── public/               # Frontend assets
+│   │
+│   ├── node_modules/             # Dependencies
+│   ├── .env                      # Environment variables (secrets)
+│   ├── config.json               # Application settings
+│   ├── events.db                 # SQLite database
+│   ├── activity.log              # Activity log
+│   ├── error.log                 # Error log
+│   ├── service-health.json       # Health check file
+│   └── attendees.pdf             # Generated PDFs
+│
+├── backups/                      # Configuration backups
+│   └── config_YYYYMMDD_HHMMSS.tar.gz
+│
+└── logs/                         # Archived logs (optional)
 
-C:\Users\{User}\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\
-└── Hello Club Monitor.lnk    # Tray app startup shortcut
+/etc/systemd/system/
+├── helloclub.service             # Main service
+└── helloclub-dashboard.service   # Dashboard service (if separate)
 
-C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Hello Club\
-├── Tray Monitor.lnk
-├── View Logs.lnk
-├── Service Status.lnk
-└── Uninstall.lnk
+/etc/sudoers.d/
+└── helloclub                     # Sudo permissions for service control
+
+/home/pi/.ssh/
+└── authorized_keys               # SSH public keys for remote access
 ```
 
-**Legacy Installation (v1.0.x):**
-```
-C:\Program Files\Hello Club Event Attendance\
-(Same structure as above, but requires admin rights)
-```
+### systemd Service Configuration
 
-### Windows Service Registration
+**Service Name**: `helloclub.service`
 
-**Service Name**: `HelloClubEventAttendance`
+**Service File** (`/etc/systemd/system/helloclub.service`):
 
-**Configuration**:
 ```ini
-Display Name: Hello Club Event Attendance
-Description: Automatically fetches and prints Hello Club event attendance lists
-Start Type: Automatic (if installed)
-Recovery: Restart the service after 2 seconds
-Account: Local System
+[Unit]
+Description=Hello Club Event Attendance Auto-Print
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=helloclub
+Group=helloclub
+WorkingDirectory=/opt/helloclub/app
+ExecStart=/usr/bin/node /opt/helloclub/app/src/index.js start-service
+
+# Automatic restart on failure
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=append:/opt/helloclub/app/activity.log
+StandardError=append:/opt/helloclub/app/error.log
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/helloclub/app
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+
+[Install]
+WantedBy=multi-user.target
 ```
 
-**Note**: Starting v1.1.0, Windows service installation is **optional** and unchecked by default. The application can run using only the tray monitor without the service.
+**Management Commands**:
 
-**Service Wrapper** (node-windows, if service installed):
+```bash
+sudo systemctl start helloclub      # Start service
+sudo systemctl stop helloclub       # Stop service
+sudo systemctl restart helloclub    # Restart service
+sudo systemctl status helloclub     # Check status
+sudo systemctl enable helloclub     # Auto-start on boot
+journalctl -u helloclub -f          # View real-time logs
 ```
-%LOCALAPPDATA%\Hello Club Event Attendance\bin\daemon\
-├── helloclubeventattendance.exe        # Service executable
-├── helloclubeventattendance.exe.config # Configuration
-└── helloclubeventattendance.xml        # Service definition
+
+### Network Configuration
+
+**Dashboard Access**:
+
+- **Local Network**: `http://helloclub-pi.local:3000`
+- **IP Address**: `http://192.168.1.XX:3000`
+- **Port**: 3000 (configurable via DASHBOARD_PORT in .env)
+
+**Firewall Rules** (ufw):
+
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 3000  # Dashboard
+sudo ufw allow 22/tcp                                 # SSH
+sudo ufw enable
 ```
 
 ## Design Decisions
 
-### Why Node.js?
+### Why Raspberry Pi 5?
 
-**Chosen**: Node.js
+**Chosen**: Raspberry Pi 5 (8GB model)
 
-**Alternatives Considered**: Python, C#, Go
+**Alternatives Considered**: x86 Linux server, Raspberry Pi 4, Windows PC
 
 **Rationale**:
-- ✅ Excellent API client libraries (axios)
-- ✅ Rich ecosystem for PDF generation (PDFKit)
-- ✅ Cross-platform potential
-- ✅ Async I/O perfect for scheduled tasks
-- ✅ node-windows provides reliable Windows service integration
-- ✅ Electron enables native desktop UI
+
+- ✅ **Low Power**: ~10W power consumption (vs 100W+ for PC)
+- ✅ **Always-On**: Designed for 24/7 operation
+- ✅ **Silent**: Fanless or quiet cooling
+- ✅ **Affordable**: ~$80 for complete setup
+- ✅ **Linux Native**: No Windows licensing costs
+- ✅ **ARM64**: Excellent Node.js performance
+- ✅ **GPIO**: Future expansion capabilities
+- ✅ **Reliability**: SD card + USB backup options
+
+### Why systemd Over PM2?
+
+**Chosen**: systemd for production
+
+**Alternatives Considered**: PM2, Docker, supervisord
+
+**Rationale**:
+
+- ✅ **Native Integration**: Built into Linux, no extra dependencies
+- ✅ **Starts Before Login**: Runs even without user session
+- ✅ **Journal Logging**: Integrated with systemd journal
+- ✅ **Resource Limits**: Built-in memory and CPU limits
+- ✅ **Security**: Sandboxing with ProtectSystem, PrivateTmp
+- ✅ **Dependency Management**: Waits for network with After/Wants
+- ✅ **Standard Tool**: Universal across Linux distributions
 
 ### Why SQLite?
 
 **Chosen**: SQLite (better-sqlite3)
 
-**Alternatives Considered**: JSON files, PostgreSQL, Redis
+**Alternatives Considered**: PostgreSQL, MySQL, JSON files, Redis
 
 **Rationale**:
-- ✅ Zero-configuration - no server required
-- ✅ ACID transactions for data integrity
-- ✅ Embedded in application - no separate process
-- ✅ Perfect for event queue management
-- ✅ better-sqlite3 is synchronous and fast
-- ❌ Don't need: Multi-user access, network access
 
-### Why Electron for Tray App?
+- ✅ **Zero Configuration**: No server required
+- ✅ **ACID Transactions**: Data integrity guaranteed
+- ✅ **Embedded**: Single file, no separate process
+- ✅ **Perfect for Event Queue**: Handles typical load effortlessly
+- ✅ **Synchronous API**: better-sqlite3 is fast and simple
+- ✅ **Backup Friendly**: Copy single file to backup
+- ✅ **Low Overhead**: Minimal memory footprint
+- ❌ Don't Need: Multi-user access, network access, replication
 
-**Chosen**: Electron
+### Why Express for Dashboard?
 
-**Alternatives Considered**: Native C++, PyQt, Tauri
+**Chosen**: Express.js with WebSocket
 
-**Rationale**:
-- ✅ Reuse Node.js knowledge and npm ecosystem
-- ✅ Easy HTML/CSS for log viewer UI
-- ✅ Built-in system tray APIs
-- ✅ Can share code with main service
-- ✅ Rapid development
-- ❌ Downside: Larger memory footprint (acceptable for desktop app)
-
-### Why Two-Stage Processing?
-
-**Design**: Separate fetch and process stages
+**Alternatives Considered**: FastAPI (Python), Flask, native Node HTTP
 
 **Rationale**:
-- ✅ **Efficiency**: Fetch events once every N hours instead of checking API constantly
-- ✅ **Accuracy**: Final attendee fetch moments before event captures last-minute sign-ups
-- ✅ **API Friendly**: Minimizes API calls to Hello Club
-- ✅ **Offline Resilience**: Can process events even if API temporarily unavailable
-- ✅ **Flexibility**: Can manually trigger either stage independently
 
-### Why node-windows Instead of PM2?
+- ✅ **Reuse Node.js**: Same runtime as main service
+- ✅ **WebSocket Support**: Real-time log streaming
+- ✅ **Middleware Ecosystem**: Authentication, body parsing, etc.
+- ✅ **Lightweight**: Minimal dependencies
+- ✅ **Well Documented**: Extensive community support
+- ✅ **Easy Deployment**: Single systemd service
 
-**Chosen**: node-windows for production
+### Why Web Dashboard Over Tray App?
 
-**PM2 Available**: For development
+**Previous Version**: Electron-based system tray app (Windows)
+
+**New Version**: Web dashboard (cross-platform)
 
 **Rationale**:
-- ✅ True Windows Service integration (appears in services.msc)
-- ✅ Starts before user login
-- ✅ Respects Windows security model
-- ✅ Better Windows logging integration
-- ✅ No Node.js required on PATH
-- ✅ Professional deployment story
+
+- ✅ **Headless Operation**: Pi runs without monitor
+- ✅ **Remote Access**: Manage from any device
+- ✅ **No GUI Dependencies**: Works on Raspberry Pi OS Lite
+- ✅ **Mobile Friendly**: Access from phone/tablet
+- ✅ **Lower Memory**: No Electron overhead (~150MB saved)
+- ✅ **Cross-Platform**: Same interface on any OS
+- ✅ **Multi-User**: Multiple admins can access simultaneously
+
+### Why CUPS Over Other Printing?
+
+**Chosen**: CUPS (Common Unix Printing System)
+
+**Alternatives Considered**: Direct USB, PDF-to-printer libraries, LPR
+
+**Rationale**:
+
+- ✅ **Standard on Linux**: Pre-installed on most distributions
+- ✅ **Network Printing**: Supports IPP, LPD, SMB printers
+- ✅ **USB Printing**: Direct USB printer support
+- ✅ **Web Interface**: Built-in management at localhost:631
+- ✅ **Driver Support**: Extensive printer compatibility
+- ✅ **Command Line**: Simple `lp` command for printing
 
 ## Security Considerations
 
 ### Secret Management
 
 **API Keys and Credentials**:
-- Stored in `.env` file (never committed to git)
-- File permissions restricted to admin users
-- Not logged or displayed in UI
+
+- Stored in `.env` file (gitignored)
+- File permissions: `chmod 600 .env` (owner read/write only)
+- Never logged or displayed in UI
 - Validated before use
+- Dashboard shows masked values (●●●●●●)
+
+**Best Practices**:
+
+```bash
+# Set secure permissions
+sudo chown helloclub:helloclub /opt/helloclub/app/.env
+sudo chmod 600 /opt/helloclub/app/.env
+
+# Verify
+ls -la /opt/helloclub/app/.env
+# Should show: -rw------- 1 helloclub helloclub
+```
 
 ### Database Security
 
 **SQLite File**:
-- Stored in application directory (requires admin to modify)
-- No network exposure
-- Contains only event IDs and names (no sensitive attendee data in storage)
+
+- Stored in application directory with restrictive permissions
+- No network exposure (file-based)
+- Contains only event IDs and names (no sensitive attendee data at rest)
 - Attendee data only in memory during processing
+- Automatic backups encrypted if using external storage
+
+**Permissions**:
+
+```bash
+sudo chown helloclub:helloclub /opt/helloclub/app/events.db
+sudo chmod 640 /opt/helloclub/app/events.db
+```
+
+### Web Dashboard Security
+
+**Authentication**:
+
+- Session-based authentication with secure cookies
+- Passwords never stored in plaintext (bcrypt hashing)
+- Session timeout after 24 hours
+- CSRF token protection
+- Rate limiting on login attempts
+
+**Network Security**:
+
+- Firewall restricts dashboard to local network only
+- HTTPS via reverse proxy (nginx/Caddy) for production
+- No default credentials (set during setup)
+
+**Sudo Access** (limited scope):
+
+```bash
+# /etc/sudoers.d/helloclub
+helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl start helloclub
+helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop helloclub
+helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart helloclub
+helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl status helloclub
+```
+
+### systemd Security Hardening
+
+**Service Sandboxing**:
+
+- `NoNewPrivileges=true` - Prevents privilege escalation
+- `PrivateTmp=true` - Isolated temporary directory
+- `ProtectSystem=strict` - Read-only system directories
+- `ProtectHome=true` - No access to user home directories
+- `ReadWritePaths=/opt/helloclub/app` - Only write to app directory
+
+**Resource Limits**:
+
+- `MemoryMax=512M` - Prevents memory exhaustion
+- `CPUQuota=50%` - Prevents CPU hogging
+
+### SSH Security
+
+**Raspberry Pi Hardening**:
+
+- SSH key-based authentication only
+- Password authentication disabled
+- Root login disabled
+- fail2ban monitors failed login attempts
+- Non-standard SSH port (optional)
+
+**Configuration** (`/etc/ssh/sshd_config`):
+
+```
+PasswordAuthentication no
+PermitRootLogin no
+PubkeyAuthentication yes
+Port 22  # Or custom port
+```
 
 ### Log Security
 
 **Logging Practices**:
+
 - No API keys or passwords logged
-- No sensitive attendee information in logs
-- Log rotation to prevent disk filling
+- No sensitive attendee information in logs (names/emails/phones)
+- Log rotation prevents disk filling
 - Error logs separate from activity logs
+- Log files readable only by helloclub user
 
-### Windows Service Security
+**Log Rotation** (`/etc/logrotate.d/helloclub`):
 
-**Service Account**:
-- Runs as Local System by default
-- Can be configured to run as specific user
-- Restricted file system access
-- No network credentials stored
+```
+/opt/helloclub/app/*.log {
+    daily
+    rotate 14
+    compress
+    delaycompress
+    notifempty
+    missingok
+    copytruncate
+}
+```
 
 ### SMTP Credentials
 
-**Email Mode**:
-- Credentials stored in `.env`
-- Supports app-specific passwords (Gmail)
-- TLS encryption for SMTP connection
+**Email Mode Security**:
+
+- Credentials stored in `.env` (secure file permissions)
+- Supports app-specific passwords (Gmail, Outlook)
+- TLS encryption for SMTP connection (port 587)
 - Credentials never logged
+- Dashboard masks SMTP password
+
+**Gmail Security**:
+
+- Requires 2-factor authentication
+- Use App Password (not account password)
+- Revocable without changing main password
 
 ## Performance Considerations
 
 ### Memory Usage
 
-**Service Process**:
-- ~50-100 MB baseline
-- +20 MB per scheduled event (setTimeout)
-- +50 MB during PDF generation
-- Total: ~150 MB typical
+**Service Process** (typical):
 
-**Tray App**:
-- ~150 MB (Electron overhead)
-- Acceptable for desktop application
+- Baseline: ~30-50 MB
+- Per scheduled event: ~1-2 MB (setTimeout overhead)
+- During PDF generation: +20-30 MB (temporary)
+- **Total**: ~80-150 MB typical, ~200 MB peak
+
+**Dashboard Process**:
+
+- Baseline: ~40-60 MB (Express + WebSocket)
+- Per active WebSocket: +5-10 MB
+- **Total**: ~60-100 MB typical
+
+**Raspberry Pi 5 (8GB RAM)**: Plenty of headroom for other services
 
 ### CPU Usage
 
-**Idle**: <1% CPU
+**Idle**: <1% CPU (sleeping between scheduler loops)
 
-**During Fetch**: 5-10% CPU for 1-2 seconds
+**During Event Fetch**: 2-5% CPU for 1-2 seconds
 
-**During PDF Generation**: 20-30% CPU for 2-5 seconds
+**During PDF Generation**: 10-20% CPU for 2-5 seconds (depends on attendee count)
+
+**Raspberry Pi 5 (Quad-core Cortex-A76 @ 2.4GHz)**: Excellent performance for this workload
 
 ### Disk I/O
 
-**Database**: Minimal (few events, small records)
+**Database**:
 
-**Logs**: Rotating logs prevent unbounded growth
+- Minimal (few events, small records)
+- WAL mode reduces lock contention
+- Typical database size: <10 MB
 
-**PDFs**: Overwritten each event (configurable filename)
+**Logs**:
+
+- Activity log: ~1-5 MB/day
+- Error log: ~100 KB/day (if errors occur)
+- Log rotation prevents unbounded growth
+
+**PDFs**:
+
+- Overwritten each event (configurable filename)
+- Typical size: 50-200 KB per PDF
+
+**SD Card**: Use high-endurance or Application Class cards for reliability
 
 ### Network
 
 **API Calls**:
-- Fetch events: 1 call per service interval
-- Process event: 1-2 calls per event (event details + attendees)
+
+- Fetch events: 1 call per service interval (e.g., every 1 hour)
+- Process event: 2 calls per event (event details + attendees)
 - Attendee pagination: 1 call per 100 attendees
 
 **Bandwidth**: Negligible (<1 MB per event typically)
 
+**Dashboard**: WebSocket keeps persistent connection, minimal overhead
+
 ## Scaling Considerations
 
-### Current Limitations
+### Current Capacity
 
-- Single machine deployment
-- One service instance per machine
+**Tested Load**:
+
+- 50+ events per day
+- 100+ attendees per event
+- 24/7 operation for weeks without restart
+
+**Typical Use Case**: 10-20 events per day, well within capacity
+
+### Limitations
+
+- Single machine deployment (Raspberry Pi)
 - SQLite limits to ~100K concurrent events (far exceeds typical use)
+- Dashboard serves one organization (no multi-tenancy)
 
 ### Future Scaling Options
 
 If processing many organizations/venues:
 
-1. **Multi-Instance**: Deploy separate instances per organization
-2. **Load Balancing**: Distribute processing across multiple machines
-3. **Database Upgrade**: Migrate to PostgreSQL if needed
-4. **Cloud Deployment**: Run as cloud service with API
+1. **Multi-Instance**: Deploy separate Raspberry Pi per organization (~$80 each)
+2. **Kubernetes**: Deploy as Docker containers with orchestration
+3. **Database Upgrade**: Migrate to PostgreSQL if needed (unlikely)
+4. **Load Balancing**: Distribute processing across multiple machines
+5. **Cloud Deployment**: Run on AWS/Azure/GCP with auto-scaling
 
-**Note**: Current architecture handles typical use cases (1-100 events/day) effortlessly.
+**Note**: Current architecture handles typical use cases (10-100 events/day) effortlessly on a single Raspberry Pi 5.
+
+## Legacy Platforms
+
+### Windows Support
+
+Previous versions (v1.0.x and earlier) ran on Windows with:
+
+- Windows Service wrapper (node-windows)
+- Electron system tray application
+- Inno Setup installer
+
+**Status**: Windows deployment is no longer recommended but still supported via manual installation.
+
+**Documentation**: See [`docs/legacy/`](./legacy/) for Windows-specific guides:
+
+- [Windows Service Setup](./legacy/WINDOWS-SERVICE-SETUP.md)
+- [Tray App Guide](./legacy/TRAY-APP-GUIDE.md)
+- [Installer User Guide](./legacy/INSTALLER-USER-GUIDE.md)
+- [Build Installer](./legacy/BUILD-INSTALLER.md)
 
 ---
 
-**Last Updated**: 2024-12-20
+**Last Updated**: 2025-02-10
+
+**Architecture Version**: 2.0 (Raspberry Pi/systemd)
+
+**Platform**: Optimized for Raspberry Pi 5 with Raspberry Pi OS Lite 64-bit
