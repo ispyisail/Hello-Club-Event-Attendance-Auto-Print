@@ -165,6 +165,99 @@ router.post('/test/print', async (req, res) => {
   res.json(await testPrintConnection());
 });
 
+router.post('/test/print-event', async (req, res) => {
+  const { testPrintWithEvent } = require('../connection-tests');
+  res.json(await testPrintWithEvent());
+});
+
+router.post('/test/simulate-trigger', async (req, res) => {
+  const { simulateEventTrigger } = require('../connection-tests');
+  res.json(await simulateEventTrigger());
+});
+
+// --- Printer Discovery ---
+
+router.get('/printers/scan', async (req, res) => {
+  try {
+    // Get list of configured printers
+    const { stdout: printerList } = await execFileAsync('lpstat', ['-p'], { timeout: 5000 });
+    const printers = printerList
+      .trim()
+      .split('\n')
+      .filter((line) => line.startsWith('printer'))
+      .map((line) => {
+        const match = line.match(/^printer\s+(\S+)\s+(.+)$/);
+        if (match) {
+          return { name: match[1], status: match[2].trim() };
+        }
+        return null;
+      })
+      .filter(Boolean);
+
+    // Get default printer
+    let defaultPrinter = null;
+    try {
+      const { stdout: defaultOut } = await execFileAsync('lpstat', ['-d'], { timeout: 5000 });
+      const match = defaultOut.match(/system default destination:\s*(.+)/);
+      if (match) defaultPrinter = match[1].trim();
+    } catch (_e) {
+      // No default set
+    }
+
+    // Get printer URIs/devices
+    const { stdout: deviceList } = await execFileAsync('lpstat', ['-v'], { timeout: 5000 });
+    const devices = {};
+    deviceList
+      .trim()
+      .split('\n')
+      .forEach((line) => {
+        const match = line.match(/^device for\s+(\S+):\s+(.+)$/);
+        if (match) {
+          devices[match[1]] = match[2].trim();
+        }
+      });
+
+    // Combine printer info
+    const printerDetails = printers.map((p) => ({
+      name: p.name,
+      status: p.status,
+      device: devices[p.name] || 'unknown',
+      isDefault: p.name === defaultPrinter,
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        printers: printerDetails,
+        defaultPrinter,
+        count: printerDetails.length,
+      },
+    });
+  } catch (error) {
+    const msg = error.message || '';
+    if (msg.includes('ENOENT')) {
+      return res.json({
+        success: false,
+        error: 'CUPS not installed. Run: sudo apt install cups',
+      });
+    }
+    res.json({ success: false, error: `Printer scan failed: ${msg}` });
+  }
+});
+
+router.post('/printers/set-default', async (req, res) => {
+  try {
+    const { printerName } = req.body;
+    if (!printerName) {
+      return res.json({ success: false, error: 'Printer name is required' });
+    }
+    await execFileAsync('lpoptions', ['-d', printerName], { timeout: 5000 });
+    res.json({ success: true, message: `Set ${printerName} as default printer` });
+  } catch (error) {
+    res.json({ success: false, error: error.message });
+  }
+});
+
 // --- PDF Preview ---
 
 router.post('/preview-pdf', async (req, res) => {
@@ -348,17 +441,25 @@ router.get('/fetch-categories', async (req, res) => {
     const categoryMap = {};
 
     events.forEach((event) => {
-      const categoryName = event.category || 'Uncategorized';
-      if (!categoryMap[categoryName]) {
-        categoryMap[categoryName] = {
-          name: categoryName,
-          events: [],
-        };
-      }
-      categoryMap[categoryName].events.push({
-        id: event.id,
-        name: event.name,
-        date: event.startDate,
+      // Events can have multiple categories (array of objects with 'name' property)
+      const eventCategories =
+        Array.isArray(event.categories) && event.categories.length > 0
+          ? event.categories.map((c) => c.name)
+          : ['Uncategorized'];
+
+      // Add this event to each of its categories
+      eventCategories.forEach((categoryName) => {
+        if (!categoryMap[categoryName]) {
+          categoryMap[categoryName] = {
+            name: categoryName,
+            events: [],
+          };
+        }
+        categoryMap[categoryName].events.push({
+          id: event.id,
+          name: event.name,
+          date: event.startDate,
+        });
       });
     });
 

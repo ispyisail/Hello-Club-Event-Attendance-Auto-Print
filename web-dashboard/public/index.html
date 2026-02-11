@@ -83,7 +83,7 @@
         <div id="config-alert" class="alert"></div>
 
         <!-- Section 1: API Settings -->
-        <div class="config-section" id="section-api">
+        <div class="config-section collapsed" id="section-api">
           <div class="config-section-header" onclick="toggleSection('section-api')">
             <span class="config-section-arrow">&#9660;</span>
             API Settings
@@ -109,7 +109,7 @@
         </div>
 
         <!-- Section 2: Email & Printing -->
-        <div class="config-section" id="section-printing">
+        <div class="config-section collapsed" id="section-printing">
           <div class="config-section-header" onclick="toggleSection('section-printing')">
             <span class="config-section-arrow">&#9660;</span>
             Email &amp; Printing
@@ -153,8 +153,19 @@
                 <input type="email" class="form-control" id="cfg-email-from" placeholder="sender@example.com">
                 <div class="field-hint">Optional. Defaults to SMTP User if blank.</div>
               </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-notification-email-2">Notification Email</label>
+                <input type="email" class="form-control" id="cfg-notification-email-2" placeholder="your.email@example.com">
+                <div class="field-hint">Optional. Receive a copy of printed PDFs by email for verification.</div>
+              </div>
               <div class="btn-group mt-2">
                 <button class="btn" onclick="testEmail()">Test Email Connection</button>
+                <button class="btn btn-primary" onclick="testPrintEvent()">📄 Print Next Event</button>
+                <button class="btn" style="background:#ff6b35;color:white;" onclick="simulateTrigger()">🎬 Simulate Trigger</button>
+                <button class="btn" onclick="generatePreview()">👁️ Preview PDF</button>
+              </div>
+              <div class="field-hint" style="margin-top:4px;font-size:10px;">
+                "Print Next Event" prints manually. "Simulate Trigger" tests the full automated workflow. "Preview PDF" shows sample data.
               </div>
             </div>
 
@@ -164,15 +175,31 @@
                 <input type="text" class="form-control" id="cfg-printer-name" placeholder="e.g. HP_LaserJet">
                 <div class="field-hint">Optional. CUPS printer name. Leave blank for default printer.</div>
               </div>
+              <div class="form-group">
+                <label class="form-label" for="cfg-notification-email">Notification Email</label>
+                <input type="email" class="form-control" id="cfg-notification-email" placeholder="your.email@example.com">
+                <div class="field-hint">Optional. Receive a copy of printed PDFs by email for verification.</div>
+              </div>
               <div class="btn-group mt-2">
+                <button class="btn" onclick="scanForPrinters()">🔍 Search for Printers</button>
                 <button class="btn" onclick="testPrint()">Test Print (CUPS)</button>
+                <button class="btn btn-primary" onclick="testPrintEvent()">📄 Print Next Event</button>
+                <button class="btn" style="background:#ff6b35;color:white;" onclick="simulateTrigger()">🎬 Simulate Trigger</button>
+                <button class="btn" onclick="generatePreview()">👁️ Preview PDF</button>
+              </div>
+              <div class="field-hint" style="margin-top:4px;font-size:10px;">
+                "Print Next Event" prints manually. "Simulate Trigger" tests the full automated workflow. "Preview PDF" shows sample data.
+              </div>
+              <div id="printer-scan-results" style="margin-top:12px;display:none;">
+                <div class="field-hint" style="margin-bottom:8px;">Found Printers:</div>
+                <div id="printer-list" class="printer-list"></div>
               </div>
             </div>
           </div>
         </div>
 
         <!-- Section 3: Event Categories -->
-        <div class="config-section" id="section-categories">
+        <div class="config-section collapsed" id="section-categories">
           <div class="config-section-header" onclick="toggleSection('section-categories')">
             <span class="config-section-arrow">&#9660;</span>
             Event Categories

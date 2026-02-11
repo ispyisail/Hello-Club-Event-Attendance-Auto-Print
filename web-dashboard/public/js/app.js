@@ -244,6 +244,8 @@ async function loadConfig() {
       $('#cfg-smtp-pass').value = env.SMTP_PASS || '';
       $('#cfg-email-from').value = env.EMAIL_FROM || '';
       $('#cfg-printer-name').value = env.PRINTER_NAME || '';
+      $('#cfg-notification-email').value = env.NOTIFICATION_EMAIL || '';
+      $('#cfg-notification-email-2').value = env.NOTIFICATION_EMAIL || '';
     } else {
       showAlert('config', 'error', 'Failed to load .env: ' + envRes.error);
     }
@@ -292,6 +294,8 @@ async function saveAllConfig() {
     if (val('cfg-smtp-pass')) env.SMTP_PASS = val('cfg-smtp-pass');
     if (val('cfg-email-from')) env.EMAIL_FROM = val('cfg-email-from');
     if (val('cfg-printer-name')) env.PRINTER_NAME = val('cfg-printer-name');
+    const notifEmail = val('cfg-notification-email') || val('cfg-notification-email-2');
+    if (notifEmail) env.NOTIFICATION_EMAIL = notifEmail;
     const envContent = buildEnv(env);
 
     // Build config.json by merging into existing config
@@ -348,6 +352,81 @@ async function testPrint() {
   showAlert('config', 'info', 'Testing CUPS printer...', false);
   const result = await api('POST', '/test/print');
   showAlert('config', result.success ? 'success' : 'error', result.message);
+}
+
+async function testPrintEvent() {
+  showAlert('config', 'info', 'Fetching next event and printing...', false);
+  const result = await api('POST', '/test/print-event');
+  showAlert('config', result.success ? 'success' : 'error', result.message);
+}
+
+async function simulateTrigger() {
+  showAlert('config', 'info', '🎬 Simulating automated event trigger...', false);
+  const result = await api('POST', '/test/simulate-trigger');
+  showAlert('config', result.success ? 'success' : 'error', result.message);
+}
+
+// --- Printer Scanner ---
+async function scanForPrinters() {
+  showAlert('config', 'info', 'Scanning for printers...', false);
+  const result = await api('GET', '/printers/scan');
+
+  if (!result.success) {
+    showAlert('config', 'error', result.error);
+    $('#printer-scan-results').style.display = 'none';
+    return;
+  }
+
+  const { printers, count } = result.data;
+
+  if (count === 0) {
+    showAlert('config', 'warn', 'No printers found. Add a printer via CUPS at http://localhost:631');
+    $('#printer-scan-results').style.display = 'none';
+    return;
+  }
+
+  showAlert('config', 'success', `Found ${count} printer${count > 1 ? 's' : ''}`);
+
+  // Display printer list
+  const printerListEl = $('#printer-list');
+  printerListEl.innerHTML = printers
+    .map(
+      (p) => `
+    <div class="printer-item ${p.isDefault ? 'default' : ''}">
+      <div class="printer-info">
+        <strong>${p.name}</strong>
+        ${p.isDefault ? '<span class="badge">Default</span>' : ''}
+        <div class="printer-status">${p.status}</div>
+        <div class="printer-device">${p.device}</div>
+      </div>
+      <div class="printer-actions">
+        ${!p.isDefault ? `<button class="btn btn-sm" onclick="setDefaultPrinter('${p.name}')">Set Default</button>` : ''}
+        <button class="btn btn-sm" onclick="usePrinter('${p.name}')">Use This</button>
+      </div>
+    </div>
+  `
+    )
+    .join('');
+
+  $('#printer-scan-results').style.display = 'block';
+}
+
+async function setDefaultPrinter(printerName) {
+  showAlert('config', 'info', `Setting ${printerName} as default...`, false);
+  const result = await api('POST', '/printers/set-default', { printerName });
+
+  if (result.success) {
+    showAlert('config', 'success', result.message);
+    // Refresh the printer list
+    await scanForPrinters();
+  } else {
+    showAlert('config', 'error', result.error);
+  }
+}
+
+function usePrinter(printerName) {
+  $('#cfg-printer-name').value = printerName;
+  showAlert('config', 'success', `Printer name set to: ${printerName}`);
 }
 
 // --- Category Fetch Modal ---

@@ -208,7 +208,12 @@ class PdfGenerator {
    * @private
    */
   _formatFee(attendee) {
-    // Check if it's a membership (no fee amount but has membership rule)
+    // Check if it's a membership using the hasMembershipRule flag or rule.type
+    if (attendee.hasMembershipRule || (attendee.rule && attendee.rule.type === 'membership')) {
+      return 'Membership';
+    }
+
+    // Also check rule.name for backward compatibility with test data
     if (attendee.rule && attendee.rule.name && attendee.rule.name.toLowerCase().includes('membership')) {
       return 'Membership';
     }
@@ -229,6 +234,11 @@ class PdfGenerator {
    */
   _getFeeColor(attendee) {
     // Membership is always green/teal
+    if (attendee.hasMembershipRule || (attendee.rule && attendee.rule.type === 'membership')) {
+      return '#008080'; // Teal color matching the sample
+    }
+
+    // Also check rule.name for backward compatibility with test data
     if (attendee.rule && attendee.rule.name && attendee.rule.name.toLowerCase().includes('membership')) {
       return '#008080'; // Teal color matching the sample
     }
@@ -256,8 +266,13 @@ class PdfGenerator {
   _generateTableRow(attendee, y) {
     const startX = this.doc.page.margins.left;
 
-    // Draw checkbox aligned with text baseline
-    const checkboxY = y + 1; // Align top of checkbox with text
+    // Get base font size from config (default 10)
+    const baseFontSize = this.layout.fontSize || 10;
+
+    // Draw checkbox centered vertically with the text line
+    // Center checkbox with text: align checkbox center with text vertical center
+    const textCenterY = y + baseFontSize / 2;
+    const checkboxY = textCenterY - this.checkboxSize / 2;
     this.doc.rect(startX, checkboxY, this.checkboxSize, this.checkboxSize).stroke();
 
     // Use columns from config, or fall back to default columns
@@ -287,9 +302,6 @@ class PdfGenerator {
     });
 
     let x = startX + this.checkboxSize + 10;
-
-    // Get base font size from config (default 10)
-    const baseFontSize = this.layout.fontSize || 10;
 
     // Draw column values with appropriate colors
     this.doc.font('Helvetica').fontSize(baseFontSize);

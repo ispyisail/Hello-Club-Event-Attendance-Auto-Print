@@ -29,22 +29,22 @@
       {
         "id": "name",
         "header": "Name",
-        "width": 140
+        "width": 105
       },
       {
         "id": "phone",
         "header": "Phone",
-        "width": 100
+        "width": 80
       },
       {
         "id": "signUpDate",
         "header": "Signed up",
-        "width": 100
+        "width": 80
       },
       {
         "id": "fee",
         "header": "Fee",
-        "width": 60
+        "width": 76
       },
       {
         "id": "status",
