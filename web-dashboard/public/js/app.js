@@ -406,8 +406,28 @@ async function saveAllConfig() {
     ]);
 
     if (envRes.success && jsonRes.success) {
-      showAlert('config', 'success', 'All settings saved successfully');
+      showAlert('config', 'success', 'Settings saved! Restarting service...', false);
       markConfigSaved();
+
+      // Auto-restart service to apply changes
+      try {
+        const restartRes = await api('POST', '/service/restart');
+        if (restartRes.success) {
+          showAlert('config', 'success', 'Settings saved and service restarted successfully!');
+        } else {
+          showAlert(
+            'config',
+            'error',
+            'Settings saved but restart failed. Please restart manually: sudo systemctl restart helloclub'
+          );
+        }
+      } catch (restartError) {
+        showAlert(
+          'config',
+          'error',
+          'Settings saved but restart failed. Please restart manually: sudo systemctl restart helloclub'
+        );
+      }
     } else {
       const errors = [];
       if (!envRes.success) errors.push('.env: ' + envRes.error);
