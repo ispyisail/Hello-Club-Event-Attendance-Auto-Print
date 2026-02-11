@@ -164,6 +164,41 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     } else {
       logger.info('No new events to store.');
     }
+
+    // Detect and handle cancelled/deleted events
+    // Get IDs of all events from API response (after filtering)
+    const apiEventIds = filteredEvents.map((e) => e.id);
+
+    // Find pending events in our database within the fetch window that are no longer in the API
+    const now = new Date();
+    const futureDate = new Date(now.getTime() + fetchWindowHours * 60 * 60 * 1000);
+
+    const pendingEvents = db
+      .prepare(
+        `
+      SELECT id, name FROM events
+      WHERE status = 'pending'
+        AND startDate >= ?
+        AND startDate <= ?
+    `
+      )
+      .all(now.toISOString(), futureDate.toISOString());
+
+    // Find events that are in DB but not in API response (likely cancelled)
+    const cancelledEvents = pendingEvents.filter((dbEvent) => !apiEventIds.includes(dbEvent.id));
+
+    if (cancelledEvents.length > 0) {
+      logger.info(`Detected ${cancelledEvents.length} cancelled/deleted event(s) in Hello Club`);
+
+      const markCancelled = db.prepare("UPDATE events SET status = 'cancelled' WHERE id = ?");
+      const cancelJob = db.prepare("UPDATE scheduled_jobs SET status = 'cancelled' WHERE event_id = ?");
+
+      for (const event of cancelledEvents) {
+        markCancelled.run(event.id);
+        cancelJob.run(event.id);
+        logger.info(`Marked event as cancelled: "${event.name}" (ID: ${event.id})`);
+      }
+    }
   } catch (err) {
     logger.error('An error occurred during fetchAndStoreUpcomingEvents:', err.message);
     throw err;

@@ -223,6 +223,17 @@ function scheduleEvent(event, config) {
       logger.info('───────────────────────────────────────────────────────────────');
       logger.info(`⏰ Scheduled job triggered for event: ${event.name} (ID: ${event.id})`);
 
+      // Check if event was cancelled before processing
+      const db = getDb();
+      const currentEvent = db.prepare('SELECT status FROM events WHERE id = ?').get(event.id);
+
+      if (!currentEvent || currentEvent.status === 'cancelled') {
+        logger.info(`Event ${event.id} was cancelled, skipping processing`);
+        updateJobStatus(event.id, 'cancelled', 'Event was cancelled in Hello Club');
+        scheduledJobs.delete(event.id);
+        return;
+      }
+
       // Update job status to 'processing'
       updateJobStatus(event.id, 'processing');
 
@@ -503,6 +514,23 @@ function runService(config) {
   logger.info('Health check monitoring started');
 }
 
+/**
+ * Cancel a scheduled job for an event
+ * Clears the timeout and removes it from the in-memory map
+ * @param {string} eventId - The event ID to cancel
+ * @returns {boolean} True if a job was cancelled, false if no job was found
+ */
+function cancelScheduledJob(eventId) {
+  if (scheduledJobs.has(eventId)) {
+    const timeoutId = scheduledJobs.get(eventId);
+    clearTimeout(timeoutId);
+    scheduledJobs.delete(eventId);
+    logger.debug(`Cancelled scheduled job for event: ${eventId}`);
+    return true;
+  }
+  return false;
+}
+
 module.exports = {
   runService,
   // Export for testing
@@ -516,6 +544,7 @@ module.exports = {
   handlePermanentFailure,
   safeWebhookNotify,
   getRetryConfig,
+  cancelScheduledJob,
   // Export scheduledJobs map for testing (read-only use)
   _getScheduledJobs: () => scheduledJobs,
 };
