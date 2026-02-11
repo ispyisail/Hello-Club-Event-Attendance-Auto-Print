@@ -30,6 +30,7 @@ When the same setting exists in multiple places, this is the precedence order:
 4. **Schema defaults** (lowest priority)
 
 **Example**:
+
 ```bash
 # config.json has: "fetchWindowHours": 24
 # Command line: --fetch-window-hours 48
@@ -47,16 +48,19 @@ When the same setting exists in multiple places, this is the precedence order:
 **Format**: KEY=value pairs (one per line)
 
 **Security**:
+
 - ✅ Listed in `.gitignore` (never committed)
 - ✅ Required for application to run
 - ✅ Should have restricted file permissions
 
 **Template**:
+
 ```env
 # Copy from .env.example and fill in your values
 ```
 
 **How to Create**:
+
 ```bash
 # Copy the example
 copy .env.example .env
@@ -76,15 +80,18 @@ notepad .env
 **Format**: JSON
 
 **Security**:
+
 - ⚠️ Can be committed to version control (contains no secrets)
 - ✅ Validated against Joi schema on startup
 
 **How to Edit**:
+
 ```bash
 notepad config.json
 ```
 
 **Validation**:
+
 - Happens automatically on application start
 - Invalid configuration causes startup failure
 - Error messages indicate the specific problem
@@ -104,17 +111,20 @@ Your Hello Club API authentication key.
 **Format**: Any string (API key format varies by platform)
 
 **Example**:
+
 ```env
 API_KEY=hc_live_abc123xyz789...
 ```
 
 **How to Obtain**:
+
 1. Log into Hello Club
 2. Navigate to Settings → API Keys
 3. Create a new API key
 4. Copy the key to `.env`
 
 **Security Notes**:
+
 - Never share this key
 - Never commit it to version control
 - Rotate keys periodically for security
@@ -134,11 +144,13 @@ Email address of the network printer or print server.
 **Type**: Email address
 
 **Example**:
+
 ```env
 PRINTER_EMAIL=printer@mycompany.com
 ```
 
 **How to Find**:
+
 - Check your printer's network settings
 - Some printers have built-in email addresses
 - Your IT department can provide this
@@ -154,6 +166,7 @@ SMTP server username (often your email address).
 **Type**: String (email address)
 
 **Example**:
+
 ```env
 SMTP_USER=myemail@gmail.com
 ```
@@ -173,6 +186,7 @@ SMTP server password or app-specific password.
 **Type**: String
 
 **Example**:
+
 ```env
 SMTP_PASS=abcdefghijklmnop
 ```
@@ -223,6 +237,7 @@ SMTP server hostname.
 **Default**: `smtp.gmail.com`
 
 **Common Values**:
+
 ```env
 # Gmail
 SMTP_HOST=smtp.gmail.com
@@ -250,6 +265,7 @@ SMTP server port number.
 **Default**: `587`
 
 **Common Values**:
+
 ```env
 # TLS (recommended)
 SMTP_PORT=587
@@ -262,6 +278,7 @@ SMTP_PORT=25
 ```
 
 **Which Port to Use**:
+
 - **587** (TLS) - Recommended for most providers
 - **465** (SSL) - Alternative secure option
 - **25** (Unencrypted) - Only for internal networks
@@ -279,6 +296,7 @@ Sender email address (appears in "From" field).
 **Default**: Same as `SMTP_USER`
 
 **Example**:
+
 ```env
 EMAIL_FROM=autoprint@mycompany.com
 ```
@@ -300,6 +318,7 @@ Hello Club API base URL (for testing).
 **Default**: `https://api.helloclub.com`
 
 **Example**:
+
 ```env
 API_BASE_URL=https://api-staging.helloclub.com
 ```
@@ -335,6 +354,7 @@ Array of event category names to process.
 **Default**: `[]` (process all categories)
 
 **Example**:
+
 ```json
 {
   "categories": ["NBA - Junior Events", "Pickleball"]
@@ -342,11 +362,13 @@ Array of event category names to process.
 ```
 
 **Behavior**:
+
 - **Empty array** `[]` → Process ALL categories
 - **With values** → Only process events matching these categories
 - **Case sensitive** → Must match exactly
 
 **How to Find Category Names**:
+
 1. Log into Hello Club
 2. View an event
 3. Check the "Categories" field
@@ -356,7 +378,7 @@ Array of event category names to process.
 
 #### `preEventQueryMinutes`
 
-Minutes before an event starts to fetch attendees and print.
+How many minutes before an event starts to fetch the latest attendee list, generate the PDF, and print it. For example, `5` means the PDF will be ready 5 minutes before the event begins.
 
 **Type**: `number` (integer, min: 1)
 
@@ -365,6 +387,7 @@ Minutes before an event starts to fetch attendees and print.
 **Unit**: Minutes
 
 **Example**:
+
 ```json
 {
   "preEventQueryMinutes": 10
@@ -372,13 +395,15 @@ Minutes before an event starts to fetch attendees and print.
 ```
 
 **Recommendations**:
-- **5 minutes** - Captures last-minute sign-ups
-- **10 minutes** - More time for printing/delivery
-- **1 minute** - Maximum freshness, higher risk
+
+- **5 minutes** - Captures last-minute sign-ups, PDF ready just before event
+- **10 minutes** - More buffer time for printing/delivery before event starts
+- **30 minutes** - PDF ready well in advance, but may miss late registrations
 
 **Trade-offs**:
-- **Smaller value**: More up-to-date attendee list
-- **Larger value**: More time to handle printing issues
+
+- **Smaller value**: More up-to-date attendee list, but less time buffer before event
+- **Larger value**: PDF printed earlier before event, more time to handle printing issues, but may miss last-minute sign-ups
 
 ---
 
@@ -393,6 +418,7 @@ How many hours ahead to look for upcoming events.
 **Unit**: Hours
 
 **Example**:
+
 ```json
 {
   "fetchWindowHours": 48
@@ -400,6 +426,7 @@ How many hours ahead to look for upcoming events.
 ```
 
 **Recommendations**:
+
 - **24 hours** - Good for daily operations
 - **48 hours** - Good for weekend events
 - **168 hours** - Fetch week ahead
@@ -419,6 +446,7 @@ How often the service re-fetches the event list.
 **Unit**: Hours
 
 **Example**:
+
 ```json
 {
   "serviceRunIntervalHours": 2
@@ -426,6 +454,7 @@ How often the service re-fetches the event list.
 ```
 
 **Recommendations**:
+
 - **1 hour** - Recommended for most use cases
 - **2 hours** - For slower-changing schedules
 - **0.25 hours** (15 min) - For very dynamic schedules
@@ -443,6 +472,7 @@ Filename for generated PDF files.
 **Default**: `"attendees.pdf"`
 
 **Example**:
+
 ```json
 {
   "outputFilename": "event-list.pdf"
@@ -450,11 +480,13 @@ Filename for generated PDF files.
 ```
 
 **Behavior**:
+
 - PDF is created in project root directory
 - File is overwritten for each event
 - To keep multiple PDFs, use different filenames per event
 
 **Tips**:
+
 - Use `.pdf` extension
 - Avoid special characters in filename
 - Use descriptive names if manually reviewing
@@ -472,16 +504,19 @@ Printing method to use.
 **Options**:
 
 **`"local"`** - Print directly to local printer
+
 - Requires: SumatraPDF installed (Windows)
 - Uses: `pdf-to-printer` npm package
 - Sends to: Default Windows printer
 
 **`"email"`** - Send PDF via email to network printer
+
 - Requires: SMTP credentials in `.env`
 - Uses: Nodemailer
 - Sends to: Email address specified in `PRINTER_EMAIL`
 
 **Example**:
+
 ```json
 {
   "printMode": "local"
@@ -489,6 +524,7 @@ Printing method to use.
 ```
 
 **Choosing Print Mode**:
+
 - ✅ **Local**: Fast, simple, works offline
 - ✅ **Email**: Network printers, remote printing, print queues
 
@@ -503,6 +539,7 @@ Printing method to use.
 **Purpose**: Customize PDF appearance
 
 **Structure**:
+
 ```json
 {
   "pdfLayout": {
@@ -526,6 +563,7 @@ Path to logo image file to display at top of PDF.
 **Supported Formats**: PNG, JPG
 
 **Example**:
+
 ```json
 {
   "pdfLayout": {
@@ -551,6 +589,7 @@ Base font size for PDF text.
 **Unit**: Points
 
 **Example**:
+
 ```json
 {
   "pdfLayout": {
@@ -560,6 +599,7 @@ Base font size for PDF text.
 ```
 
 **Recommendations**:
+
 - **8-9**: Small, fits more data
 - **10**: Default, balanced
 - **12**: Larger, more readable
@@ -575,6 +615,7 @@ Array of column definitions for the attendee table.
 **Type**: `Array<ColumnDefinition>`
 
 **Structure**:
+
 ```json
 {
   "columns": [
@@ -596,6 +637,7 @@ Data field to display.
 **Type**: `string`
 
 **Available IDs**:
+
 - `"name"` - Full name (lastName, firstName)
 - `"phone"` - Phone number
 - `"signUpDate"` - Registration date
@@ -622,6 +664,7 @@ Column width in points.
 **Example**: `140`
 
 **Tips**:
+
 - Total width should be ≤ 500 for A4 page with margins
 - Name column: 120-160 points
 - Phone column: 80-100 points
@@ -648,6 +691,7 @@ Column width in points.
 ### Custom Column Examples
 
 #### Minimal Layout
+
 ```json
 {
   "columns": [
@@ -658,6 +702,7 @@ Column width in points.
 ```
 
 #### Detailed Layout
+
 ```json
 {
   "columns": [
@@ -701,12 +746,7 @@ Column width in points.
 
 ```json
 {
-  "categories": [
-    "Basketball - Adults",
-    "Basketball - Youth",
-    "Volleyball - All Ages",
-    "Tennis - Tournaments"
-  ]
+  "categories": ["Basketball - Adults", "Basketball - Youth", "Volleyball - All Ages", "Tennis - Tournaments"]
 }
 ```
 
@@ -723,6 +763,7 @@ For high-volume or fast-changing events:
 ```
 
 **This configuration**:
+
 - Checks for events every 12 hours
 - Re-fetches event list every 30 minutes
 - Prints 2 minutes before event start
@@ -740,6 +781,7 @@ For stable schedules with few last-minute changes:
 ```
 
 **This configuration**:
+
 - Looks ahead 1 week
 - Re-fetches list daily
 - Prints 30 minutes early
@@ -776,11 +818,7 @@ For stable schedules with few last-minute changes:
 
 ```json
 {
-  "categories": [
-    "Pickleball - Beginner",
-    "Pickleball - Intermediate",
-    "Pickleball - Advanced"
-  ],
+  "categories": ["Pickleball - Beginner", "Pickleball - Intermediate", "Pickleball - Advanced"],
   "preEventQueryMinutes": 10,
   "fetchWindowHours": 48,
   "serviceRunIntervalHours": 2,
@@ -812,6 +850,7 @@ For stable schedules with few last-minute changes:
 ```
 
 **Behavior with Defaults**:
+
 - Process ALL event categories
 - Print 5 minutes before event
 - Look ahead 24 hours

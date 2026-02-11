@@ -312,6 +312,10 @@ select.form-control {
   font-size: 12px;
   border: 1px solid;
   display: none;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .alert.show { display: block; }
@@ -627,6 +631,53 @@ select.form-control {
 
 .column-width-input {
   width: 80px;
+}
+
+/* Sticky Save Bar */
+.sticky-save-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff3cd;
+  border-top: 2px solid #ffc107;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.15);
+  z-index: 200;
+  display: none;
+  animation: slideUp 0.3s ease-out;
+}
+
+.sticky-save-bar.show {
+  display: block;
+}
+
+.sticky-save-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.sticky-save-message {
+  font-size: 13px;
+  font-weight: 600;
+  color: #856404;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* Utility */

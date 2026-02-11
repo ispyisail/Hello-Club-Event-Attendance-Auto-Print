@@ -4,6 +4,7 @@
 let ws = null;
 let logPaused = false;
 let dashboardTimer = null;
+let configChanged = false;
 
 // --- Helpers ---
 const $ = (sel) => document.querySelector(sel);
@@ -25,6 +26,18 @@ function showAlert(panelId, type, message, autoClear = true) {
     setTimeout(() => {
       el.classList.remove('show');
     }, 4000);
+}
+
+function markConfigChanged() {
+  configChanged = true;
+  const saveBar = $('#sticky-save-bar');
+  if (saveBar) saveBar.classList.add('show');
+}
+
+function markConfigSaved() {
+  configChanged = false;
+  const saveBar = $('#sticky-save-bar');
+  if (saveBar) saveBar.classList.remove('show');
 }
 
 // --- Tabs ---
@@ -268,11 +281,13 @@ function addCategory() {
   currentCategories.push(val);
   renderCategories();
   input.value = '';
+  markConfigChanged();
 }
 
 function removeCategory(name) {
   currentCategories = currentCategories.filter((c) => c !== name);
   renderCategories();
+  markConfigChanged();
 }
 
 async function loadConfig() {
@@ -321,9 +336,30 @@ async function loadConfig() {
     } else {
       showAlert('config', 'error', 'Failed to load config.json: ' + jsonRes.error);
     }
+
+    // Set up change detection for all config form fields
+    setupConfigChangeDetection();
   } catch (e) {
     showAlert('config', 'error', 'Failed to load config: ' + e.message);
   }
+}
+
+function setupConfigChangeDetection() {
+  // Reset change state when loading config
+  markConfigSaved();
+
+  // Get all input, select, and textarea elements in the config panel
+  const configPanel = $('#panel-config');
+  if (!configPanel) return;
+
+  const inputs = configPanel.querySelectorAll('input, select, textarea');
+  inputs.forEach((input) => {
+    // Skip file inputs as they're handled separately
+    if (input.type === 'file') return;
+
+    input.addEventListener('input', markConfigChanged);
+    input.addEventListener('change', markConfigChanged);
+  });
 }
 
 async function saveAllConfig() {
@@ -371,6 +407,7 @@ async function saveAllConfig() {
 
     if (envRes.success && jsonRes.success) {
       showAlert('config', 'success', 'All settings saved successfully');
+      markConfigSaved();
     } else {
       const errors = [];
       if (!envRes.success) errors.push('.env: ' + envRes.error);
@@ -609,6 +646,7 @@ function addSelectedCategories() {
     renderCategories();
     showAlert('config', 'success', `Added ${addedCount} categor${addedCount !== 1 ? 'ies' : 'y'}`);
     closeCategoryFetchModal();
+    markConfigChanged();
   } else {
     showAlert('config', 'info', 'No new categories selected');
   }
@@ -679,6 +717,7 @@ async function uploadLogo(file) {
       // Update config in memory
       currentJsonConfig.pdfLayout = currentJsonConfig.pdfLayout || {};
       currentJsonConfig.pdfLayout.logo = result.path;
+      markConfigChanged();
     } else {
       throw new Error(result.error);
     }
@@ -696,6 +735,7 @@ async function removeLogo() {
       if (currentJsonConfig.pdfLayout) {
         currentJsonConfig.pdfLayout.logo = null;
       }
+      markConfigChanged();
     } else {
       throw new Error(result.error);
     }
@@ -814,6 +854,7 @@ function updateColumnsFromUI() {
   // Update currentJsonConfig
   currentJsonConfig.pdfLayout = currentJsonConfig.pdfLayout || {};
   currentJsonConfig.pdfLayout.columns = columns;
+  markConfigChanged();
 }
 
 // --- PDF Preview ---

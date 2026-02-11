@@ -90,6 +90,14 @@
       <section class="panel" id="panel-config">
         <div id="config-alert" class="alert"></div>
 
+        <!-- Sticky Save Bar -->
+        <div id="sticky-save-bar" class="sticky-save-bar">
+          <div class="sticky-save-content">
+            <span class="sticky-save-message">⚠️ You have unsaved changes</span>
+            <button class="btn btn-primary" onclick="saveAllConfig()">💾 Save All Settings</button>
+          </div>
+        </div>
+
         <!-- Section 1: API Settings -->
         <div class="config-section collapsed" id="section-api">
           <div class="config-section-header" onclick="toggleSection('section-api')">
@@ -233,7 +241,7 @@
             <div class="form-group">
               <label class="form-label" for="cfg-pre-event-minutes">Pre-Event Query (minutes)</label>
               <input type="number" class="form-control" id="cfg-pre-event-minutes" placeholder="5">
-              <div class="field-hint">How many minutes before an event to fetch attendees.</div>
+              <div class="field-hint">How many minutes before an event starts to fetch the latest attendee list, generate the PDF, and print it. For example, "5" means the PDF will be ready 5 minutes before the event begins.</div>
             </div>
             <div class="form-group">
               <label class="form-label" for="cfg-fetch-window-hours">Fetch Window (hours)</label>

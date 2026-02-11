@@ -17,7 +17,8 @@ const configSchema = Joi.object({
    */
   categories: Joi.array().items(Joi.string()).default([]),
   /**
-   * The time in minutes before an event starts to perform the final query for attendees.
+   * The time in minutes before an event starts to fetch the latest attendee list, generate the PDF, and print it.
+   * For example, 5 means the PDF will be ready 5 minutes before the event begins.
    * @type {number}
    */
   preEventQueryMinutes: Joi.number().integer().min(1).default(5),
