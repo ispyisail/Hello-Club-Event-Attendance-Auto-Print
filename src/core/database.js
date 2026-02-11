@@ -15,7 +15,12 @@ const getDb = () => {
   if (!db) {
     try {
       // Create database connection (better-sqlite3 is synchronous)
-      db = new Database('./events.db', { verbose: logger.info });
+      // Only enable verbose SQL logging in debug mode to avoid log bloat
+      const options = {};
+      if (process.env.LOG_LEVEL === 'debug') {
+        options.verbose = logger.debug;
+      }
+      db = new Database('./events.db', options);
 
       // Run pending migrations to ensure schema is up to date
       logger.info('Checking for pending database migrations...');
