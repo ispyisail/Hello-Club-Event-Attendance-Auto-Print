@@ -143,7 +143,8 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
 
   try {
     const db = getDb();
-    const stmt = db.prepare("INSERT OR IGNORE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')");
+    // Use REPLACE to update existing events if details changed in Hello Club
+    const stmt = db.prepare("INSERT OR REPLACE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')");
 
     const insertMany = db.transaction((events) => {
       let insertedCount = 0;

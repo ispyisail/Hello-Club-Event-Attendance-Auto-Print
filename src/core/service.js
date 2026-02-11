@@ -208,6 +208,7 @@ function scheduleEvent(event, config) {
                 INSERT INTO scheduled_jobs (event_id, event_name, scheduled_time, status)
                 VALUES (?, ?, ?, 'scheduled')
                 ON CONFLICT(event_id) DO UPDATE SET
+                    event_name = excluded.event_name,
                     status = 'scheduled',
                     scheduled_time = excluded.scheduled_time,
                     updated_at = datetime('now')

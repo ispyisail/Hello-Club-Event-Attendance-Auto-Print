@@ -23,32 +23,40 @@ function getStatistics(days = 7) {
     events: {},
     jobs: {},
     performance: {},
-    recentActivity: []
+    recentActivity: [],
   };
 
   try {
-    // Event statistics
-    const eventStats = db.prepare(`
+    // Event statistics - only count events that have scheduled jobs
+    const eventStats = db
+      .prepare(
+        `
       SELECT
-        status,
+        e.status,
         COUNT(*) as count
-      FROM events
-      WHERE startDate >= ?
-      GROUP BY status
-    `).all(cutoffISO);
+      FROM events e
+      INNER JOIN scheduled_jobs sj ON e.id = sj.event_id
+      WHERE e.startDate >= ?
+      GROUP BY e.status
+    `
+      )
+      .all(cutoffISO);
 
     stats.events.total = eventStats.reduce((sum, row) => sum + row.count, 0);
     stats.events.byStatus = {};
-    eventStats.forEach(row => {
+    eventStats.forEach((row) => {
       stats.events.byStatus[row.status] = row.count;
     });
 
-    stats.events.successRate = stats.events.total > 0
-      ? ((stats.events.byStatus.processed || 0) / stats.events.total * 100).toFixed(2) + '%'
-      : '0%';
+    stats.events.successRate =
+      stats.events.total > 0
+        ? (((stats.events.byStatus.processed || 0) / stats.events.total) * 100).toFixed(2) + '%'
+        : '0%';
 
     // Job statistics
-    const jobStats = db.prepare(`
+    const jobStats = db
+      .prepare(
+        `
       SELECT
         status,
         COUNT(*) as count,
@@ -56,31 +64,38 @@ function getStatistics(days = 7) {
       FROM scheduled_jobs
       WHERE created_at >= ?
       GROUP BY status
-    `).all(cutoffISO);
+    `
+      )
+      .all(cutoffISO);
 
     stats.jobs.total = jobStats.reduce((sum, row) => sum + row.count, 0);
     stats.jobs.byStatus = {};
-    jobStats.forEach(row => {
+    jobStats.forEach((row) => {
       stats.jobs.byStatus[row.status] = {
         count: row.count,
-        avgRetries: row.avg_retries ? parseFloat(row.avg_retries).toFixed(2) : '0'
+        avgRetries: row.avg_retries ? parseFloat(row.avg_retries).toFixed(2) : '0',
       };
     });
 
     // Jobs that required retries
-    const retriedJobs = db.prepare(`
+    const retriedJobs = db
+      .prepare(
+        `
       SELECT COUNT(*) as count
       FROM scheduled_jobs
       WHERE created_at >= ? AND retry_count > 0
-    `).get(cutoffISO);
+    `
+      )
+      .get(cutoffISO);
 
     stats.jobs.requiredRetries = retriedJobs.count;
-    stats.jobs.retryRate = stats.jobs.total > 0
-      ? ((retriedJobs.count / stats.jobs.total) * 100).toFixed(2) + '%'
-      : '0%';
+    stats.jobs.retryRate =
+      stats.jobs.total > 0 ? ((retriedJobs.count / stats.jobs.total) * 100).toFixed(2) + '%' : '0%';
 
     // Performance metrics (estimated based on job timing)
-    const performanceData = db.prepare(`
+    const performanceData = db
+      .prepare(
+        `
       SELECT
         julianday(updated_at) - julianday(created_at) as processing_days,
         status
@@ -88,12 +103,14 @@ function getStatistics(days = 7) {
       WHERE created_at >= ? AND status IN ('completed', 'failed')
       ORDER BY created_at DESC
       LIMIT 100
-    `).all(cutoffISO);
+    `
+      )
+      .all(cutoffISO);
 
     if (performanceData.length > 0) {
       const processingTimes = performanceData
-        .filter(row => row.processing_days > 0)
-        .map(row => row.processing_days * 24 * 60); // Convert to minutes
+        .filter((row) => row.processing_days > 0)
+        .map((row) => row.processing_days * 24 * 60); // Convert to minutes
 
       if (processingTimes.length > 0) {
         stats.performance.avgProcessingTime =
@@ -104,7 +121,9 @@ function getStatistics(days = 7) {
     }
 
     // Recent activity (last 10 jobs)
-    const recentActivity = db.prepare(`
+    const recentActivity = db
+      .prepare(
+        `
       SELECT
         sj.event_id,
         sj.event_name,
@@ -117,37 +136,78 @@ function getStatistics(days = 7) {
       LEFT JOIN events e ON sj.event_id = e.id
       ORDER BY sj.updated_at DESC
       LIMIT 10
-    `).all();
+    `
+      )
+      .all();
 
-    stats.recentActivity = recentActivity.map(row => ({
+    stats.recentActivity = recentActivity.map((row) => ({
       eventId: row.event_id,
       eventName: row.event_name,
       status: row.status,
       retryCount: row.retry_count,
       error: row.error_message,
       lastUpdated: row.updated_at,
-      eventDate: row.startDate
+      eventDate: row.startDate,
+    }));
+
+    // Upcoming events (scheduled print jobs sorted by event date)
+    const upcomingEvents = db
+      .prepare(
+        `
+      SELECT
+        sj.event_id,
+        sj.event_name,
+        sj.scheduled_time,
+        sj.status,
+        e.startDate
+      FROM scheduled_jobs sj
+      LEFT JOIN events e ON sj.event_id = e.id
+      WHERE sj.status IN ('scheduled', 'retrying')
+        AND e.startDate >= datetime('now')
+      ORDER BY e.startDate ASC
+      LIMIT 20
+    `
+      )
+      .all();
+
+    stats.upcomingEvents = upcomingEvents.map((row) => ({
+      eventId: row.event_id,
+      eventName: row.event_name,
+      eventDate: row.startDate,
+      scheduledTime: row.scheduled_time,
+      status: row.status,
     }));
 
     // Current status summary
-    const currentPending = db.prepare(`
+    const currentPending = db
+      .prepare(
+        `
       SELECT COUNT(*) as count FROM scheduled_jobs WHERE status = 'scheduled'
-    `).get();
+    `
+      )
+      .get();
 
-    const currentFailed = db.prepare(`
+    const currentFailed = db
+      .prepare(
+        `
       SELECT COUNT(*) as count FROM scheduled_jobs WHERE status = 'failed'
-    `).get();
+    `
+      )
+      .get();
 
-    const currentRetrying = db.prepare(`
+    const currentRetrying = db
+      .prepare(
+        `
       SELECT COUNT(*) as count FROM scheduled_jobs WHERE status = 'retrying'
-    `).get();
+    `
+      )
+      .get();
 
     stats.currentStatus = {
       pending: currentPending.count,
       failed: currentFailed.count,
-      retrying: currentRetrying.count
+      retrying: currentRetrying.count,
     };
-
   } catch (error) {
     logger.error('Error generating statistics:', error);
     stats.error = error.message;
@@ -180,7 +240,7 @@ function getStatisticsSummary() {
     `  Current Status:`,
     `  - Pending: ${stats.currentStatus?.pending || 0}`,
     `  - Failed: ${stats.currentStatus?.failed || 0}`,
-    `  - Retrying: ${stats.currentStatus?.retrying || 0}`
+    `  - Retrying: ${stats.currentStatus?.retrying || 0}`,
   ].join('\n');
 
   return summary;
@@ -205,5 +265,5 @@ function writeStatisticsFile(filePath = 'statistics.json') {
 module.exports = {
   getStatistics,
   getStatisticsSummary,
-  writeStatisticsFile
+  writeStatisticsFile,
 };

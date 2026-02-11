@@ -64,7 +64,27 @@ function updateStats(stats) {
   $('#q-retrying').textContent = stats.currentStatus?.retrying ?? '—';
   $('#q-failed').textContent = stats.currentStatus?.failed ?? '—';
 
+  renderUpcomingEvents(stats.upcomingEvents || []);
   renderActivity(stats.recentActivity || []);
+}
+
+function renderUpcomingEvents(events) {
+  const container = $('#upcoming-events');
+  if (!events.length) {
+    container.innerHTML = '<div class="empty-state">No upcoming events scheduled</div>';
+    return;
+  }
+  container.innerHTML = events
+    .map((e) => {
+      const cls = e.status === 'scheduled' ? '' : e.status === 'retrying' ? 'retrying' : '';
+      const eventDate = new Date(e.eventDate);
+      const scheduledTime = new Date(e.scheduledTime);
+      return `<div class="activity-item ${cls}">
+        <div class="activity-item-title">${esc(e.eventName)} <span class="text-muted">(${e.status})</span></div>
+        <div class="activity-item-meta">Event: ${eventDate.toLocaleString()} · Print: ${scheduledTime.toLocaleString()}</div>
+      </div>`;
+    })
+    .join('');
 }
 
 function renderActivity(activities) {
@@ -100,6 +120,32 @@ async function loadDashboard() {
     $('#last-updated').textContent = new Date().toLocaleTimeString();
   } catch (e) {
     showAlert('dashboard', 'error', 'Failed to load dashboard: ' + e.message);
+  }
+}
+
+async function refreshEventsFromHelloClub() {
+  showAlert('dashboard', 'info', 'Fetching latest events from Hello Club...', false);
+  try {
+    const result = await api('POST', '/events/refresh');
+    if (result.success) {
+      showAlert('dashboard', 'success', result.message + ' - Dashboard will auto-update in 10 seconds', false);
+      // Wait 10 seconds then reload to show updated data
+      let countdown = 10;
+      const intervalId = setInterval(() => {
+        countdown--;
+        if (countdown > 0) {
+          showAlert('dashboard', 'success', `Refresh complete! Reloading in ${countdown}...`, false);
+        } else {
+          clearInterval(intervalId);
+          showAlert('dashboard', 'success', 'Reloading dashboard...', false);
+          loadDashboard();
+        }
+      }, 1000);
+    } else {
+      showAlert('dashboard', 'error', 'Failed to refresh: ' + result.error);
+    }
+  } catch (e) {
+    showAlert('dashboard', 'error', 'Failed to refresh events: ' + e.message);
   }
 }
 

@@ -27,7 +27,10 @@
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
           <h2 style="margin: 0; font-size: 18px;">Service Statistics</h2>
-          <button class="btn" onclick="loadDashboard()">Refresh Dashboard</button>
+          <div class="btn-group">
+            <button class="btn" onclick="loadDashboard()">Refresh Dashboard</button>
+            <button class="btn btn-primary" onclick="refreshEventsFromHelloClub()">🔄 Refresh from Hello Club</button>
+          </div>
         </div>
 
         <div class="grid">
@@ -51,6 +54,11 @@
             <div class="stat"><span class="stat-label">Retrying</span><span class="stat-value warn" id="q-retrying">—</span></div>
             <div class="stat"><span class="stat-label">Failed</span><span class="stat-value bad" id="q-failed">—</span></div>
           </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Upcoming Scheduled Events</div>
+          <div id="upcoming-events"><div class="empty-state">No upcoming events scheduled</div></div>
         </div>
 
         <div class="card">

@@ -175,6 +175,69 @@ router.post('/test/simulate-trigger', async (req, res) => {
   res.json(await simulateEventTrigger());
 });
 
+// --- Event Refresh ---
+
+router.post('/events/refresh', async (req, res) => {
+  // Return immediately and run refresh in background
+  res.json({
+    success: true,
+    message: 'Refresh started in background - check dashboard in a few seconds',
+  });
+
+  // Run refresh in background (don't await)
+  (async () => {
+    try {
+      // Run fetch-events command
+      await execFileAsync('node', ['src/index.js', 'fetch-events'], {
+        cwd: APP_DIR,
+        timeout: 30000,
+      });
+
+      // Clean up events that no longer match filters
+      const { getUpcomingEvents } = require('../../src/core/api-client');
+      const config = JSON.parse(fs.readFileSync(path.join(APP_DIR, 'config.json'), 'utf8'));
+      const allowedCategories = config.categories || [];
+
+      if (allowedCategories.length > 0) {
+        const Database = require('better-sqlite3');
+        const db = new Database(path.join(APP_DIR, 'events.db'));
+
+        // Get current events from API
+        const apiEvents = await getUpcomingEvents(config.fetchWindowHours || 168);
+        const validEventIds = apiEvents
+          .filter((event) => {
+            return (
+              Array.isArray(event.categories) && event.categories.some((cat) => allowedCategories.includes(cat.name))
+            );
+          })
+          .map((e) => e.id);
+
+        // Delete events and jobs that are in DB but not in filtered API results
+        const dbEvents = db.prepare('SELECT id FROM events').all();
+        const toDelete = dbEvents.filter((e) => !validEventIds.includes(e.id)).map((e) => e.id);
+
+        if (toDelete.length > 0) {
+          const placeholders = toDelete.map(() => '?').join(',');
+          db.prepare(`DELETE FROM scheduled_jobs WHERE event_id IN (${placeholders})`).run(...toDelete);
+          db.prepare(`DELETE FROM events WHERE id IN (${placeholders})`).run(...toDelete);
+        }
+
+        db.close();
+      }
+
+      // Restart service to pick up changes
+      const { exec } = require('child_process');
+      exec(`sudo systemctl restart ${SERVICE_NAME}`, (error) => {
+        if (error) {
+          console.error('Failed to restart service after refresh:', error);
+        }
+      });
+    } catch (error) {
+      console.error('Background refresh failed:', error);
+    }
+  })();
+});
+
 // --- Printer Discovery ---
 
 router.get('/printers/scan', async (req, res) => {
