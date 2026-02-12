@@ -64,7 +64,27 @@ describe('API Client', () => {
           sort: 'startDate',
         }),
       });
-      expect(result).toEqual(mockEvents);
+      // validateEvent() adds default fields for categories, endDate, location, description
+      expect(result).toEqual([
+        {
+          id: '1',
+          name: 'Event 1',
+          startDate: '2025-01-01T10:00:00Z',
+          categories: [],
+          endDate: null,
+          location: null,
+          description: null,
+        },
+        {
+          id: '2',
+          name: 'Event 2',
+          startDate: '2025-01-02T14:00:00Z',
+          categories: [],
+          endDate: null,
+          location: null,
+          description: null,
+        },
+      ]);
     });
 
     it('should handle 401 unauthorized error', async () => {
@@ -142,7 +162,13 @@ describe('API Client', () => {
       const result = await getEventDetails('123');
 
       expect(mockAxiosInstance.get).toHaveBeenCalledWith('/event/123');
-      expect(result).toEqual(mockEvent);
+      // validateEvent() adds default fields for categories, endDate, location
+      expect(result).toEqual({
+        ...mockEvent,
+        categories: [],
+        endDate: null,
+        location: null,
+      });
     });
 
     it('should handle 404 not found error', async () => {

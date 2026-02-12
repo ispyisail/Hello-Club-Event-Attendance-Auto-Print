@@ -346,18 +346,21 @@ class PdfGenerator {
   /**
    * Generates the PDF and saves it to a file.
    * @param {string} outputFileName - The filename to save the output PDF file (will be sanitized).
-   * @returns {string} The sanitized absolute path where the PDF was saved
+   * @returns {Promise<string>} The sanitized absolute path where the PDF was saved
    * @throws {Error} If outputFileName contains path traversal attempts
    */
   generate(outputFileName) {
     // Sanitize the output path to prevent path traversal attacks
     const safeOutputPath = sanitizeOutputPath(outputFileName);
 
-    this.doc.pipe(fs.createWriteStream(safeOutputPath));
-    this._generateTable();
-    this.doc.end();
-
-    return safeOutputPath;
+    return new Promise((resolve, reject) => {
+      const stream = fs.createWriteStream(safeOutputPath);
+      stream.on('finish', () => resolve(safeOutputPath));
+      stream.on('error', reject);
+      this.doc.pipe(stream);
+      this._generateTable();
+      this.doc.end();
+    });
   }
 }
 

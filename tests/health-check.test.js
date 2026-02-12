@@ -6,11 +6,13 @@
 // Mock dependencies BEFORE importing the module
 jest.mock('../src/core/database');
 jest.mock('../src/core/api-client');
+jest.mock('../src/utils/memory-monitor');
 jest.mock('fs');
 
 const { getHealthStatus, writeHealthFile, startHealthChecks } = require('../src/core/health-check');
-const { getDb } = require('../src/core/database');
-const { getCacheStats } = require('../src/core/api-client');
+const { getDb, checkDatabaseHealth } = require('../src/core/database');
+const { getCacheStats, getCircuitBreakerStatus } = require('../src/core/api-client');
+const { getMemoryStats } = require('../src/utils/memory-monitor');
 const fs = require('fs');
 
 describe('Health Check Module', () => {
@@ -38,6 +40,15 @@ describe('Health Check Module', () => {
       expired: 2,
       utilizationPercent: 1,
     });
+
+    // Setup mock database health
+    checkDatabaseHealth.mockReturnValue({ healthy: true, lastCheck: new Date().toISOString() });
+
+    // Setup mock circuit breaker status
+    getCircuitBreakerStatus.mockReturnValue({ state: 'CLOSED', failures: 0, successes: 0 });
+
+    // Setup mock memory stats
+    getMemoryStats.mockReturnValue(null);
 
     // Setup mock fs
     fs.existsSync.mockReturnValue(true);

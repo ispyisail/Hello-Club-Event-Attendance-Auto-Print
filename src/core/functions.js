@@ -227,7 +227,7 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
 async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode) {
   // Generate PDF (sanitization handled inside generate())
   const generator = new PdfGenerator(event, attendees, pdfLayout);
-  const safeOutputPath = generator.generate(outputFileName);
+  const safeOutputPath = await generator.generate(outputFileName);
 
   // Log file size for monitoring (try-catch for test environments)
   try {

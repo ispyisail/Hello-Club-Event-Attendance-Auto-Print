@@ -27,7 +27,7 @@ jest.mock('../src/services/pdf-generator', () => {
 
 // Now we can require the modules.
 const { fetchAndStoreUpcomingEvents, processScheduledEvents } = require('../src/core/functions');
-const { getDb } = require('../src/core/database');
+const { getDb, withRetry, withTransaction } = require('../src/core/database');
 const PdfGenerator = require('../src/services/pdf-generator');
 const logger = require('../src/services/logger');
 const { printPdf } = require('../src/services/cups-printer');
@@ -60,6 +60,10 @@ describe('Event Processing Logic', () => {
     };
 
     getDb.mockReturnValue(mockDb);
+
+    // Make withTransaction and withRetry execute their callbacks
+    withTransaction.mockImplementation((fn) => fn());
+    withRetry.mockImplementation((fn) => fn());
   });
 
   afterEach(() => {
@@ -87,7 +91,7 @@ describe('Event Processing Logic', () => {
 
       expect(getUpcomingEvents).toHaveBeenCalledWith(24);
       expect(getDb).toHaveBeenCalled();
-      expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT OR IGNORE'));
+      expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT OR REPLACE'));
       // The 'pending' status is hardcoded in the SQL, so only 3 args are passed to run()
       expect(mockStmt.run).toHaveBeenCalledWith(1, 'Test Event', expect.any(String));
     });

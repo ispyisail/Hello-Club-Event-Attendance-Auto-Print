@@ -142,7 +142,7 @@ describe('PdfGenerator', () => {
   });
 
   describe('generate', () => {
-    it('should generate PDF with valid filename', () => {
+    it('should generate PDF with valid filename', async () => {
       const fs = require('fs');
       const event = {
         name: 'Test Event',
@@ -158,11 +158,24 @@ describe('PdfGenerator', () => {
 
       const gen = new PdfGenerator(event, attendees, layout);
 
-      // Mock createWriteStream
-      const mockStream = { write: jest.fn(), end: jest.fn() };
+      // Mock createWriteStream with event emitter support
+      const handlers = {};
+      const mockStream = {
+        write: jest.fn(),
+        end: jest.fn(),
+        on: jest.fn((event, cb) => {
+          handlers[event] = cb;
+          return mockStream;
+        }),
+      };
       fs.createWriteStream.mockReturnValue(mockStream);
 
-      gen.generate('test-output.pdf');
+      const promise = gen.generate('test-output.pdf');
+
+      // Trigger stream finish to resolve the promise
+      handlers['finish']();
+
+      await promise;
 
       // Verify file stream was created
       expect(fs.createWriteStream).toHaveBeenCalled();
@@ -237,7 +250,8 @@ describe('PdfGenerator', () => {
       gen._generateTableRow(attendee, 100);
 
       // Verify rect (checkbox) was drawn
-      expect(gen.doc.rect).toHaveBeenCalledWith(50, 101, 16, 16);
+      // checkboxY = y + baseFontSize/2 - checkboxSize/2 = 100 + 5 - 8 = 97
+      expect(gen.doc.rect).toHaveBeenCalledWith(50, 97, 16, 16);
       expect(gen.doc.stroke).toHaveBeenCalled();
 
       // Verify text was written (name, phone, signUpDate, fee)
@@ -246,7 +260,7 @@ describe('PdfGenerator', () => {
 
     it('should use color coding for fee column', () => {
       const event = { name: 'Test Event' };
-      const layout = { columns: [] };
+      const layout = {}; // No columns specified, falls back to defaults (includes fee)
       const gen = new PdfGenerator(event, [], layout);
 
       // Test unpaid fee (red)
@@ -320,7 +334,7 @@ describe('PdfGenerator', () => {
   describe('_generateTableHeader', () => {
     it('should generate table header with fixed columns', () => {
       const event = { name: 'Test Event' };
-      const layout = { columns: [] }; // Layout columns are no longer used
+      const layout = {}; // No columns specified, falls back to defaults
 
       const gen = new PdfGenerator(event, [], layout);
       gen._generateTableHeader();
