@@ -16,6 +16,7 @@ const {
   notifyPermanentFailure,
   notifyServiceStatus,
 } = require('../utils/webhook');
+const { startWatchdog } = require('../utils/systemd-watchdog');
 
 // In-memory map to store references to our scheduled timeout jobs.
 // The key is the event ID, and the value is the timeout ID returned by setTimeout.
@@ -568,6 +569,9 @@ function runService(config) {
   // Start health checks (writes status file every 60 seconds)
   startHealthChecks(60);
   logger.info('Health check monitoring started');
+
+  // Start systemd watchdog integration (if enabled)
+  startWatchdog();
 }
 
 /**
