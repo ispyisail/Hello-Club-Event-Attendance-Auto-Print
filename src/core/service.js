@@ -250,7 +250,63 @@ function scheduleEvent(event, config) {
       `Scheduled job for event: "${event.name}" (ID: ${event.id}) in ${Math.round(delay / 1000 / 60)} minutes.`
     );
   } else {
-    logger.info(`Event "${event.name}" (ID: ${event.id}) is in the past and will not be scheduled.`);
+    // Event's scheduled time has passed - check if it's still worth processing
+    const eventStartTime = new Date(event.startDate).getTime();
+    const gracePeriodMinutes = 60; // Process events up to 1 hour after start time
+    const gracePeriodEnd = eventStartTime + gracePeriodMinutes * 60 * 1000;
+
+    if (now < gracePeriodEnd) {
+      // Still within grace period - process immediately
+      logger.warn(
+        `Event "${event.name}" (ID: ${event.id}) missed scheduled time but is within grace period. Processing immediately...`
+      );
+
+      // Persist job with immediate processing status
+      const db = getDb();
+      try {
+        const insertJob = db.prepare(`
+                INSERT INTO scheduled_jobs (event_id, event_name, scheduled_time, status)
+                VALUES (?, ?, ?, 'processing')
+                ON CONFLICT(event_id) DO UPDATE SET
+                    event_name = excluded.event_name,
+                    status = 'processing',
+                    scheduled_time = excluded.scheduled_time,
+                    updated_at = datetime('now')
+            `);
+        insertJob.run(event.id, event.name, scheduledTime);
+      } catch (err) {
+        logger.error(`Failed to persist job for event ${event.id}:`, err);
+      }
+
+      // Process immediately (asynchronously, don't block scheduler)
+      setImmediate(async () => {
+        logger.info('───────────────────────────────────────────────────────────────');
+        logger.info(`⚡ Late job processing for event: ${event.name} (ID: ${event.id})`);
+        await processEventWithRetry(event, config);
+      });
+    } else {
+      // Too late to process - mark as failed
+      logger.warn(
+        `Event "${event.name}" (ID: ${event.id}) is too far in the past (grace period expired). Marking as failed.`
+      );
+
+      // Mark both event and job as failed
+      updateEventStatus(event.id, 'failed');
+      const db = getDb();
+      try {
+        const insertJob = db.prepare(`
+                INSERT INTO scheduled_jobs (event_id, event_name, scheduled_time, status, error_message)
+                VALUES (?, ?, ?, 'failed', 'Missed processing window - event too far in the past')
+                ON CONFLICT(event_id) DO UPDATE SET
+                    status = 'failed',
+                    error_message = 'Missed processing window - event too far in the past',
+                    updated_at = datetime('now')
+            `);
+        insertJob.run(event.id, event.name, scheduledTime);
+      } catch (err) {
+        logger.error(`Failed to persist failed job for event ${event.id}:`, err);
+      }
+    }
   }
 }
 
