@@ -22,6 +22,13 @@ const getDb = () => {
       }
       db = new Database('./events.db', options);
 
+      // Set pragmas for reliability on Raspberry Pi (slow SD card)
+      db.pragma('journal_mode = WAL'); // Concurrent reads during writes, less SD card wear
+      db.pragma('busy_timeout = 5000'); // Retry for 5s instead of failing with SQLITE_BUSY
+      db.pragma('synchronous = NORMAL'); // Safe with WAL, faster on slow storage
+      db.pragma('foreign_keys = ON'); // Defensive integrity
+      logger.info('SQLite pragmas set: WAL mode, busy_timeout=5000, synchronous=NORMAL, foreign_keys=ON');
+
       // Run pending migrations to ensure schema is up to date
       logger.info('Checking for pending database migrations...');
       runMigrations(db);
@@ -137,8 +144,25 @@ function getJobInfo(eventId) {
   return database.prepare('SELECT * FROM scheduled_jobs WHERE event_id = ?').get(eventId);
 }
 
+/**
+ * Close the database connection gracefully
+ * Should be called during shutdown to ensure WAL is checkpointed
+ */
+function closeDb() {
+  if (db) {
+    try {
+      db.close();
+      db = null;
+      logger.info('Database connection closed.');
+    } catch (err) {
+      logger.error('Error closing database:', err.message);
+    }
+  }
+}
+
 module.exports = {
   getDb,
+  closeDb,
   cleanupOldEvents,
   updateEventStatus,
   updateJobStatus,

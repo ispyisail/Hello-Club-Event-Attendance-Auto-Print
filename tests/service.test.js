@@ -185,8 +185,8 @@ describe('Service Module', () => {
       expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('already has an active job'));
     });
 
-    it('should not schedule past events', () => {
-      const pastDate = new Date(Date.now() - 3600000); // 1 hour ago
+    it('should not schedule past events beyond grace period', () => {
+      const pastDate = new Date(Date.now() - 2 * 3600000); // 2 hours ago (beyond 1hr grace)
       const event = {
         id: 'event-2',
         name: 'Past Event',
@@ -196,7 +196,7 @@ describe('Service Module', () => {
 
       scheduleEvent(event, config);
 
-      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('is in the past'));
+      expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('too far in the past'));
 
       const scheduledJobs = _getScheduledJobs();
       expect(scheduledJobs.has('event-2')).toBe(false);
@@ -403,6 +403,32 @@ describe('Service Module', () => {
 
       expect(() => recoverPendingJobs({})).not.toThrow();
       expect(logger.error).toHaveBeenCalledWith('Error recovering pending jobs:', expect.any(Error));
+    });
+
+    it('should bypass isJobAlreadyScheduled during recovery', () => {
+      // Simulate a recovered job: DB has status='scheduled' but no in-memory setTimeout
+      const futureStart = new Date(Date.now() + 120000).toISOString();
+      const futureScheduled = new Date(Date.now() + 60000).toISOString();
+
+      mockStmt.all.mockReturnValue([
+        {
+          event_id: 'recovered-1',
+          event_name: 'Recovered Event',
+          scheduled_time: futureScheduled,
+          startDate: futureStart,
+        },
+      ]);
+
+      // Make isJobAlreadyScheduled's DB check return a 'scheduled' job
+      // (simulates the stale DB record that caused the original bug)
+      mockStmt.get.mockReturnValue({ status: 'scheduled' });
+
+      recoverPendingJobs({ preEventQueryMinutes: 1 });
+
+      // The job should still be scheduled in memory despite the DB check
+      const scheduledJobs = _getScheduledJobs();
+      expect(scheduledJobs.has('recovered-1')).toBe(true);
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Recovered job for event'));
     });
   });
 });

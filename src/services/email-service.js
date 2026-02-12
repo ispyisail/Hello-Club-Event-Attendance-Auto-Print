@@ -87,7 +87,11 @@ async function sendEmailWithAttachment(transportOptions, to, from, subject, body
   // Validate attachment path to prevent path traversal
   const safePath = validateAttachmentPath(attachmentPath);
 
-  const transporter = nodemailer.createTransport(transportOptions);
+  const transporter = nodemailer.createTransport({
+    ...transportOptions,
+    connectionTimeout: 30000, // 30s to establish connection
+    socketTimeout: 60000, // 60s for socket inactivity
+  });
 
   try {
     const info = await transporter.sendMail({
@@ -107,6 +111,8 @@ async function sendEmailWithAttachment(transportOptions, to, from, subject, body
   } catch (error) {
     logger.error('Failed to send email:', error);
     throw error;
+  } finally {
+    transporter.close();
   }
 }
 

@@ -185,6 +185,15 @@ class SimpleCache {
 const cache = new SimpleCache();
 
 // Run cleanup every 5 minutes
-setInterval(() => cache.cleanup(), 5 * 60 * 1000);
+setInterval(
+  () => {
+    try {
+      cache.cleanup();
+    } catch (err) {
+      logger.error('Cache cleanup error:', err);
+    }
+  },
+  5 * 60 * 1000
+);
 
 module.exports = cache;

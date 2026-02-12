@@ -26,6 +26,7 @@ describe('Email Service', () => {
     // Create mock transporter
     mockTransporter = {
       sendMail: mockSendMail,
+      close: jest.fn(),
     };
 
     // Mock nodemailer.createTransport
@@ -73,7 +74,11 @@ describe('Email Service', () => {
         emailParams.attachmentPath
       );
 
-      expect(nodemailer.createTransport).toHaveBeenCalledWith(transportOptions);
+      expect(nodemailer.createTransport).toHaveBeenCalledWith({
+        ...transportOptions,
+        connectionTimeout: 30000,
+        socketTimeout: 60000,
+      });
 
       expect(mockSendMail).toHaveBeenCalledWith({
         from: emailParams.from,
@@ -262,6 +267,58 @@ describe('Email Service', () => {
       expect(mockSendMail).toHaveBeenCalledWith(
         expect.objectContaining({
           subject: specialSubject,
+        })
+      );
+    });
+
+    it('should close transporter after successful send', async () => {
+      mockSendMail.mockResolvedValue({ messageId: '123', response: '250 OK' });
+
+      await sendEmailWithAttachment(
+        transportOptions,
+        emailParams.to,
+        emailParams.from,
+        emailParams.subject,
+        emailParams.body,
+        emailParams.attachmentPath
+      );
+
+      expect(mockTransporter.close).toHaveBeenCalledTimes(1);
+    });
+
+    it('should close transporter after failed send', async () => {
+      mockSendMail.mockRejectedValue(new Error('SMTP error'));
+
+      await expect(
+        sendEmailWithAttachment(
+          transportOptions,
+          emailParams.to,
+          emailParams.from,
+          emailParams.subject,
+          emailParams.body,
+          emailParams.attachmentPath
+        )
+      ).rejects.toThrow('SMTP error');
+
+      expect(mockTransporter.close).toHaveBeenCalledTimes(1);
+    });
+
+    it('should add connection and socket timeouts to transport options', async () => {
+      mockSendMail.mockResolvedValue({ messageId: '123', response: '250 OK' });
+
+      await sendEmailWithAttachment(
+        transportOptions,
+        emailParams.to,
+        emailParams.from,
+        emailParams.subject,
+        emailParams.body,
+        emailParams.attachmentPath
+      );
+
+      expect(nodemailer.createTransport).toHaveBeenCalledWith(
+        expect.objectContaining({
+          connectionTimeout: 30000,
+          socketTimeout: 60000,
         })
       );
     });

@@ -184,10 +184,11 @@ function isJobAlreadyScheduled(eventId) {
  * @param {Object} event - The event object from the database.
  * @param {Object} config - The application configuration.
  */
-function scheduleEvent(event, config) {
+function scheduleEvent(event, config, options = {}) {
   // If a job for this event is already scheduled (in memory or DB), do nothing.
-  // This check prevents race conditions during crash recovery.
-  if (isJobAlreadyScheduled(event.id)) {
+  // Skip this check during crash recovery — the DB has stale 'scheduled' status
+  // but no in-memory setTimeout exists, so we must recreate it.
+  if (!options.fromRecovery && isJobAlreadyScheduled(event.id)) {
     logger.debug(`Event ${event.id} already has an active job, skipping`);
     return;
   }
@@ -369,13 +370,14 @@ function recoverPendingJobs(config) {
           continue;
         }
 
-        // Reschedule the job
+        // Reschedule the job — pass fromRecovery to bypass isJobAlreadyScheduled()
+        // since the DB still has status='scheduled' but no in-memory setTimeout exists
         const event = {
           id: job.event_id,
           name: job.event_name,
           startDate: job.startDate,
         };
-        scheduleEvent(event, config);
+        scheduleEvent(event, config, { fromRecovery: true });
         logger.info(`Recovered job for event: ${job.event_name} (ID: ${job.event_id})`);
       }
     } else {
@@ -505,7 +507,9 @@ function runService(config) {
   };
 
   // Run the task immediately on startup.
-  task();
+  task().catch((err) => {
+    logger.error('Initial scheduler task failed:', err);
+  });
 
   // Then, set up the interval to run the task periodically.
   const runInterval = config.serviceRunIntervalHours * 60 * 60 * 1000;
@@ -515,26 +519,39 @@ function runService(config) {
   // Add a heartbeat log every 15 minutes to show the service is alive
   const heartbeatInterval = 15 * 60 * 1000; // 15 minutes
   setInterval(() => {
-    const scheduledCount = scheduledJobs.size;
-    logger.info(`Service heartbeat: Running normally. ${scheduledCount} event(s) scheduled for processing.`);
+    try {
+      const scheduledCount = scheduledJobs.size;
+      logger.info(`Service heartbeat: Running normally. ${scheduledCount} event(s) scheduled for processing.`);
+    } catch (err) {
+      logger.error('Heartbeat error:', err);
+    }
   }, heartbeatInterval);
 
   // Write statistics report every hour
   setInterval(
     () => {
-      logger.info(getStatisticsSummary());
-      writeStatisticsFile();
+      try {
+        logger.info(getStatisticsSummary());
+        writeStatisticsFile();
+      } catch (err) {
+        logger.error('Statistics write error:', err);
+      }
     },
     60 * 60 * 1000
   ); // Every hour
 
   // Write initial statistics
   setTimeout(() => {
-    logger.info(getStatisticsSummary());
-    writeStatisticsFile();
+    try {
+      logger.info(getStatisticsSummary());
+      writeStatisticsFile();
+    } catch (err) {
+      logger.error('Initial statistics write error:', err);
+    }
   }, 5000); // 5 seconds after startup
 
   // Run database cleanup daily at 3 AM to remove old events
+  // Uses self-scheduling setTimeout to avoid double-setInterval and handle DST changes
   const cleanupDays = config.database?.cleanupDays || 30;
   const scheduleDailyCleanup = () => {
     const now = new Date();
@@ -549,16 +566,14 @@ function runService(config) {
     const timeUntil3AM = next3AM - now;
 
     setTimeout(() => {
-      logger.info(`Running daily database cleanup (keeping ${cleanupDays} days)...`);
-      cleanupOldEvents(cleanupDays);
-      // Schedule next cleanup
-      setInterval(
-        () => {
-          logger.info(`Running daily database cleanup (keeping ${cleanupDays} days)...`);
-          cleanupOldEvents(cleanupDays);
-        },
-        24 * 60 * 60 * 1000
-      ); // Every 24 hours
+      try {
+        logger.info(`Running daily database cleanup (keeping ${cleanupDays} days)...`);
+        cleanupOldEvents(cleanupDays);
+      } catch (err) {
+        logger.error('Database cleanup error:', err);
+      }
+      // Reschedule for next 3 AM (handles DST changes correctly)
+      scheduleDailyCleanup();
     }, timeUntil3AM);
 
     logger.info(`Database cleanup scheduled for ${next3AM.toLocaleString()} (will keep ${cleanupDays} days of events)`);
@@ -591,6 +606,24 @@ function cancelScheduledJob(eventId) {
   return false;
 }
 
+/**
+ * Cancel all scheduled jobs (used during graceful shutdown)
+ * Clears all timeouts from the in-memory Map
+ * @returns {number} Number of jobs cancelled
+ */
+function cancelAllScheduledJobs() {
+  const count = scheduledJobs.size;
+  for (const [eventId, timeoutId] of scheduledJobs) {
+    clearTimeout(timeoutId);
+    logger.debug(`Cancelled scheduled job for event: ${eventId}`);
+  }
+  scheduledJobs.clear();
+  if (count > 0) {
+    logger.info(`Cancelled ${count} scheduled job(s) during shutdown`);
+  }
+  return count;
+}
+
 module.exports = {
   runService,
   // Export for testing
@@ -605,6 +638,7 @@ module.exports = {
   safeWebhookNotify,
   getRetryConfig,
   cancelScheduledJob,
+  cancelAllScheduledJobs,
   // Export scheduledJobs map for testing (read-only use)
   _getScheduledJobs: () => scheduledJobs,
 };
