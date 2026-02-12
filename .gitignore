@@ -35,6 +35,8 @@ Thumbs.db
 
 # Database files
 *.db
+*.db-shm
+*.db-wal
 
 # Installer downloads
 innosetup-installer.exe

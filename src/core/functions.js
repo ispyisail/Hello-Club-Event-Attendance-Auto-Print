@@ -2,7 +2,6 @@ const logger = require('../services/logger');
 const { printPdf } = require('../services/cups-printer');
 const { sendEmailWithAttachment } = require('../services/email-service');
 const PdfGenerator = require('../services/pdf-generator');
-const { sanitizeOutputPath } = require('../services/pdf-generator');
 const { getDb, withRetry, withTransaction } = require('./database');
 const { getEventDetails, getAllAttendees, getUpcomingEvents } = require('./api-client');
 
@@ -226,11 +225,9 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
  * @returns {Promise<void>}
  */
 async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode) {
-  // Sanitize output path to prevent path traversal
-  const safeOutputPath = sanitizeOutputPath(outputFileName);
-
+  // Generate PDF (sanitization handled inside generate())
   const generator = new PdfGenerator(event, attendees, pdfLayout);
-  generator.generate(safeOutputPath);
+  const safeOutputPath = generator.generate(outputFileName);
 
   // Log file size for monitoring (try-catch for test environments)
   try {

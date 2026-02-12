@@ -346,6 +346,7 @@ class PdfGenerator {
   /**
    * Generates the PDF and saves it to a file.
    * @param {string} outputFileName - The filename to save the output PDF file (will be sanitized).
+   * @returns {string} The sanitized absolute path where the PDF was saved
    * @throws {Error} If outputFileName contains path traversal attempts
    */
   generate(outputFileName) {
@@ -355,6 +356,8 @@ class PdfGenerator {
     this.doc.pipe(fs.createWriteStream(safeOutputPath));
     this._generateTable();
     this.doc.end();
+
+    return safeOutputPath;
   }
 }
 

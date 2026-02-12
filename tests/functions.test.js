@@ -11,7 +11,10 @@ jest.mock('../src/services/pdf-generator', () => {
     this.event = event;
     this.attendees = attendees;
     this.layout = layout;
-    this.generate = jest.fn();
+    this.generate = jest.fn((filename) => {
+      const path = require('path');
+      return path.resolve(process.cwd(), filename);
+    });
   });
 
   mockConstructor.sanitizeOutputPath = jest.fn((filename) => {
