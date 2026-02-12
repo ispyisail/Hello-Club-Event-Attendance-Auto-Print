@@ -78,7 +78,8 @@ docs/
 - **API client:** Axios with 30s timeout (API_TIMEOUT env override), cache with fresh/stale TTL, 1s delay between paginated requests. Protected by circuit breaker (opens after 5 failures, 1min cooldown).
 - **Input validation:** All external data (API, user input) validated via `src/utils/validators.js`. Use `validateEvent()`, `validateAttendee()`, `validateEventId()` before processing.
 - **Memory management:** Bounded cache (max 1000 entries), automatic cleanup every 5 minutes. Memory monitoring logs warnings at 300MB heap / 400MB RSS.
-- **Testing:** Jest mocks at file top. Mock DB: `getDb.mockReturnValue(mockDb)` with `prepare()`, `run()`, `all()`. Coverage thresholds enforced per-module (80-90% for functions.js, 70-80% for pdf-generator.js).
+- **PDF generation:** `generate()` returns a Promise (resolves on stream 'finish'). Callers must `await` it before using the output file — otherwise the file may not exist yet when emailing/printing.
+- **Testing:** Jest mocks at file top. Mock DB: `getDb.mockReturnValue(mockDb)` with `prepare()`, `run()`, `all()`. Mock `withTransaction`/`withRetry` to execute callbacks: `withTransaction.mockImplementation((fn) => fn())`. Coverage thresholds enforced per-module (80-90% for functions.js, 70-80% for pdf-generator.js).
 
 ## Config Files
 
