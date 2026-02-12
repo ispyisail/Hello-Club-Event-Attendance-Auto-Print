@@ -1,6 +1,8 @@
 const axios = require('axios');
 const logger = require('../services/logger');
 const cache = require('../utils/cache');
+const CircuitBreaker = require('../utils/circuit-breaker');
+const { validateEvent, validateAttendee, validateEventId } = require('../utils/validators');
 
 const API_KEY = process.env.API_KEY;
 const RAW_BASE_URL = process.env.API_BASE_URL;
@@ -24,6 +26,15 @@ const api = axios.create({
     Authorization: `Bearer ${API_KEY}`,
   },
   timeout: API_TIMEOUT,
+});
+
+// Circuit breaker to prevent cascading failures when API is down
+// Opens after 5 consecutive failures, closes after 2 successes
+const circuitBreaker = new CircuitBreaker({
+  threshold: 5,
+  successThreshold: 2,
+  timeout: 60000, // 1 minute
+  name: 'HelloClubAPI',
 });
 
 /**
@@ -68,7 +79,9 @@ function handleApiError(error, context) {
  * @returns {Promise<Object|null>} A promise that resolves to the event object or null if not found.
  */
 async function getEventDetails(eventId, options = { allowStale: true }) {
-  const cacheKey = `event:${eventId}`;
+  // Validate event ID before making API call
+  const validEventId = validateEventId(eventId);
+  const cacheKey = `event:${validEventId}`;
 
   // Check fresh cache first
   const cached = cache.get(cacheKey);
@@ -77,10 +90,11 @@ async function getEventDetails(eventId, options = { allowStale: true }) {
   }
 
   try {
-    const response = await api.get(`/event/${eventId}`);
+    const response = await circuitBreaker.execute(() => api.get(`/event/${validEventId}`));
+    const validatedEvent = validateEvent(response.data);
     // Cache for 5 minutes fresh, 1 hour stale
-    cache.set(cacheKey, response.data, 300, 3600);
-    return response.data;
+    cache.set(cacheKey, validatedEvent, 300, 3600);
+    return validatedEvent;
   } catch (error) {
     // Try to use stale cache data if allowed
     if (options.allowStale) {
@@ -116,15 +130,29 @@ async function getUpcomingEvents(fetchWindowHours, options = { allowStale: true 
     const fromDate = new Date();
     const toDate = new Date(fromDate.getTime() + fetchWindowHours * 60 * 60 * 1000);
 
-    const response = await api.get('/event', {
-      params: {
-        fromDate: fromDate.toISOString(),
-        toDate: toDate.toISOString(),
-        sort: 'startDate',
-      },
-    });
+    const response = await circuitBreaker.execute(() =>
+      api.get('/event', {
+        params: {
+          fromDate: fromDate.toISOString(),
+          toDate: toDate.toISOString(),
+          sort: 'startDate',
+        },
+      })
+    );
 
-    const events = response.data.events || [];
+    const rawEvents = response.data.events || [];
+
+    // Validate all events and filter out invalid ones
+    const events = rawEvents
+      .map((event) => {
+        try {
+          return validateEvent(event);
+        } catch (error) {
+          logger.warn(`Skipping invalid event from API: ${error.message}`);
+          return null;
+        }
+      })
+      .filter((event) => event !== null);
 
     // Cache for 5 minutes fresh, 1 hour stale
     cache.set(cacheKey, events, 300, 3600);
@@ -159,7 +187,9 @@ async function getUpcomingEvents(fetchWindowHours, options = { allowStale: true 
  * @returns {Promise<Array<Object>>} A promise that resolves to an array of attendee objects, sorted by last name then first name.
  */
 async function getAllAttendees(eventId, options = { allowStale: true }) {
-  const cacheKey = `attendees:${eventId}`;
+  // Validate event ID before making API call
+  const validEventId = validateEventId(eventId);
+  const cacheKey = `attendees:${validEventId}`;
 
   // Check fresh cache first
   const cached = cache.get(cacheKey);
@@ -184,9 +214,11 @@ async function getAllAttendees(eventId, options = { allowStale: true }) {
         break;
       }
 
-      const response = await api.get('/eventAttendee', {
-        params: { event: eventId, limit: limit, offset: offset },
-      });
+      const response = await circuitBreaker.execute(() =>
+        api.get('/eventAttendee', {
+          params: { event: validEventId, limit: limit, offset: offset },
+        })
+      );
 
       const receivedAttendees = response.data.attendees;
       const total = response.data.meta?.total || 0;
@@ -195,7 +227,19 @@ async function getAllAttendees(eventId, options = { allowStale: true }) {
         break;
       }
 
-      attendees = attendees.concat(receivedAttendees);
+      // Validate and sanitize attendees
+      const validatedAttendees = receivedAttendees
+        .map((attendee) => {
+          try {
+            return validateAttendee(attendee);
+          } catch (error) {
+            logger.warn(`Skipping invalid attendee from API: ${error.message}`);
+            return null;
+          }
+        })
+        .filter((attendee) => attendee !== null);
+
+      attendees = attendees.concat(validatedAttendees);
       offset += receivedAttendees.length;
 
       // Safety check: stop if we've fetched all attendees
@@ -258,10 +302,28 @@ function getCacheStats() {
   return cache.getStats();
 }
 
+/**
+ * Get circuit breaker status
+ * @returns {Object} Circuit breaker status
+ */
+function getCircuitBreakerStatus() {
+  return circuitBreaker.getStatus();
+}
+
+/**
+ * Reset circuit breaker to CLOSED state
+ * Useful for manual recovery or testing
+ */
+function resetCircuitBreaker() {
+  circuitBreaker.reset();
+}
+
 module.exports = {
   getEventDetails,
   getUpcomingEvents,
   getAllAttendees,
   clearCache,
   getCacheStats,
+  getCircuitBreakerStatus,
+  resetCircuitBreaker,
 };

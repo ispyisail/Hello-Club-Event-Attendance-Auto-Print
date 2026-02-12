@@ -17,6 +17,7 @@ const {
   notifyServiceStatus,
 } = require('../utils/webhook');
 const { startWatchdog } = require('../utils/systemd-watchdog');
+const { startMemoryMonitoring } = require('../utils/memory-monitor');
 
 // In-memory map to store references to our scheduled timeout jobs.
 // The key is the event ID, and the value is the timeout ID returned by setTimeout.
@@ -587,6 +588,14 @@ function runService(config) {
 
   // Start systemd watchdog integration (if enabled)
   startWatchdog();
+
+  // Start memory monitoring (checks every 5 minutes)
+  const memoryThresholds = {
+    heapUsedMB: 300, // Warn if heap exceeds 300MB
+    rssMB: 400, // Warn if total memory exceeds 400MB
+  };
+  startMemoryMonitoring(5 * 60 * 1000, memoryThresholds);
+  logger.info('Memory monitoring started (5 minute interval)');
 }
 
 /**

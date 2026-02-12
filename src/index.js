@@ -7,6 +7,7 @@ const { fetchAndStoreUpcomingEvents, processScheduledEvents } = require('./core/
 const { runService, cancelAllScheduledJobs } = require('./core/service');
 const { closeDb } = require('./core/database');
 const { stopWatchdog } = require('./utils/systemd-watchdog');
+const { stopMemoryMonitoring } = require('./utils/memory-monitor');
 
 // Global error handlers to prevent crashes
 process.on('uncaughtException', (error) => {
@@ -31,6 +32,12 @@ function gracefulShutdown(signal) {
     stopWatchdog();
   } catch (_err) {
     // Watchdog may not have been started
+  }
+
+  try {
+    stopMemoryMonitoring();
+  } catch (_err) {
+    // Memory monitoring may not have been started
   }
 
   try {

@@ -3,7 +3,7 @@ const { printPdf } = require('../services/cups-printer');
 const { sendEmailWithAttachment } = require('../services/email-service');
 const PdfGenerator = require('../services/pdf-generator');
 const { sanitizeOutputPath } = require('../services/pdf-generator');
-const { getDb } = require('./database');
+const { getDb, withRetry, withTransaction } = require('./database');
 const { getEventDetails, getAllAttendees, getUpcomingEvents } = require('./api-client');
 
 /**
@@ -41,17 +41,21 @@ async function processSingleEvent(event, finalConfig) {
       // Create and print/email the PDF
       await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode);
 
-      // Mark as processed only after successful completion
-      const updateStmt = db.prepare("UPDATE events SET status = 'processed' WHERE id = ?");
-      updateStmt.run(event.id);
+      // Mark as processed only after successful completion (with retry)
+      withRetry(() => {
+        const updateStmt = db.prepare("UPDATE events SET status = 'processed' WHERE id = ?");
+        updateStmt.run(event.id);
+      });
       logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed.`);
 
       return { attendeeCount: attendees.length };
     } else {
       // No attendees - mark as processed to avoid retries
       logger.warn(`No attendees found for event "${event.name}" (ID: ${event.id}). Skipping PDF generation.`);
-      const updateStmt = db.prepare("UPDATE events SET status = 'processed' WHERE id = ?");
-      updateStmt.run(event.id);
+      withRetry(() => {
+        const updateStmt = db.prepare("UPDATE events SET status = 'processed' WHERE id = ?");
+        updateStmt.run(event.id);
+      });
       logger.info(`Event "${event.name}" (ID: ${event.id}) marked as processed (no attendees).`);
 
       return { attendeeCount: 0 };
@@ -61,8 +65,10 @@ async function processSingleEvent(event, finalConfig) {
     logger.error(`Failed to process event ${event.id} ("${event.name}"):`, error);
 
     try {
-      const failStmt = db.prepare("UPDATE events SET status = 'failed' WHERE id = ?");
-      failStmt.run(event.id);
+      withRetry(() => {
+        const failStmt = db.prepare("UPDATE events SET status = 'failed' WHERE id = ?");
+        failStmt.run(event.id);
+      });
       logger.error(`Event ${event.id} marked as failed. Manual intervention may be required.`);
     } catch (dbError) {
       logger.error(`Additionally, failed to mark event ${event.id} as failed:`, dbError);
@@ -143,21 +149,23 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
 
   try {
     const db = getDb();
-    // Use REPLACE to update existing events if details changed in Hello Club
-    const stmt = db.prepare("INSERT OR REPLACE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')");
 
-    const insertMany = db.transaction((events) => {
-      let insertedCount = 0;
-      for (const event of events) {
+    // Use transaction with retry for storing events
+    const insertedCount = withTransaction(() => {
+      // Use REPLACE to update existing events if details changed in Hello Club
+      const stmt = db.prepare(
+        "INSERT OR REPLACE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')"
+      );
+
+      let count = 0;
+      for (const event of filteredEvents) {
         const result = stmt.run(event.id, event.name, event.startDate);
         if (result.changes > 0) {
-          insertedCount++;
+          count++;
         }
       }
-      return insertedCount;
+      return count;
     });
-
-    const insertedCount = insertMany(filteredEvents);
 
     if (insertedCount > 0) {
       logger.info(`Successfully stored ${insertedCount} new events in the database.`);
@@ -190,14 +198,17 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     if (cancelledEvents.length > 0) {
       logger.info(`Detected ${cancelledEvents.length} cancelled/deleted event(s) in Hello Club`);
 
-      const markCancelled = db.prepare("UPDATE events SET status = 'cancelled' WHERE id = ?");
-      const cancelJob = db.prepare("UPDATE scheduled_jobs SET status = 'cancelled' WHERE event_id = ?");
+      // Mark cancelled events in a transaction
+      withTransaction(() => {
+        const markCancelled = db.prepare("UPDATE events SET status = 'cancelled' WHERE id = ?");
+        const cancelJob = db.prepare("UPDATE scheduled_jobs SET status = 'cancelled' WHERE event_id = ?");
 
-      for (const event of cancelledEvents) {
-        markCancelled.run(event.id);
-        cancelJob.run(event.id);
-        logger.info(`Marked event as cancelled: "${event.name}" (ID: ${event.id})`);
-      }
+        for (const event of cancelledEvents) {
+          markCancelled.run(event.id);
+          cancelJob.run(event.id);
+          logger.info(`Marked event as cancelled: "${event.name}" (ID: ${event.id})`);
+        }
+      });
     }
   } catch (err) {
     logger.error('An error occurred during fetchAndStoreUpcomingEvents:', err.message);

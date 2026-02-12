@@ -1,6 +1,6 @@
 {
   "categories": ["NBA - Junior Events", "Pickleball"],
-  "preEventQueryMinutes": 5,
+  "preEventQueryMinutes": 30,
   "fetchWindowHours": 168,
   "serviceRunIntervalHours": 1,
   "printMode": "email",
@@ -23,7 +23,7 @@
     "cleanupDays": 30
   },
   "pdfLayout": {
-    "logo": null,
+    "logo": "assets/logo.png",
     "fontSize": 10,
     "columns": [
       {

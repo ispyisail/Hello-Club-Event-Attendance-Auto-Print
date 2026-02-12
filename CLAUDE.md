@@ -33,11 +33,11 @@ journalctl -u helloclub -f
 ```
 src/index.js              Entry point, CLI commands (fetch-events, process-schedule, start-service)
 src/core/
-  api-client.js           Hello Club API (axios, caching with fresh/stale TTL, pagination)
-  database.js             SQLite singleton via getDb(), migrations system
+  api-client.js           Hello Club API (axios, circuit breaker, caching with fresh/stale TTL, pagination)
+  database.js             SQLite singleton via getDb(), migrations system, withRetry(), withTransaction()
   functions.js            Event processing pipeline: fetch attendees -> generate PDF -> print/email
-  service.js              Scheduler loop (setTimeout + in-memory Map), job persistence, retry
-  health-check.js         Service health monitoring
+  service.js              Scheduler loop (setTimeout + in-memory Map), job persistence, retry, memory monitoring
+  health-check.js         Service health monitoring (DB, cache, circuit breaker, memory)
   statistics.js           Event processing stats
   migrations/             Database schema migrations (001_initial_schema, 002_add_events_indexes)
 src/services/
@@ -47,7 +47,10 @@ src/services/
   logger.js               Winston: activity.log + error.log
 src/utils/
   config-schema.js        Joi validation for config.json
-  cache.js                In-memory cache with TTL + stale fallback (max 1000 entries)
+  cache.js                In-memory cache with TTL + stale fallback (max 1000 entries, FIFO eviction)
+  validators.js           Input validation/sanitization (validateEvent, validateAttendee, etc.)
+  circuit-breaker.js      Circuit breaker pattern implementation
+  memory-monitor.js       Memory leak detection and monitoring
   backup.js               Config backup/restore
   webhook.js              Webhook notifications
 web-dashboard/
@@ -55,6 +58,8 @@ web-dashboard/
   routes/api.js           Dashboard REST API
   middleware/auth.js       HTTP Basic Auth
 tests/                    Jest unit tests
+docs/
+  HARDENING.md            Comprehensive hardening features documentation
 ```
 
 ## Data Flow
@@ -69,13 +74,15 @@ tests/                    Jest unit tests
 ## Key Patterns
 
 - **Error handling:** `handleApiError()` for API errors with timeout/401/network detection. Always pass error object to `logger.error(message, error)`, re-throw after logging.
-- **Database:** Singleton `getDb()`, status values: 'pending' | 'processed' | 'failed'. Migrations in `src/core/migrations/`.
-- **API client:** Axios with 30s timeout (API_TIMEOUT env override), cache with fresh/stale TTL, 1s delay between paginated requests.
+- **Database:** Singleton `getDb()`, status values: 'pending' | 'processed' | 'failed'. Migrations in `src/core/migrations/`. Use `withRetry()` for operations that may encounter SQLITE_BUSY. Use `withTransaction()` for atomic multi-step operations.
+- **API client:** Axios with 30s timeout (API_TIMEOUT env override), cache with fresh/stale TTL, 1s delay between paginated requests. Protected by circuit breaker (opens after 5 failures, 1min cooldown).
+- **Input validation:** All external data (API, user input) validated via `src/utils/validators.js`. Use `validateEvent()`, `validateAttendee()`, `validateEventId()` before processing.
+- **Memory management:** Bounded cache (max 1000 entries), automatic cleanup every 5 minutes. Memory monitoring logs warnings at 300MB heap / 400MB RSS.
 - **Testing:** Jest mocks at file top. Mock DB: `getDb.mockReturnValue(mockDb)` with `prepare()`, `run()`, `all()`. Coverage thresholds enforced per-module (80-90% for functions.js, 70-80% for pdf-generator.js).
 
 ## Config Files
 
-- `.env` — Secrets: API_KEY, SMTP_*, PRINTER_EMAIL, DASHBOARD_USER/PASS (gitignored)
+- `.env` — Secrets: API*KEY, SMTP*\*, PRINTER_EMAIL, DASHBOARD_USER/PASS (gitignored)
 - `config.json` — Settings: categories, timing, printMode ('local'|'email'), pdfLayout, retry config
 - `events.db` — SQLite database (gitignored)
 
