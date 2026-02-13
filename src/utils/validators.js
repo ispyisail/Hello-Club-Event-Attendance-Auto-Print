@@ -85,6 +85,11 @@ function validateAttendee(attendee) {
     status: attendee.status ? String(attendee.status).trim() : 'unknown',
     signUpDate: attendee.signUpDate || null,
     fee: attendee.fee !== undefined && attendee.fee !== null ? attendee.fee : null,
+    // Payment-related fields needed by PDF generator
+    isPaid: Boolean(attendee.isPaid),
+    hasFee: Boolean(attendee.hasFee),
+    hasMembershipRule: Boolean(attendee.hasMembershipRule),
+    rule: attendee.rule && typeof attendee.rule === 'object' ? attendee.rule : null,
   };
 }
 
