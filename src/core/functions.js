@@ -151,9 +151,11 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
 
     // Use transaction with retry for storing events
     const insertedCount = withTransaction(() => {
-      // Use REPLACE to update existing events if details changed in Hello Club
+      // Insert new events as 'pending', but preserve status of existing events
+      // (so already-processed or failed events don't get reset to 'pending')
       const stmt = db.prepare(
-        "INSERT OR REPLACE INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')"
+        `INSERT INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')
+         ON CONFLICT(id) DO UPDATE SET name = excluded.name, startDate = excluded.startDate`
       );
 
       let count = 0;

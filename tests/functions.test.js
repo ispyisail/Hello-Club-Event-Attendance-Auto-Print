@@ -91,7 +91,7 @@ describe('Event Processing Logic', () => {
 
       expect(getUpcomingEvents).toHaveBeenCalledWith(24);
       expect(getDb).toHaveBeenCalled();
-      expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT OR REPLACE'));
+      expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('INSERT INTO events'));
       // The 'pending' status is hardcoded in the SQL, so only 3 args are passed to run()
       expect(mockStmt.run).toHaveBeenCalledWith(1, 'Test Event', expect.any(String));
     });

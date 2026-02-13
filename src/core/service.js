@@ -159,14 +159,14 @@ function isJobAlreadyScheduled(eventId) {
     return true;
   }
 
-  // Then check database for jobs in active states
+  // Then check database for jobs in active or completed states
   try {
     const db = getDb();
     const job = db
       .prepare(
         `
             SELECT status FROM scheduled_jobs
-            WHERE event_id = ? AND status IN ('scheduled', 'processing', 'retrying')
+            WHERE event_id = ? AND status IN ('scheduled', 'processing', 'retrying', 'completed')
         `
       )
       .get(eventId);
