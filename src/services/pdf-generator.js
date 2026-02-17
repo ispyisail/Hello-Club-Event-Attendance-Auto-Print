@@ -352,9 +352,13 @@ class PdfGenerator {
 
     this.doc.on('pageAdded', writePageHeader);
 
+    // Reserve space at the bottom of each page for the footer (page number)
+    const footerReserved = (this.layout.fontSize || 10) * 1.4 + 20;
+    const pageBreakThreshold = this.doc.page.height - this.doc.page.margins.bottom - footerReserved;
+
     let y = this.doc.y;
     this.attendees.forEach((attendee) => {
-      if (y + this.row_height > this.doc.page.height - this.doc.page.margins.bottom) {
+      if (y + this.row_height > pageBreakThreshold) {
         // Add page footer before adding new page
         this._addPageFooter();
         this.doc.addPage();
