@@ -59,5 +59,12 @@
     "timeoutMs": 10000,
     "maxRetries": 2,
     "retryDelayMs": 2000
+  },
+  "service": {
+    "gracePeriodMinutes": 60,
+    "heartbeatIntervalMinutes": 15,
+    "healthCheckIntervalSeconds": 60,
+    "memoryHeapWarningMB": 300,
+    "memoryRssWarningMB": 400
   }
 }

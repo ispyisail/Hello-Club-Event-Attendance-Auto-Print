@@ -255,7 +255,7 @@ function scheduleEvent(event, config, options = {}) {
   } else {
     // Event's scheduled time has passed - check if it's still worth processing
     const eventStartTime = new Date(event.startDate).getTime();
-    const gracePeriodMinutes = 60; // Process events up to 1 hour after start time
+    const gracePeriodMinutes = config.service?.gracePeriodMinutes ?? 60;
     const gracePeriodEnd = eventStartTime + gracePeriodMinutes * 60 * 1000;
 
     if (now < gracePeriodEnd) {
@@ -517,8 +517,8 @@ function runService(config) {
   logger.info(`Next scheduler run in ${config.serviceRunIntervalHours} hour(s) (${runInterval}ms)`);
   setInterval(task, runInterval);
 
-  // Add a heartbeat log every 15 minutes to show the service is alive
-  const heartbeatInterval = 15 * 60 * 1000; // 15 minutes
+  // Add a heartbeat log to show the service is alive
+  const heartbeatInterval = (config.service?.heartbeatIntervalMinutes ?? 15) * 60 * 1000;
   setInterval(() => {
     try {
       const scheduledCount = scheduledJobs.size;
@@ -582,8 +582,8 @@ function runService(config) {
 
   scheduleDailyCleanup();
 
-  // Start health checks (writes status file every 60 seconds)
-  startHealthChecks(60);
+  // Start health checks (writes status file at configured interval)
+  startHealthChecks(config.service?.healthCheckIntervalSeconds ?? 60);
   logger.info('Health check monitoring started');
 
   // Start systemd watchdog integration (if enabled)
@@ -591,8 +591,8 @@ function runService(config) {
 
   // Start memory monitoring (checks every 5 minutes)
   const memoryThresholds = {
-    heapUsedMB: 300, // Warn if heap exceeds 300MB
-    rssMB: 400, // Warn if total memory exceeds 400MB
+    heapUsedMB: config.service?.memoryHeapWarningMB ?? 300,
+    rssMB: config.service?.memoryRssWarningMB ?? 400,
   };
   startMemoryMonitoring(5 * 60 * 1000, memoryThresholds);
   logger.info('Memory monitoring started (5 minute interval)');

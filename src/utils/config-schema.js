@@ -129,6 +129,25 @@ const configSchema = Joi.object({
       ]),
   }).optional(),
   /**
+   * Service runtime tunables
+   * @type {Object}
+   */
+  service: Joi.object({
+    gracePeriodMinutes: Joi.number().integer().min(0).max(480).default(60),
+    heartbeatIntervalMinutes: Joi.number().integer().min(1).max(60).default(15),
+    healthCheckIntervalSeconds: Joi.number().integer().min(10).max(300).default(60),
+    memoryHeapWarningMB: Joi.number().integer().min(100).max(2000).default(300),
+    memoryRssWarningMB: Joi.number().integer().min(100).max(4000).default(400),
+  })
+    .optional()
+    .default({
+      gracePeriodMinutes: 60,
+      heartbeatIntervalMinutes: 15,
+      healthCheckIntervalSeconds: 60,
+      memoryHeapWarningMB: 300,
+      memoryRssWarningMB: 400,
+    }),
+  /**
    * Webhook configuration for event notifications
    * @type {Object}
    */

@@ -1,3 +1,4 @@
+const fs = require('fs');
 const logger = require('../services/logger');
 const { printPdf } = require('../services/cups-printer');
 const { sendEmailWithAttachment } = require('../services/email-service');
@@ -233,7 +234,6 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
 
   // Log file size for monitoring (try-catch for test environments)
   try {
-    const fs = require('fs');
     const stats = fs.statSync(safeOutputPath);
     const fileSizeKB = (stats.size / 1024).toFixed(2);
     logger.info(`✓ PDF created: ${outputFileName} (${fileSizeKB} KB, ${attendees.length} attendees)`);
@@ -276,6 +276,14 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
     const body = `Attached is the attendee list for the event: ${sanitizedEventName}.`;
     await sendEmailWithAttachment(transportOptions, PRINTER_EMAIL, EMAIL_FROM, subject, body, safeOutputPath);
     logger.info(`✓ Email sent to: ${PRINTER_EMAIL}`);
+  }
+
+  // Clean up the generated PDF after successful delivery
+  try {
+    fs.unlinkSync(safeOutputPath);
+    logger.debug(`Deleted temporary PDF: ${safeOutputPath}`);
+  } catch (_e) {
+    // Cleanup failure is non-fatal
   }
 }
 

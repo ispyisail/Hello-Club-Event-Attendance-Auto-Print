@@ -227,6 +227,10 @@ async function getAllAttendees(eventId, options = { allowStale: true }) {
         break;
       }
 
+      logger.info(
+        `Fetching attendees page ${pageCount}/${Math.ceil(total / limit)}: got ${receivedAttendees.length} (total so far: ${attendees.length + receivedAttendees.length}/${total})`
+      );
+
       // Validate and sanitize attendees
       const validatedAttendees = receivedAttendees
         .map((attendee) => {
@@ -252,19 +256,11 @@ async function getAllAttendees(eventId, options = { allowStale: true }) {
       // eslint-disable-next-line no-constant-condition
     } while (true);
 
-    // Sort attendees by last name, then first name (case-insensitive)
-    // Using nullish coalescing (??) to handle null/undefined while preserving empty strings
+    // Sort attendees by last name, then first name (Unicode-aware, case-insensitive)
     attendees.sort((a, b) => {
-      const lastNameA = (a.lastName ?? '').toLowerCase();
-      const lastNameB = (b.lastName ?? '').toLowerCase();
-      const firstNameA = (a.firstName ?? '').toLowerCase();
-      const firstNameB = (b.firstName ?? '').toLowerCase();
-
-      if (lastNameA < lastNameB) return -1;
-      if (lastNameA > lastNameB) return 1;
-      if (firstNameA < firstNameB) return -1;
-      if (firstNameA > firstNameB) return 1;
-      return 0;
+      const lastCmp = (a.lastName ?? '').localeCompare(b.lastName ?? '', undefined, { sensitivity: 'base' });
+      if (lastCmp !== 0) return lastCmp;
+      return (a.firstName ?? '').localeCompare(b.firstName ?? '', undefined, { sensitivity: 'base' });
     });
 
     // Cache for 2 minutes fresh (attendees can change close to event time), 30 minutes stale

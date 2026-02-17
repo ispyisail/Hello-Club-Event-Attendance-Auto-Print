@@ -8,28 +8,34 @@ const fs = require('fs');
 const path = require('path');
 const multer = require('multer');
 const { testApiConnection, testEmailConnection } = require('../connection-tests');
+const configSchema = require('../../src/utils/config-schema');
+
+const ALLOWED_ENV_KEYS = [
+  'API_KEY',
+  'API_BASE_URL',
+  'API_TIMEOUT',
+  'PRINTER_EMAIL',
+  'SMTP_HOST',
+  'SMTP_PORT',
+  'SMTP_USER',
+  'SMTP_PASS',
+  'EMAIL_FROM',
+  'PRINTER_NAME',
+  'DASHBOARD_USER',
+  'DASHBOARD_PASS',
+  'DASHBOARD_PORT',
+  'NODE_ENV',
+  'LOG_LEVEL',
+  'DB_PATH',
+];
 
 const execFileAsync = promisify(execFile);
 const APP_DIR = path.resolve(__dirname, '../..');
 const SERVICE_NAME = 'helloclub';
 
-// Configure multer for logo uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    const assetsDir = path.join(APP_DIR, 'assets');
-    if (!fs.existsSync(assetsDir)) {
-      fs.mkdirSync(assetsDir, { recursive: true });
-    }
-    cb(null, assetsDir);
-  },
-  filename: (req, file, cb) => {
-    // Always overwrite with 'logo.png'
-    cb(null, 'logo.png');
-  },
-});
-
+// Configure multer for logo uploads (memoryStorage for atomic write)
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
   fileFilter: (req, file, cb) => {
     if (/^image\/(png|jpe?g)$/i.test(file.mimetype)) {
@@ -126,6 +132,18 @@ router.get('/config/env', (req, res) => {
 router.put('/config/env', (req, res) => {
   try {
     if (typeof req.body.content !== 'string') return res.json({ success: false, error: 'Invalid content' });
+
+    // Validate that only known keys are present
+    const lines = req.body.content.split('\n');
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue; // skip blanks and comments
+      const key = trimmed.split('=')[0].trim();
+      if (key && !ALLOWED_ENV_KEYS.includes(key)) {
+        return res.json({ success: false, error: `Unknown environment key: ${key}` });
+      }
+    }
+
     fs.writeFileSync(path.join(APP_DIR, '.env'), req.body.content);
     res.json({ success: true });
   } catch (error) {
@@ -143,6 +161,10 @@ router.get('/config/json', (req, res) => {
 
 router.put('/config/json', (req, res) => {
   try {
+    const { error } = configSchema.validate(req.body, { allowUnknown: false });
+    if (error) {
+      return res.json({ success: false, error: error.details[0].message });
+    }
     fs.writeFileSync(path.join(APP_DIR, 'config.json'), JSON.stringify(req.body, null, 2) + '\n');
     res.json({ success: true });
   } catch (error) {
@@ -447,6 +469,17 @@ router.post('/config/logo', upload.single('logo'), (req, res) => {
     if (!req.file) {
       return res.json({ success: false, error: 'No file uploaded' });
     }
+
+    const assetsDir = path.join(APP_DIR, 'assets');
+    if (!fs.existsSync(assetsDir)) {
+      fs.mkdirSync(assetsDir, { recursive: true });
+    }
+
+    // Atomic write: buffer → tmp file → rename
+    const tmpPath = path.join(assetsDir, 'logo.tmp.png');
+    const finalPath = path.join(assetsDir, 'logo.png');
+    fs.writeFileSync(tmpPath, req.file.buffer);
+    fs.renameSync(tmpPath, finalPath);
 
     const logoPath = 'assets/logo.png';
 
