@@ -1,6 +1,6 @@
 {
   "categories": ["NBA - Junior Events", "Pickleball"],
-  "preEventQueryMinutes": 30,
+  "preEventQueryMinutes": 32,
   "fetchWindowHours": 168,
   "serviceRunIntervalHours": 1,
   "printMode": "email",
