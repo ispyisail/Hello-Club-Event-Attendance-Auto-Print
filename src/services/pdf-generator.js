@@ -54,6 +54,7 @@ class PdfGenerator {
     this.doc = new PDFDocument({ size: 'A4', layout: 'portrait', margin: 50 });
     this.row_height = 28;
     this.checkboxSize = 16; // Proportional to text
+    this.pageNumber = 1; // Track current page number for footers
   }
 
   /**
@@ -316,6 +317,28 @@ class PdfGenerator {
   }
 
   /**
+   * Adds a page number footer at the bottom right of the current page.
+   * @private
+   */
+  _addPageFooter() {
+    const baseFontSize = this.layout.fontSize || 10;
+    const footerFontSize = baseFontSize * 1.4; // Large bold font (40% larger than base)
+
+    // Position at bottom right (with margins from edges)
+    const footerY = this.doc.page.height - this.doc.page.margins.bottom - 30;
+    const footerX = this.doc.page.width - this.doc.page.margins.right - 50;
+
+    this.doc
+      .font('Helvetica-Bold')
+      .fontSize(footerFontSize)
+      .fillColor('black')
+      .text(this.pageNumber.toString(), footerX, footerY, {
+        width: 40,
+        align: 'right',
+      });
+  }
+
+  /**
    * Generates the entire attendee table, handling page breaks.
    * @private
    */
@@ -332,13 +355,19 @@ class PdfGenerator {
     let y = this.doc.y;
     this.attendees.forEach((attendee) => {
       if (y + this.row_height > this.doc.page.height - this.doc.page.margins.bottom) {
+        // Add page footer before adding new page
+        this._addPageFooter();
         this.doc.addPage();
+        this.pageNumber++; // Increment page number for new page
         y = this.doc.y;
       }
       this._generateTableRow(attendee, y);
       y += this.row_height;
       this.doc.y = y;
     });
+
+    // Add footer for the last page
+    this._addPageFooter();
 
     this.doc.off('pageAdded', writePageHeader);
   }
