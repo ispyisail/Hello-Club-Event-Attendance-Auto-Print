@@ -352,8 +352,9 @@ class PdfGenerator {
     const extraRows = 10;
     const writeInRowHeight = this.row_height; // Single spacing
     const gapAbove = 20;
-    // Rough height: gap + divider + message (~3 lines) + 10 rows
-    const approxMessageHeight = baseFontSize * 1.4 * 3 + 12;
+    const titleSize = baseFontSize * 1.4;
+    // Rough height: gap + title + subtitle + 10 rows
+    const approxMessageHeight = titleSize * 1.4 + baseFontSize * 1.4 * 2 + 16;
     const sectionHeight = gapAbove + approxMessageHeight + extraRows * writeInRowHeight;
 
     // Helper: footer the current page then start a fresh page (header drawn via 'pageAdded' listener)
@@ -369,22 +370,23 @@ class PdfGenerator {
       y = addNewPage();
     }
 
-    // Divider line and gap
+    // Section title
     y += gapAbove;
     this.doc
-      .moveTo(startX, y)
-      .lineTo(startX + pageWidth, y)
-      .lineWidth(0.5)
-      .stroke();
-    y += 10;
+      .font('Helvetica-Bold')
+      .fontSize(titleSize)
+      .fillColor('black')
+      .text('Not on the list?', startX, y, { width: pageWidth });
+    y = this.doc.y + 4;
 
-    // Instruction text
-    const message =
-      'If your name is not on this list and you intend to play, please write your first and last name ' +
-      'and email address and/or contact phone number below.';
-    this.doc.font('Helvetica').fontSize(baseFontSize).fillColor('black').text(message, startX, y, {
-      width: pageWidth,
-    });
+    // Subtitle
+    this.doc
+      .font('Helvetica')
+      .fontSize(baseFontSize)
+      .fillColor('black')
+      .text('Please write your first and last name, email address and/or contact phone number below.', startX, y, {
+        width: pageWidth,
+      });
     y = this.doc.y + 8;
 
     // 10 blank write-in rows: checkbox + ruled line
@@ -443,11 +445,17 @@ class PdfGenerator {
       this.doc.y = y;
     });
 
+    // Switch to a write-in page header (event header only, no column headers) before
+    // the write-in section, so any overflow page looks correct
+    this.doc.off('pageAdded', writePageHeader);
+    const writeInPageHeader = () => this._generateHeader();
+    this.doc.on('pageAdded', writeInPageHeader);
+
     // Write-in section for unlisted players, then footer for the last page
     this._generateWriteInSection(y, pageBreakThreshold);
     this._addPageFooter();
 
-    this.doc.off('pageAdded', writePageHeader);
+    this.doc.off('pageAdded', writeInPageHeader);
   }
 
   /**
