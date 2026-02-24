@@ -339,6 +339,68 @@ class PdfGenerator {
   }
 
   /**
+   * Generates the write-in section on the last page: an instruction message and
+   * 10 blank ruled rows for unlisted players to add their details by hand.
+   * @param {number} y - Current y position after the last attendee row.
+   * @param {number} pageBreakThreshold - Y coordinate of the page break boundary.
+   * @private
+   */
+  _generateWriteInSection(y, pageBreakThreshold) {
+    const baseFontSize = this.layout.fontSize || 10;
+    const startX = this.doc.page.margins.left;
+    const pageWidth = this.doc.page.width - this.doc.page.margins.left - this.doc.page.margins.right;
+    const extraRows = 10;
+    const gapAbove = 20;
+    // Rough height: gap + divider + message (~3 lines) + 10 rows
+    const approxMessageHeight = baseFontSize * 1.4 * 3 + 12;
+    const sectionHeight = gapAbove + approxMessageHeight + extraRows * this.row_height;
+
+    // If the section won't fit, add a new page
+    if (y + sectionHeight > pageBreakThreshold) {
+      this._addPageFooter();
+      this.doc.addPage();
+      this.pageNumber++;
+      y = this.doc.y;
+    }
+
+    // Divider line and gap
+    y += gapAbove;
+    this.doc
+      .moveTo(startX, y)
+      .lineTo(startX + pageWidth, y)
+      .lineWidth(0.5)
+      .stroke();
+    y += 10;
+
+    // Instruction text
+    const message =
+      'If your name is not on this list and you intend to play, please write your first and last name ' +
+      'and email address and/or contact phone number below.';
+    this.doc.font('Helvetica').fontSize(baseFontSize).fillColor('black').text(message, startX, y, {
+      width: pageWidth,
+    });
+    y = this.doc.y + 8;
+
+    // 10 blank write-in rows: checkbox + ruled line
+    for (let i = 0; i < extraRows; i++) {
+      const textCenterY = y + baseFontSize / 2;
+      const checkboxY = textCenterY - this.checkboxSize / 2;
+      this.doc.lineWidth(0.5).rect(startX, checkboxY, this.checkboxSize, this.checkboxSize).stroke();
+
+      const lineX = startX + this.checkboxSize + 10;
+      this.doc
+        .moveTo(lineX, y + this.row_height - 6)
+        .lineTo(startX + pageWidth, y + this.row_height - 6)
+        .lineWidth(0.5)
+        .stroke();
+
+      y += this.row_height;
+    }
+
+    this.doc.y = y;
+  }
+
+  /**
    * Generates the entire attendee table, handling page breaks.
    * @private
    */
@@ -370,7 +432,8 @@ class PdfGenerator {
       this.doc.y = y;
     });
 
-    // Add footer for the last page
+    // Write-in section for unlisted players, then footer for the last page
+    this._generateWriteInSection(y, pageBreakThreshold);
     this._addPageFooter();
 
     this.doc.off('pageAdded', writePageHeader);
