@@ -112,6 +112,7 @@ const configSchema = Joi.object({
   pdfLayout: Joi.object({
     logo: Joi.string().allow(null).default(null),
     fontSize: Joi.number().positive().default(10),
+    reversePageOrder: Joi.boolean().default(false),
     columns: Joi.array()
       .items(
         Joi.object({

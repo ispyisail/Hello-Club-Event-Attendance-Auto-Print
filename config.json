@@ -25,6 +25,7 @@
   "pdfLayout": {
     "logo": "assets/logo.png",
     "fontSize": 10,
+    "reversePageOrder": true,
     "columns": [
       {
         "id": "name",

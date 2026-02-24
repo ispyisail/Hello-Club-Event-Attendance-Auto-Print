@@ -1,5 +1,9 @@
 const fs = require('fs');
+const { execFile } = require('child_process');
+const { promisify } = require('util');
 const logger = require('../services/logger');
+
+const execFileAsync = promisify(execFile);
 const { printPdf } = require('../services/cups-printer');
 const { sendEmailWithAttachment } = require('../services/email-service');
 const PdfGenerator = require('../services/pdf-generator');
@@ -231,6 +235,25 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
   // Generate PDF (sanitization handled inside generate())
   const generator = new PdfGenerator(event, attendees, pdfLayout);
   const safeOutputPath = await generator.generate(outputFileName);
+
+  // Reverse page order if configured (e.g. for face-up printers that output last page on top)
+  if (pdfLayout && pdfLayout.reversePageOrder) {
+    const reversedPath = safeOutputPath + '.reversed.pdf';
+    try {
+      await execFileAsync('qpdf', ['--empty', '--pages', safeOutputPath, 'z-1', '--', reversedPath]);
+      fs.renameSync(reversedPath, safeOutputPath);
+      logger.info('PDF pages reversed for printing.');
+    } catch (err) {
+      // Clean up temp file if it exists, then rethrow
+      try {
+        fs.unlinkSync(reversedPath);
+      } catch (_e) {
+        /* ignore */
+      }
+      logger.error('Failed to reverse PDF page order:', err);
+      throw err;
+    }
+  }
 
   // Log file size for monitoring (try-catch for test environments)
   try {
