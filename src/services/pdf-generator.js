@@ -350,10 +350,11 @@ class PdfGenerator {
     const startX = this.doc.page.margins.left;
     const pageWidth = this.doc.page.width - this.doc.page.margins.left - this.doc.page.margins.right;
     const extraRows = 10;
+    const writeInRowHeight = this.row_height * 2; // Double spacing for handwriting
     const gapAbove = 20;
     // Rough height: gap + divider + message (~3 lines) + 10 rows
     const approxMessageHeight = baseFontSize * 1.4 * 3 + 12;
-    const sectionHeight = gapAbove + approxMessageHeight + extraRows * this.row_height;
+    const sectionHeight = gapAbove + approxMessageHeight + extraRows * writeInRowHeight;
 
     // If the section won't fit, add a new page
     if (y + sectionHeight > pageBreakThreshold) {
@@ -381,7 +382,7 @@ class PdfGenerator {
     });
     y = this.doc.y + 8;
 
-    // 10 blank write-in rows: checkbox + ruled line
+    // 10 blank write-in rows: checkbox + ruled line (double-spaced for handwriting)
     for (let i = 0; i < extraRows; i++) {
       const textCenterY = y + baseFontSize / 2;
       const checkboxY = textCenterY - this.checkboxSize / 2;
@@ -389,12 +390,12 @@ class PdfGenerator {
 
       const lineX = startX + this.checkboxSize + 10;
       this.doc
-        .moveTo(lineX, y + this.row_height - 6)
-        .lineTo(startX + pageWidth, y + this.row_height - 6)
+        .moveTo(lineX, y + writeInRowHeight - 6)
+        .lineTo(startX + pageWidth, y + writeInRowHeight - 6)
         .lineWidth(0.5)
         .stroke();
 
-      y += this.row_height;
+      y += writeInRowHeight;
     }
 
     this.doc.y = y;
