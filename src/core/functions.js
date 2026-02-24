@@ -314,4 +314,5 @@ module.exports = {
   fetchAndStoreUpcomingEvents,
   processScheduledEvents,
   processSingleEvent,
+  createAndPrintPdf,
 };
