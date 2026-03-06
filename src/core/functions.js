@@ -39,7 +39,8 @@ async function processSingleEvent(event, finalConfig) {
 
     // Get the full, up-to-date event details for the PDF header
     const fullEvent = await getEventDetails(event.id);
-    const attendees = await getAllAttendees(event.id);
+    const allAttendees = await getAllAttendees(event.id);
+    const attendees = allAttendees.filter((a) => !a.status || a.status.toLowerCase() !== 'cancelled');
 
     if (attendees && attendees.length > 0) {
       // Create and print/email the PDF
