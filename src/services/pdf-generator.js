@@ -51,10 +51,11 @@ class PdfGenerator {
     this.event = event;
     this.attendees = attendees;
     this.layout = layout;
-    this.doc = new PDFDocument({ size: 'A4', layout: 'portrait', margin: 50 });
+    this.doc = new PDFDocument({ size: 'A4', layout: 'portrait', margin: 50, bufferPages: true });
     this.row_height = 28;
     this.checkboxSize = 16; // Proportional to text
     this.pageNumber = 1; // Track current page number for footers
+    this.footerPositions = []; // [{pageIndex, x, y, fontSize}] for deferred "x of y" rendering
   }
 
   /**
@@ -317,25 +318,49 @@ class PdfGenerator {
   }
 
   /**
-   * Adds a page number footer at the bottom right of the current page.
+   * Records the footer position for the current page so it can be rendered later
+   * with the total page count ("x of y pages"). Call this instead of rendering inline.
    * @private
    */
   _addPageFooter() {
     const baseFontSize = this.layout.fontSize || 10;
-    const footerFontSize = baseFontSize * 1.4; // Large bold font (40% larger than base)
-
-    // Position at bottom right (with margins from edges)
+    const footerFontSize = baseFontSize * 1.4;
     const footerY = this.doc.page.height - this.doc.page.margins.bottom - 30;
-    const footerX = this.doc.page.width - this.doc.page.margins.right - 50;
+    const footerX = this.doc.page.width - this.doc.page.margins.right - 150;
 
-    this.doc
-      .font('Helvetica-Bold')
-      .fontSize(footerFontSize)
-      .fillColor('black')
-      .text(this.pageNumber.toString(), footerX, footerY, {
-        width: 40,
-        align: 'right',
-      });
+    this.footerPositions.push({
+      pageIndex: this.pageNumber - 1, // 0-based
+      x: footerX,
+      y: footerY,
+      fontSize: footerFontSize,
+      pageNum: this.pageNumber,
+    });
+  }
+
+  /**
+   * Renders all collected footers as "N of T pages" after the total page count is known.
+   * @private
+   */
+  _renderAllFooters() {
+    const totalPages = this.pageNumber;
+    const savedPage = this.doc.bufferedPageRange
+      ? this.doc.bufferedPageRange().start + this.doc.bufferedPageRange().count - 1
+      : 0;
+
+    for (const footer of this.footerPositions) {
+      this.doc.switchToPage(footer.pageIndex);
+      this.doc
+        .font('Helvetica-Bold')
+        .fontSize(footer.fontSize)
+        .fillColor('black')
+        .text(`${footer.pageNum} of ${totalPages} pages`, footer.x, footer.y, {
+          width: 150,
+          align: 'right',
+        });
+    }
+
+    // Restore to last page
+    this.doc.switchToPage(savedPage);
   }
 
   /**
@@ -474,6 +499,8 @@ class PdfGenerator {
       stream.on('error', reject);
       this.doc.pipe(stream);
       this._generateTable();
+      this._renderAllFooters();
+      this.doc.flushPages();
       this.doc.end();
     });
   }

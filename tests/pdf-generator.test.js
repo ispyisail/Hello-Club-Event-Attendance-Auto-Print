@@ -20,6 +20,9 @@ jest.mock('pdfkit', () => {
     off: jest.fn().mockReturnThis(),
     addPage: jest.fn().mockReturnThis(),
     end: jest.fn(),
+    switchToPage: jest.fn().mockReturnThis(),
+    bufferedPageRange: jest.fn().mockReturnValue({ start: 0, count: 1 }),
+    flushPages: jest.fn(),
     page: { height: 842, width: 595, margins: { top: 50, bottom: 50, left: 50, right: 50 } },
     y: 50,
   }));
