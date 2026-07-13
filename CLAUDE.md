@@ -13,15 +13,17 @@ Automated service that fetches Hello Club event attendance lists, generates PDFs
 ```bash
 npm start                       # Run service (node src/index.js start-service)
 npm run dashboard               # Start web dashboard (port 3000)
-npm test                        # Run all Jest tests (118 tests)
+npm test                        # Run all Jest tests (181 tests, 10 suites)
 npm run coverage                # Test coverage report
-npm run lint                    # ESLint check
+npm run lint                    # ESLint check (src/ and tests/)
 npm run lint:fix                # Auto-fix lint errors
 npm run format                  # Prettier format all files
 npm run validate                # Lint + test combined
 
-# Single test file
+# Single test file / single test
 npx jest tests/functions.test.js
+npx jest tests/functions.test.js -t "test name pattern"
+npx jest --watch                # Watch mode
 
 # On Raspberry Pi
 sudo systemctl start|stop|status helloclub
@@ -34,32 +36,36 @@ journalctl -u helloclub -f
 src/index.js              Entry point, CLI commands (fetch-events, process-schedule, start-service)
 src/core/
   api-client.js           Hello Club API (axios, circuit breaker, caching with fresh/stale TTL, pagination)
-  database.js             SQLite singleton via getDb(), migrations system, withRetry(), withTransaction()
+  database.js             SQLite singleton via getDb(), withRetry(), withTransaction(), closeDb()
   functions.js            Event processing pipeline: fetch attendees -> generate PDF -> print/email
   service.js              Scheduler loop (setTimeout + in-memory Map), job persistence, retry, memory monitoring
   health-check.js         Service health monitoring (DB, cache, circuit breaker, memory)
   statistics.js           Event processing stats
-  migrations/             Database schema migrations (001_initial_schema, 002_add_events_indexes)
+  migrations.js           Migration runner (tracks applied versions in a `migrations` table)
+  migrations/             Individual migration files (001_initial_schema, 002_add_events_indexes)
 src/services/
   pdf-generator.js        PDFKit PDF generation with configurable layout
   email-service.js        Nodemailer SMTP integration
   cups-printer.js         CUPS local printing (lp command wrapper)
   logger.js               Winston: activity.log + error.log
 src/utils/
+  args-parser.js          yargs CLI command/option definitions
   config-schema.js        Joi validation for config.json
   cache.js                In-memory cache with TTL + stale fallback (max 1000 entries, FIFO eviction)
   validators.js           Input validation/sanitization (validateEvent, validateAttendee, etc.)
   circuit-breaker.js      Circuit breaker pattern implementation
   memory-monitor.js       Memory leak detection and monitoring
+  systemd-watchdog.js     sd_notify watchdog pings (reads WATCHDOG_USEC)
   backup.js               Config backup/restore
   webhook.js              Webhook notifications
 web-dashboard/
   server.js               Express + WebSocket server (real-time log streaming)
+  connection-tests.js     API/Email/Print connection tests + simulated event-trigger run
   routes/api.js           Dashboard REST API
-  middleware/auth.js       HTTP Basic Auth
-tests/                    Jest unit tests
-docs/
-  HARDENING.md            Comprehensive hardening features documentation
+  middleware/auth.js      HTTP Basic Auth
+tests/                    Jest unit tests (10 suites, 181 tests)
+docs/                     ARCHITECTURE.md, API.md, CONFIGURATION.md, DEPLOYMENT.md, HARDENING.md, etc.
+                          (docs/CLAUDE.md is a stale duplicate of this file — this root file is canonical)
 ```
 
 ## Data Flow
@@ -92,5 +98,5 @@ docs/
 - CommonJS modules (`require`/`module.exports`)
 - ESLint + Prettier enforced via Husky pre-commit hook
 - `prefer-const`, `no-var`, unused vars prefixed with `_`
-- Winston logger only — no raw `console.log` in production code
+- Winston logger (`src/services/logger.js`) for `src/core/` and `src/services/`; `console.log`/`console.error` is tolerated in `web-dashboard/` for dashboard-triggered diagnostics (ESLint `no-console` is off)
 - Prettier: 120 char width, single quotes, semicolons, ES5 trailing commas, LF line endings
