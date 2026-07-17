@@ -98,7 +98,6 @@ sudo -u helloclub nano /opt/helloclub/app/config.json
 
 ```json
 {
-  "categories": ["NBA - Junior Events"],
   "preEventQueryMinutes": 5,
   "fetchWindowHours": 24,
   "serviceRunIntervalHours": 1,
@@ -106,6 +105,8 @@ sudo -u helloclub nano /opt/helloclub/app/config.json
   "outputFilename": "attendees.pdf"
 }
 ```
+
+These are fallback defaults. Select which events to print by adding a `print:` tag to each event's description in Hello Club (see [CONFIGURATION.md](./CONFIGURATION.md#selecting-events-to-print-the-print-tag)).
 
 ### Step 6: Test Application
 
@@ -179,31 +180,14 @@ sudo systemctl start helloclub
 sudo systemctl status helloclub
 ```
 
-### Step 9: Configure Dashboard Sudo Access
-
-The dashboard needs passwordless sudo for service control:
-
-```bash
-sudo visudo -f /etc/sudoers.d/helloclub
-```
-
-Add:
-
-```
-helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl start helloclub
-helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl stop helloclub
-helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart helloclub
-helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl status helloclub
-```
-
-### Step 10: Verify
+### Step 9: Verify
 
 ```bash
 sudo systemctl status helloclub
 journalctl -u helloclub -f
 ```
 
-### Step 11: Setup Log Rotation
+### Step 10: Setup Log Rotation
 
 ```bash
 sudo nano /etc/logrotate.d/helloclub

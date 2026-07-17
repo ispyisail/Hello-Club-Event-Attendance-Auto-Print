@@ -2,6 +2,8 @@
 
 > System design and architectural decisions for Hello Club Event Attendance Auto-Print
 
+> ⚠️ **Partially outdated (v2.0.0).** The **web dashboard was removed** and event selection moved from a `categories` allowlist to a **`print:` tag** in each event's description. Sections below describing the `web-dashboard/` component, dashboard security, and category filtering no longer reflect the code. The root [`CLAUDE.md`](../CLAUDE.md) and [`CONFIGURATION.md`](./CONFIGURATION.md) are the current sources of truth; this deep-dive has not yet been fully rewritten.
+
 ## Table of Contents
 
 - [Overview](#overview)
