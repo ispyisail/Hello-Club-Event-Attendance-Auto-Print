@@ -11,6 +11,7 @@ jest.mock('../src/services/logger');
 
 const {
   scheduleEvent,
+  scheduleAllPendingEvents,
   recoverPendingJobs,
   isJobAlreadyScheduled,
   processEventWithRetry,
@@ -167,6 +168,43 @@ describe('Service Module', () => {
 
       const scheduledJobs = _getScheduledJobs();
       expect(scheduledJobs.has('event-1')).toBe(true);
+    });
+
+    it('should use the per-event lead time when scheduling', () => {
+      // Event starts in 60 minutes. With the config default lead of 5 min the job
+      // would fire in ~55 min; the event's own leadMinutes of 20 makes it ~40 min.
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
+      const event = {
+        id: 'event-lead',
+        name: 'Lead Override',
+        startDate: futureDate.toISOString(),
+        leadMinutes: 20,
+      };
+
+      scheduleEvent(event, { preEventQueryMinutes: 5 });
+
+      // Persisted scheduled_time should be ~40 minutes out (start - 20 min lead).
+      const persistedTimeArg = mockStmt.run.mock.calls[0][2];
+      const delayMinutes = (new Date(persistedTimeArg).getTime() - Date.now()) / 60000;
+      expect(delayMinutes).toBeGreaterThan(38);
+      expect(delayMinutes).toBeLessThan(42);
+    });
+
+    it('should fall back to config lead time when the event has none', () => {
+      const futureDate = new Date(Date.now() + 60 * 60 * 1000);
+      const event = {
+        id: 'event-nolead',
+        name: 'No Lead',
+        startDate: futureDate.toISOString(),
+        leadMinutes: null,
+      };
+
+      scheduleEvent(event, { preEventQueryMinutes: 5 });
+
+      const persistedTimeArg = mockStmt.run.mock.calls[0][2];
+      const delayMinutes = (new Date(persistedTimeArg).getTime() - Date.now()) / 60000;
+      expect(delayMinutes).toBeGreaterThan(53);
+      expect(delayMinutes).toBeLessThan(57);
     });
 
     it('should skip already scheduled events', () => {
@@ -427,6 +465,76 @@ describe('Service Module', () => {
       const scheduledJobs = _getScheduledJobs();
       expect(scheduledJobs.has('recovered-1')).toBe(true);
       expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Recovered job for event'));
+    });
+
+    it('should carry per-event tag columns through recovery', () => {
+      // The recovery SELECT must include the tag columns so recovered jobs keep
+      // their lead time / copies / print mode rather than reverting to defaults.
+      const futureStart = new Date(Date.now() + 90 * 60 * 1000).toISOString();
+      mockStmt.all.mockReturnValue([
+        {
+          event_id: 'tagged-1',
+          event_name: 'Tagged Event',
+          scheduled_time: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+          startDate: futureStart,
+          leadMinutes: 30,
+          copies: 2,
+          printMode: 'email',
+        },
+      ]);
+
+      recoverPendingJobs({ preEventQueryMinutes: 5 });
+
+      // Recovery query pulls the tag columns from the events table.
+      expect(mockDb.prepare).toHaveBeenCalledWith(expect.stringContaining('e.leadMinutes'));
+
+      // The recovered job is scheduled using its own 30-min lead (start - 30 min),
+      // i.e. ~60 minutes out, not the 5-min config default.
+      const persistCall = mockStmt.run.mock.calls.find((c) => typeof c[2] === 'string' && c[2].includes('T'));
+      const delayMinutes = (new Date(persistCall[2]).getTime() - Date.now()) / 60000;
+      expect(delayMinutes).toBeGreaterThan(58);
+      expect(delayMinutes).toBeLessThan(62);
+    });
+  });
+
+  describe('scheduleAllPendingEvents', () => {
+    it('should reschedule a job when the persisted time drifts from the recomputed lead time', () => {
+      const startDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      // Event now wants a 30-min lead (fires ~30 min out) but the persisted job
+      // was scheduled for only 5 min out — a >1 min drift, so it must reschedule.
+      const pendingEvent = { id: 'drift-1', name: 'Drifted', startDate, leadMinutes: 30 };
+      mockStmt.all.mockReturnValue([pendingEvent]);
+      mockStmt.get.mockReturnValue({
+        status: 'scheduled',
+        scheduled_time: new Date(Date.now() + 55 * 60 * 1000).toISOString(),
+      });
+
+      // Pre-seed an in-memory timeout so we can confirm it gets cancelled/replaced.
+      const scheduledJobs = _getScheduledJobs();
+      scheduledJobs.set(
+        'drift-1',
+        setTimeout(() => {}, 100000)
+      );
+
+      scheduleAllPendingEvents({ preEventQueryMinutes: 5 });
+
+      expect(logger.info).toHaveBeenCalledWith(expect.stringContaining('Lead time changed'));
+      expect(scheduledJobs.has('drift-1')).toBe(true);
+    });
+
+    it('should not reschedule when the persisted time still matches', () => {
+      const startDate = new Date(Date.now() + 60 * 60 * 1000).toISOString();
+      const pendingEvent = { id: 'stable-1', name: 'Stable', startDate, leadMinutes: 5 };
+      mockStmt.all.mockReturnValue([pendingEvent]);
+      // Persisted time equals start - 5 min lead: no drift.
+      mockStmt.get.mockReturnValue({
+        status: 'scheduled',
+        scheduled_time: new Date(new Date(startDate).getTime() - 5 * 60 * 1000).toISOString(),
+      });
+
+      scheduleAllPendingEvents({ preEventQueryMinutes: 5 });
+
+      expect(logger.info).not.toHaveBeenCalledWith(expect.stringContaining('Lead time changed'));
     });
   });
 });

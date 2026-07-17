@@ -187,15 +187,16 @@ function scheduleEvent(event, config, options = {}) {
   // If a job for this event is already scheduled (in memory or DB), do nothing.
   // Skip this check during crash recovery — the DB has stale 'scheduled' status
   // but no in-memory setTimeout exists, so we must recreate it.
-  if (!options.fromRecovery && isJobAlreadyScheduled(event.id)) {
+  if (!options.fromRecovery && !options.force && isJobAlreadyScheduled(event.id)) {
     logger.debug(`Event ${event.id} already has an active job, skipping`);
     return;
   }
 
-  const { preEventQueryMinutes } = config;
+  // Lead time may be overridden per-event by its `print:` tag.
+  const leadMinutes = event.leadMinutes ?? config.preEventQueryMinutes;
   const now = new Date().getTime();
   const eventStartTime = new Date(event.startDate).getTime();
-  const processTime = eventStartTime - preEventQueryMinutes * 60 * 1000;
+  const processTime = eventStartTime - leadMinutes * 60 * 1000;
   const scheduledTime = new Date(processTime).toISOString();
 
   // Only schedule jobs that are in the future.
@@ -337,7 +338,7 @@ function recoverPendingJobs(config) {
     const pendingJobs = db
       .prepare(
         `
-            SELECT sj.*, e.startDate
+            SELECT sj.*, e.startDate, e.leadMinutes, e.copies, e.printMode
             FROM scheduled_jobs sj
             JOIN events e ON sj.event_id = e.id
             WHERE sj.status IN ('scheduled', 'processing')
@@ -375,6 +376,9 @@ function recoverPendingJobs(config) {
           id: job.event_id,
           name: job.event_name,
           startDate: job.startDate,
+          leadMinutes: job.leadMinutes,
+          copies: job.copies,
+          printMode: job.printMode,
         };
         scheduleEvent(event, config, { fromRecovery: true });
         logger.info(`Recovered job for event: ${job.event_name} (ID: ${job.event_id})`);
@@ -397,11 +401,47 @@ function scheduleAllPendingEvents(config) {
     const pendingEvents = db.prepare("SELECT * FROM events WHERE status = 'pending'").all();
     logger.info(`Found ${pendingEvents.length} pending events to schedule.`);
     for (const event of pendingEvents) {
-      scheduleEvent(event, config);
+      // If the event's lead time changed (tag edited in Hello Club), the already
+      // persisted job time is stale — cancel it so scheduleEvent recreates it.
+      const force = cancelIfLeadTimeChanged(event, config, db);
+      scheduleEvent(event, config, force ? { force: true } : {});
     }
   } catch (error) {
     logger.error('Error scheduling all pending events:', error);
   }
+}
+
+/**
+ * Cancels an event's in-memory timeout when its recomputed process time has
+ * drifted from the persisted scheduled_time by more than a minute (i.e. its
+ * `print:` tag lead time was edited). Returns true when the caller should force
+ * a reschedule to bypass the "already scheduled" guard.
+ * @param {Object} event - The pending event row (with tag columns).
+ * @param {Object} config - The application configuration.
+ * @param {import('better-sqlite3').Database} db - Database instance.
+ * @returns {boolean} True if the job was cancelled and needs rescheduling.
+ */
+function cancelIfLeadTimeChanged(event, config, db) {
+  const job = db.prepare('SELECT scheduled_time, status FROM scheduled_jobs WHERE event_id = ?').get(event.id);
+  if (!job || job.status !== 'scheduled') {
+    return false;
+  }
+
+  const leadMinutes = event.leadMinutes ?? config.preEventQueryMinutes;
+  const recomputed = new Date(event.startDate).getTime() - leadMinutes * 60 * 1000;
+  const persisted = new Date(job.scheduled_time).getTime();
+
+  if (Math.abs(recomputed - persisted) <= 60 * 1000) {
+    return false;
+  }
+
+  logger.info(`Lead time changed for event "${event.name}" (ID: ${event.id}); rescheduling.`);
+  const existingTimeout = scheduledJobs.get(event.id);
+  if (existingTimeout) {
+    clearTimeout(existingTimeout);
+    scheduledJobs.delete(event.id);
+  }
+  return true;
 }
 
 /**

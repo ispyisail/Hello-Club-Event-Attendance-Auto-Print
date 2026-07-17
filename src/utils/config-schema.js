@@ -12,13 +12,9 @@ const Joi = require('joi');
  */
 const configSchema = Joi.object({
   /**
-   * A list of event category names to process.
-   * @type {Array<string>}
-   */
-  categories: Joi.array().items(Joi.string()).default([]),
-  /**
-   * The time in minutes before an event starts to fetch the latest attendee list, generate the PDF, and print it.
-   * For example, 5 means the PDF will be ready 5 minutes before the event begins.
+   * Default lead time, in minutes, used when an event's `print:` tag does not
+   * specify one. This is the time before an event starts to fetch the latest
+   * attendee list, generate the PDF, and print it.
    * @type {number}
    */
   preEventQueryMinutes: Joi.number().integer().min(1).default(5),
@@ -49,6 +45,10 @@ const configSchema = Joi.object({
       }
       return value;
     }, 'Path traversal validation'),
+  /**
+   * Default print mode used when an event's `print:` tag does not specify one.
+   * @type {string}
+   */
   printMode: Joi.string().valid('local', 'email').default('email'),
   email: Joi.object({
     to: Joi.string().email().required(),

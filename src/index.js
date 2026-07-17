@@ -112,6 +112,10 @@ async function main() {
         logger.error('   → Must be a positive integer (e.g., 1, 2, 4)');
       } else if (detail.path.includes('outputFilename')) {
         logger.error('   → Must end with .pdf (e.g., "attendees.pdf")');
+      } else if (detail.type === 'object.unknown' && detail.path.includes('categories')) {
+        logger.error('   → "categories" is no longer supported. Events are now selected by');
+        logger.error('     adding a "print:" tag to the event description in Hello Club.');
+        logger.error('     Remove "categories" from config.json. See docs/CONFIGURATION.md.');
       }
       logger.error('');
     });
@@ -125,7 +129,6 @@ async function main() {
   // Build the final configuration by merging config file, defaults, and command-line arguments
   const finalConfig = {
     // For fetch-events
-    allowedCategories: argv.category ?? validatedConfig.categories,
     fetchWindowHours: argv.fetchWindowHours ?? validatedConfig.fetchWindowHours,
     // For process-schedule
     preEventQueryMinutes: argv.preEventQueryMinutes ?? validatedConfig.preEventQueryMinutes,

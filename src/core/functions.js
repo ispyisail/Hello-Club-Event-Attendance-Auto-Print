@@ -9,6 +9,7 @@ const { sendEmailWithAttachment } = require('../services/email-service');
 const PdfGenerator = require('../services/pdf-generator');
 const { getDb, withRetry, withTransaction } = require('./database');
 const { getEventDetails, getAllAttendees, getUpcomingEvents } = require('./api-client');
+const { parseTag } = require('./tag-parser');
 
 /**
  * Sanitizes text for use in email headers and body.
@@ -31,7 +32,10 @@ function sanitizeEmailText(text) {
  * @returns {Promise<Object>} Object containing attendeeCount
  */
 async function processSingleEvent(event, finalConfig) {
-  const { outputFilename, pdfLayout, printMode } = finalConfig;
+  const { outputFilename, pdfLayout } = finalConfig;
+  // Per-event print mode / copies come from the `print:` tag, falling back to config.
+  const printMode = event.printMode ?? finalConfig.printMode;
+  const copies = event.copies ?? 1;
   const db = getDb();
 
   try {
@@ -44,7 +48,7 @@ async function processSingleEvent(event, finalConfig) {
 
     if (attendees && attendees.length > 0) {
       // Create and print/email the PDF
-      await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode);
+      await createAndPrintPdf(fullEvent, attendees, outputFilename, pdfLayout, printMode, copies);
 
       // Mark as processed only after successful completion (with retry)
       withRetry(() => {
@@ -94,14 +98,19 @@ async function processScheduledEvents(finalConfig) {
   const { preEventQueryMinutes } = finalConfig;
   try {
     const db = getDb();
-    const now = new Date();
-    const queryTimeLimit = new Date(now.getTime() + preEventQueryMinutes * 60 * 1000);
+    const now = new Date().getTime();
 
-    const stmt = db.prepare("SELECT * FROM events WHERE status = 'pending' AND startDate <= ?");
-    const events = stmt.all(queryTimeLimit.toISOString());
+    // Each event's lead time may be overridden by its `print:` tag, so filter
+    // in JS with the per-row lead time rather than a single SQL cutoff.
+    const pending = db.prepare("SELECT * FROM events WHERE status = 'pending'").all();
+    const events = pending.filter((event) => {
+      const leadMinutes = event.leadMinutes ?? preEventQueryMinutes;
+      const queryTimeLimit = now + leadMinutes * 60 * 1000;
+      return new Date(event.startDate).getTime() <= queryTimeLimit;
+    });
 
     if (events.length === 0) {
-      logger.info(`No events to process within the next ${preEventQueryMinutes} minutes.`);
+      logger.info('No events are due for processing yet.');
       return;
     }
 
@@ -122,35 +131,29 @@ async function processScheduledEvents(finalConfig) {
  * @returns {Promise<void>}
  */
 async function fetchAndStoreUpcomingEvents(finalConfig) {
-  const { fetchWindowHours, allowedCategories } = finalConfig;
+  const { fetchWindowHours } = finalConfig;
   const events = await getUpcomingEvents(fetchWindowHours);
 
   if (!events || events.length === 0) {
     return;
   }
 
-  // Log all event categories for debugging
-  logger.info('=== All Events Found ===');
-  events.forEach((event) => {
-    const categories = Array.isArray(event.categories) ? event.categories.map((c) => c.name).join(', ') : 'None';
-    logger.info(`Event: "${event.name}" | Categories: ${categories}`);
-  });
-  logger.info('======================');
-
-  const filteredEvents = events.filter((event) => {
-    if (!allowedCategories || allowedCategories.length === 0) {
-      return true; // No category filter, include all events
+  // Select only events whose description contains a `print:` tag, capturing the
+  // parsed per-event parameters (lead time, copies, print mode) alongside each.
+  const taggedEvents = [];
+  for (const event of events) {
+    const tag = parseTag(event.description);
+    if (tag !== null) {
+      taggedEvents.push({ ...event, tag });
     }
-    // Defensively check if categories is an array before trying to filter on it.
-    return (
-      Array.isArray(event.categories) && event.categories.some((category) => allowedCategories.includes(category.name))
-    );
-  });
+  }
 
-  if (filteredEvents.length === 0) {
-    logger.info('No events matched the specified categories.');
+  if (taggedEvents.length === 0) {
+    logger.info('No upcoming events contain a print: tag. Nothing to schedule.');
     return;
   }
+
+  logger.info(`Found ${taggedEvents.length} event(s) with a print: tag.`);
 
   try {
     const db = getDb();
@@ -158,15 +161,29 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
     // Use transaction with retry for storing events
     const insertedCount = withTransaction(() => {
       // Insert new events as 'pending', but preserve status of existing events
-      // (so already-processed or failed events don't get reset to 'pending')
+      // (so already-processed or failed events don't get reset to 'pending').
+      // Tag columns are refreshed on every fetch so description edits take effect.
       const stmt = db.prepare(
-        `INSERT INTO events (id, name, startDate, status) VALUES (?, ?, ?, 'pending')
-         ON CONFLICT(id) DO UPDATE SET name = excluded.name, startDate = excluded.startDate`
+        `INSERT INTO events (id, name, startDate, status, leadMinutes, copies, printMode)
+         VALUES (?, ?, ?, 'pending', ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           name = excluded.name,
+           startDate = excluded.startDate,
+           leadMinutes = excluded.leadMinutes,
+           copies = excluded.copies,
+           printMode = excluded.printMode`
       );
 
       let count = 0;
-      for (const event of filteredEvents) {
-        const result = stmt.run(event.id, event.name, event.startDate);
+      for (const event of taggedEvents) {
+        const result = stmt.run(
+          event.id,
+          event.name,
+          event.startDate,
+          event.tag.leadMinutes,
+          event.tag.copies,
+          event.tag.printMode
+        );
         if (result.changes > 0) {
           count++;
         }
@@ -180,9 +197,9 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
       logger.info('No new events to store.');
     }
 
-    // Detect and handle cancelled/deleted events
-    // Get IDs of all events from API response (after filtering)
-    const apiEventIds = filteredEvents.map((e) => e.id);
+    // Detect and handle cancelled/deleted events, plus events whose `print:` tag
+    // was removed (they drop out of taggedEvents and so are treated as cancelled).
+    const apiEventIds = taggedEvents.map((e) => e.id);
 
     // Find pending events in our database within the fetch window that are no longer in the API
     const now = new Date();
@@ -230,9 +247,10 @@ async function fetchAndStoreUpcomingEvents(finalConfig) {
  * @param {string} outputFileName - The name of the file to save the PDF as.
  * @param {Object} pdfLayout - The layout configuration for the PDF.
  * @param {string} printMode - The printing mode ('local' or 'email').
+ * @param {number} [copies=1] - Number of copies (local print mode only).
  * @returns {Promise<void>}
  */
-async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode) {
+async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, printMode, copies = 1) {
   // Generate PDF (sanitization handled inside generate())
   const generator = new PdfGenerator(event, attendees, pdfLayout);
   const safeOutputPath = await generator.generate(outputFileName);
@@ -267,15 +285,18 @@ async function createAndPrintPdf(event, attendees, outputFileName, pdfLayout, pr
   }
 
   if (printMode === 'local') {
-    logger.info(`Printing PDF locally via CUPS...`);
+    logger.info(`Printing PDF locally via CUPS${copies > 1 ? ` (${copies} copies)` : ''}...`);
     try {
-      const msg = await printPdf(safeOutputPath);
+      const msg = await printPdf(safeOutputPath, copies);
       logger.info(msg);
     } catch (err) {
       logger.error('Failed to print locally:', err);
       throw err;
     }
   } else if (printMode === 'email') {
+    if (copies > 1) {
+      logger.warn(`Copies (${copies}) are only supported in local print mode; sending a single email.`);
+    }
     logger.info(`Sending PDF to printer via email...`);
     // Get email settings from environment variables
     const PRINTER_EMAIL = process.env.PRINTER_EMAIL;
