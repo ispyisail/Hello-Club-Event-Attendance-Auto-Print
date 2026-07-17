@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-07-17
+
+### Changed (BREAKING)
+
+- **Event selection is now driven by a `print:` tag in each event's Hello Club description**, replacing the `categories` allowlist in `config.json`. Only events whose description contains `print:` are printed. The tag optionally overrides lead time, copy count, and print mode per event (e.g. `print: 30min 2copies email`); `config.json` values (`preEventQueryMinutes`, `printMode`) become the fallback defaults.
+- **Removed the `categories` key from `config.json`.** The config schema now rejects it with a hint. Remove `categories` from your `config.json` before upgrading.
+- **Removed the web dashboard** (`web-dashboard/`, its systemd unit, and the `express`/`ws`/`multer` dependencies) and its JSON health-check/statistics/backup feeders. Monitor the service via `systemctl status helloclub` and the Winston logs instead.
+
+### Added
+
+- `src/core/tag-parser.js` — parses the `print:` description tag (case-insensitive, found anywhere, tolerant of markdown/whitespace; out-of-range or unknown tokens are logged but never drop the printout).
+- Migration `003_add_tag_columns` — nullable `leadMinutes` / `copies` / `printMode` columns on `events`.
+- Per-event copy support: `cups-printer` passes `-n <copies>` to `lp`; email mode warns and sends a single copy when copies > 1.
+- Reschedules a pending job when an edited tag shifts its computed run time.
+
+### Upgrade notes
+
+- **Before upgrading, add `print:` tags to the descriptions of any upcoming events you want printed.** Existing pending events without a tag are cancelled on the next fetch (this is the intended behaviour — removing a tag cancels a print).
+- Remove `categories` from `config.json`.
+
 ## [Unreleased]
 
 ### Added

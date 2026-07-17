@@ -1,10 +1,10 @@
 # Hello Club Event Attendance Auto-Print
 
-> Automated Raspberry Pi service for printing Hello Club event attendance lists with web dashboard monitoring
+> Automated Raspberry Pi service for printing Hello Club event attendance lists, driven by `print:` tags in event descriptions
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)](https://nodejs.org/)
-[![Tests](https://img.shields.io/badge/tests-118%20passing-success)](./tests)
+[![Tests](https://img.shields.io/badge/tests-209%20passing-success)](./tests)
 [![Platform](https://img.shields.io/badge/platform-Raspberry%20Pi%205-c51a4a)](https://www.raspberrypi.com/)
 
 ## 📋 Table of Contents
@@ -23,36 +23,26 @@
 
 ## 🎯 Overview
 
-Hello Club Event Attendance Auto-Print is a professional Raspberry Pi service that automatically fetches, monitors, and prints attendee lists for upcoming Hello Club events. It runs as a systemd service in the background and provides a modern web dashboard for remote monitoring and control.
+Hello Club Event Attendance Auto-Print is a Raspberry Pi service that automatically fetches and prints attendee lists for upcoming Hello Club events. It runs as a headless systemd service in the background. You choose which events to print by adding a `print:` tag to the event's description in Hello Club — no per-event configuration on the Pi.
 
 ### How It Works
 
 The application uses a smart two-stage process:
 
-1. **Event Discovery** - Periodically scans the Hello Club API for upcoming events
-2. **Just-in-Time Processing** - Fetches the latest attendee list moments before an event starts
-3. **Automatic Printing** - Generates a professional PDF and prints it (locally or via email)
+1. **Event Discovery** - Periodically scans the Hello Club API for upcoming events and keeps those whose description contains a `print:` tag
+2. **Just-in-Time Processing** - Fetches the latest attendee list moments before an event starts (lead time set by the tag or config default)
+3. **Automatic Printing** - Generates a professional PDF and prints it (locally or via email, per the tag or config default)
 
 ### System Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                  Web Dashboard                          │
-│             (Express + WebSocket)                       │
-│  • Real-time log streaming                              │
-│  • Service control (start/stop/restart)                 │
-│  • Configuration editor                                 │
-│  • Connection tests & statistics                        │
-└────────────────────┬────────────────────────────────────┘
-                     │ HTTP/WS (Port 3000)
-                     ▼
-┌─────────────────────────────────────────────────────────┐
 │                  systemd Service                        │
 │            (Always-Running Background)                  │
 │  • Fetches events every N hours                         │
+│  • Selects events tagged `print:` in their description  │
 │  • Schedules processing for each event                  │
 │  • Auto-restarts on failure                             │
-│  • Health monitoring & statistics                       │
 └────────────────────┬────────────────────────────────────┘
                      │
         ┌────────────┼────────────┐
@@ -66,10 +56,11 @@ The application uses a smart two-stage process:
 ### Core Features
 
 - ✅ **Automated Event Fetching** - Scans for upcoming events within configurable time windows
+- ✅ **Tag-Based Selection** - Print only the events you tag with `print:` in their Hello Club description
+- ✅ **Per-Event Overrides** - Set lead time, copies, and print mode per event via the tag
 - ✅ **Smart Scheduling** - Processes events at optimal times to capture last-minute sign-ups
 - ✅ **Professional PDFs** - Generates clean, printable attendee lists with custom layouts
 - ✅ **Flexible Printing** - Print locally or send via email to network printers
-- ✅ **Category Filtering** - Only process events from specified categories
 
 ### Raspberry Pi Service Features
 
@@ -79,20 +70,9 @@ The application uses a smart two-stage process:
 - ✅ **Production Ready** - Battle-tested systemd service management
 - ✅ **Low Power** - Energy-efficient 24/7 operation
 
-### Web Dashboard Features
-
-- 🌐 **Remote Access** - Monitor from any device on your network
-- 📊 **Real-time Monitoring** - Live log streaming via WebSocket
-- 📝 **Log Viewer** - Browse activity and error logs with auto-scroll
-- 📈 **Statistics** - Events processed, success rates, and trends
-- 🎛️ **Service Control** - Start, stop, and restart the service remotely
-- ⚙️ **Settings Editor** - Edit configuration and credentials via web UI
-- 🔌 **Connection Tests** - Test API, Email, and Printer with one click
-- 💾 **Backup Management** - Create and restore configuration backups
-
 ### Developer Features
 
-- ✅ **Comprehensive Tests** - 118 unit tests with Jest
+- ✅ **Comprehensive Tests** - 209 unit tests with Jest
 - ✅ **Type Safety** - Joi schema validation for all configuration
 - ✅ **Error Handling** - Robust error handling with detailed logging
 - ✅ **Modular Architecture** - Clean separation of concerns
@@ -109,19 +89,16 @@ The application uses a smart two-stage process:
    - Flash Raspberry Pi OS Lite 64-bit
    - Configure static IP and SSH
    - Run the automated setup script
-3. Access the **Web Dashboard** at `http://helloclub-pi.local:3000`
-4. Configure your settings via the dashboard:
-   - Enter your Hello Club API key
-   - Configure email printing
-   - Set event categories
+3. Edit `/opt/helloclub/app/.env` with your Hello Club API key and (for email printing) SMTP settings
+4. Adjust defaults in `/opt/helloclub/app/config.json` if needed (lead time, print mode, PDF layout)
+5. In Hello Club, add a `print:` tag to the description of each event you want printed (see [Selecting events](#selecting-events-to-print))
 
-**That's it!** The service runs 24/7 in the background. Use the web dashboard to:
+**That's it!** The service runs 24/7 in the background. Monitor it with:
 
-- View real-time logs
-- Monitor service status
-- Edit configuration
-- Test API and Email connections
-- Control the service (start/stop/restart)
+```bash
+sudo systemctl status helloclub
+journalctl -u helloclub -f
+```
 
 **To upgrade to the latest version:**
 
@@ -151,9 +128,9 @@ cp .env.example .env
 # 4. Run the service (foreground)
 npm start
 
-# 5. Or run with web dashboard
-npm run dashboard  # In separate terminal
-npm start          # Main service
+# Or run the stages individually
+node src/index.js fetch-events        # Fetch + store tagged events once
+node src/index.js process-schedule    # Process any due events once
 ```
 
 ## 📦 Installation
@@ -178,12 +155,10 @@ This installs all required packages including:
 - `better-sqlite3` - Local database
 - `pdfkit` - PDF generation
 - `winston` - Logging
-- `express` - Web dashboard
 - `axios` - API client
 - `nodemailer` - Email service
+- `yargs` / `joi` - CLI parsing and config validation
 - And more...
-
-**Note:** Some dependencies (`node-windows`, `electron`) are legacy Windows-only packages not needed for Raspberry Pi deployment.
 
 #### 3. Configure the Application
 
@@ -208,11 +183,10 @@ SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 ```
 
-**Edit `config.json`:**
+**Edit `config.json`** (these are the fallback defaults; each event's `print:` tag can override lead time and print mode):
 
 ```json
 {
-  "categories": ["NBA - Junior Events", "Your Category"],
   "preEventQueryMinutes": 5,
   "fetchWindowHours": 24,
   "serviceRunIntervalHours": 1,
@@ -231,6 +205,16 @@ SMTP_PORT=587
 }
 ```
 
+#### Selecting events to print
+
+Add a `print:` tag to the **description** of each event you want printed in Hello Club. Only tagged events are printed. The tag is case-insensitive and may appear anywhere in the description:
+
+- `print:` — print using the config.json defaults
+- `print: 30min` — fetch and print 30 minutes before the event starts
+- `print: 30min 2copies email` — 30-min lead, 2 copies, emailed
+
+Omitted parameters fall back to `config.json`. Removing the tag cancels a pending print. See [CONFIGURATION.md](./docs/CONFIGURATION.md#selecting-events-to-print-the-print-tag) for the full syntax.
+
 #### 4. Install as systemd Service
 
 Create and enable the systemd service:
@@ -248,17 +232,12 @@ sudo systemctl start helloclub
 
 See [DEPLOYMENT.md](./docs/DEPLOYMENT.md) for the complete systemd service configuration.
 
-#### 5. Access the Web Dashboard
+#### 5. Verify
 
-Open a browser and navigate to:
-
+```bash
+sudo systemctl status helloclub
+journalctl -u helloclub -f
 ```
-http://helloclub-pi.local:3000
-```
-
-Or use the Pi's IP address: `http://192.168.1.XX:3000`
-
-Login with the credentials from your `.env` file.
 
 ### Legacy Windows Installation
 
@@ -288,7 +267,7 @@ We recommend migrating to Raspberry Pi for:
 - ✅ Silent 24/7 operation
 - ✅ Better reliability for always-on service
 - ✅ Lower cost (~$80 total)
-- ✅ Remote management via web dashboard
+- ✅ Remote management over SSH
 
 See [RASPBERRY-PI-SETUP.md](./docs/RASPBERRY-PI-SETUP.md) for migration guide.
 
@@ -303,9 +282,9 @@ The application uses two configuration files:
 
 **Configuration Options:**
 
-- **Web Dashboard:** Edit configuration via the dashboard's Settings page (recommended)
-- **Manual Editing:** Edit `.env` and `config.json` files directly
-- **Automatic Backups:** Dashboard creates backups before saving changes
+- **Machine settings** (API key, SMTP, printer) live in `.env`.
+- **Defaults** (lead time, print mode, PDF layout) live in `config.json`.
+- **Per-event selection and overrides** live in the event's `print:` description tag in Hello Club.
 
 ### Environment Variables (`.env`)
 
@@ -367,60 +346,16 @@ Enable webhook notifications to receive real-time updates when events are proces
 
 ## 📖 Usage
 
-### Web Dashboard Interface
+### Monitoring
 
-The web dashboard provides comprehensive remote management:
+The service is headless — monitor it through systemd and the logs:
 
-**Access:** `http://helloclub-pi.local:3000`
-
-**Main Features:**
-
-- 📊 **Dashboard Home** - Service status, statistics, and recent activity
-- 📝 **Live Logs** - Real-time log streaming with auto-scroll
-- 🎛️ **Service Control** - Start/Stop/Restart the systemd service
-- ⚙️ **Configuration Editor** - Edit .env and config.json via web UI
-- 🔌 **Connection Tests** - Test API, Email, and Printer connectivity
-- 💾 **Backup Manager** - Create and restore configuration backups
-- 📈 **Statistics** - Events processed, success rates, and trends
-
-**Service Status Indicators:**
-
-- 🟢 **Running** - Service active and healthy
-- 🔴 **Stopped** - Service not running
-- 🟡 **Starting** - Service initialization in progress
-
-### Dashboard Features
-
-**⚙️ Configuration Editor:**
-Edit all settings via the web dashboard without touching files:
-
-1. Access dashboard → **Configuration** tab
-2. **Environment Variables Section:**
-   - Edit API key and SMTP credentials
-   - Password fields with show/hide toggle
-   - Real-time validation
-3. **Application Settings Section:**
-   - Manage event categories (add/remove)
-   - Adjust timing settings
-   - Change print mode (local/email)
-   - Edit PDF layout
-4. Click **Save** - automatic backups created before changes
-5. Restart service to apply changes (via dashboard Service Control)
-
-**🔌 Connection Tests:**
-Verify your configuration via the dashboard:
-
-- **Test API Connection:**
-  - One-click test of Hello Club API
-  - Shows response time and success/failure
-  - Validates API key format
-  - Provides troubleshooting hints
-
-- **Test Email Connection:**
-  - Verify SMTP settings without sending email
-  - Tests connection to SMTP server
-  - Detects common Gmail/authentication issues
-  - Confirms printer email is configured
+```bash
+sudo systemctl status helloclub    # Running state
+journalctl -u helloclub -f         # Follow the journal
+tail -f activity.log               # Winston activity log (in the app directory)
+tail -f error.log                  # Winston error log
+```
 
 ### Command Line Interface
 
@@ -471,7 +406,6 @@ Logs are written to the project directory (`/opt/helloclub/app/`):
 
 View logs via:
 
-- **Web Dashboard** → "Live Logs" (real-time streaming)
 - **Terminal**: `tail -f /opt/helloclub/app/activity.log`
 - **systemd**: `journalctl -u helloclub -f`
 - **SSH**: Any text editor (nano, vim, cat)
@@ -482,11 +416,10 @@ View logs via:
 
 ### User Guides
 
-| Document                                        | Description                           |
-| ----------------------------------------------- | ------------------------------------- |
-| [CONFIGURATION.md](./docs/CONFIGURATION.md)     | Detailed configuration guide          |
-| [WEB-DASHBOARD.md](./docs/WEB-DASHBOARD.md)     | Web dashboard usage and API reference |
-| [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | Common issues and solutions           |
+| Document                                        | Description                                  |
+| ----------------------------------------------- | -------------------------------------------- |
+| [CONFIGURATION.md](./docs/CONFIGURATION.md)     | Detailed configuration + `print:` tag syntax |
+| [TROUBLESHOOTING.md](./docs/TROUBLESHOOTING.md) | Common issues and solutions                  |
 
 ### Deployment Guides
 
@@ -519,10 +452,12 @@ hello-club-event-attendance/
 │   ├── core/                     # Core business logic
 │   │   ├── api-client.js         # Hello Club API integration
 │   │   ├── database.js           # SQLite database management
+│   │   ├── tag-parser.js         # parseTag() — print: description tags
 │   │   ├── functions.js          # Event processing logic
 │   │   └── service.js            # Service scheduler
 │   ├── services/                 # Supporting services
 │   │   ├── email-service.js      # SMTP email sending
+│   │   ├── cups-printer.js       # Local CUPS printing (lp)
 │   │   ├── logger.js             # Winston logging configuration
 │   │   └── pdf-generator.js      # PDF creation
 │   ├── utils/                    # Utilities and helpers
@@ -530,43 +465,29 @@ hello-club-event-attendance/
 │   │   └── config-schema.js      # Configuration validation
 │   └── index.js                  # Application entry point
 │
-├── web-dashboard/                # Express web dashboard
-│   ├── server.js                 # Express + WebSocket server
-│   ├── connection-tests.js       # API/Email/Print tests
-│   ├── middleware/
-│   │   └── auth.js               # Authentication middleware
-│   ├── routes/
-│   │   └── api.js                # REST API endpoints
-│   └── public/                   # Frontend assets
-│       ├── index.html            # Dashboard UI
-│       ├── js/app.js             # Frontend JavaScript
-│       └── css/                  # Styling
-│
 ├── setup/                        # Raspberry Pi setup scripts
 │   ├── pi-configure.sh           # System hardening script
 │   ├── pi-install-app.sh         # Application installation
-│   ├── helloclub.service         # systemd service file
-│   └── helloclub-dashboard.service # Dashboard service file
+│   └── helloclub.service         # systemd service file
 │
-├── tests/                        # Unit tests (118 tests)
+├── tests/                        # Unit tests (209 tests)
 │   ├── api-client.test.js        # API client tests
+│   ├── cups-printer.test.js      # Local printing tests
 │   ├── email-service.test.js     # Email service tests
 │   ├── functions.test.js         # Core logic tests
-│   ├── health-check.test.js      # Health check tests
+│   ├── tag-parser.test.js        # print: tag parsing tests
 │   ├── pdf-generator.test.js     # PDF generation tests
 │   ├── service.test.js           # Service scheduling tests
 │   └── webhook.test.js           # Webhook notification tests
 │
 ├── docs/                         # Documentation
 │   ├── RASPBERRY-PI-SETUP.md     # Pi setup guide
-│   ├── WEB-DASHBOARD.md          # Dashboard guide
+│   ├── CONFIGURATION.md          # Config + print: tag syntax
 │   ├── DEPLOYMENT.md             # Deployment guide
 │   ├── ARCHITECTURE.md           # System architecture
 │   ├── API.md                    # API reference
 │   ├── legacy/                   # Archived Windows docs
 │   └── ...
-│
-├── backups/                      # Configuration backups (gitignored)
 │
 ├── .env                          # Environment variables (gitignored)
 ├── .env.example                  # Environment template
@@ -619,23 +540,16 @@ Current test coverage:
 
 **No events being processed**
 
-- Check category filters in `config.json`
+- Confirm the target events have a `print:` tag in their Hello Club description
 - Verify events exist in the time window
+- Remember a description edit can lag up to `serviceRunIntervalHours` + the API cache TTL
 - Run manually: `node src/index.js fetch-events`
 - Check logs: `tail -f activity.log`
-
-**Dashboard not accessible**
-
-- Check service is running: `sudo systemctl status helloclub`
-- Verify firewall: `sudo ufw status`
-- Test locally: `curl http://localhost:3000`
-- Check dashboard port in `.env`
 
 **PDF not printing**
 
 - Email mode: Verify SMTP credentials in `.env`
 - Local mode: Check CUPS configuration: `lpstat -p`
-- Test email: Use dashboard "Test Email Connection"
 - Check `error.log` for printing errors
 
 **401 Unauthorized errors**
@@ -656,7 +570,6 @@ Current test coverage:
 - Check `error.log` for the specific error message
 - Events are retried 3 times with exponential backoff (5min, 10min, 20min)
 - After 3 failures, the event is marked as permanently failed
-- Use the health check file (`service-health.json`) to monitor failed job counts
 
 **Database errors**
 
@@ -685,7 +598,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - [Raspberry Pi Foundation](https://www.raspberrypi.org/) for affordable, reliable hardware
 - [Node.js](https://nodejs.org/) and the open-source community
 - [PDFKit](https://pdfkit.org/) for PDF generation
-- [Express](https://expressjs.com/) for the web dashboard
 - Legacy Windows support: [node-windows](https://github.com/coreybutler/node-windows), [Electron](https://www.electronjs.org/)
 
 ## 📞 Support

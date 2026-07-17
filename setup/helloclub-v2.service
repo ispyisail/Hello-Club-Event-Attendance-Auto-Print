@@ -1,0 +1,26 @@
+[Unit]
+# Parallel test instance of the tag-based (v2) version, run alongside the
+# original `helloclub` service during cutover. Deploy the new code to
+# /opt/helloclub-v2/app with its own .env/config.json/events.db. Point this
+# instance at a TEST inbox (printMode: email) to avoid double-printing real jobs.
+# Remove this unit and /opt/helloclub-v2 once v2 has taken over the main service.
+Description=Hello Club Event Attendance Auto-Print Service (v2 test)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=helloclub
+WorkingDirectory=/opt/helloclub-v2/app
+ExecStart=/usr/bin/node src/index.js start-service
+Restart=always
+RestartSec=10
+EnvironmentFile=/opt/helloclub-v2/app/.env
+
+# Hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/helloclub-v2/app
+
+[Install]
+WantedBy=multi-user.target

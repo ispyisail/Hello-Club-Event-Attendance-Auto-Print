@@ -85,11 +85,6 @@ SMTP_PASS=your_app_password
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 
-# Dashboard
-DASHBOARD_PORT=3000
-DASHBOARD_USER=admin
-DASHBOARD_PASS=change_this_password
-
 # Logging
 LOG_LEVEL=info
 DB_PATH=/opt/helloclub/app/events.db
@@ -201,23 +196,14 @@ helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl restart helloclub
 helloclub ALL=(ALL) NOPASSWD: /usr/bin/systemctl status helloclub
 ```
 
-### Step 10: Access Dashboard
-
-Open browser to: `http://helloclub-pi.local:3000`
-
-Login with credentials from `.env` file.
-
-### Step 11: Configure Firewall
+### Step 10: Verify
 
 ```bash
-# Allow dashboard access from local network only
-sudo ufw allow from 192.168.1.0/24 to any port 3000
-
-# Verify rules
-sudo ufw status
+sudo systemctl status helloclub
+journalctl -u helloclub -f
 ```
 
-### Step 12: Setup Log Rotation
+### Step 11: Setup Log Rotation
 
 ```bash
 sudo nano /etc/logrotate.d/helloclub
@@ -234,6 +220,53 @@ sudo nano /etc/logrotate.d/helloclub
     copytruncate
 }
 ```
+
+---
+
+## Parallel Test Install (v2 alongside the original)
+
+When migrating an already-deployed instance to the tag-based (v2) version, you can run the new code alongside the original so you can validate it before cutover. Everything stateful is per-directory (`events.db`, `activity.log`/`error.log`, `config.json`), so the two instances stay isolated.
+
+1. **Deploy the new branch to a separate directory** — do not touch `/opt/helloclub`:
+
+   ```bash
+   sudo -u helloclub git clone <repo> /opt/helloclub-v2/app
+   cd /opt/helloclub-v2/app
+   sudo -u helloclub npm install --production
+   sudo -u helloclub cp /opt/helloclub/app/.env .env   # then edit (see step 2)
+   ```
+
+2. **Point v2 at a test target, not the real printer.** In `/opt/helloclub-v2/app/.env` set `PRINTER_EMAIL` to a **test inbox** and, in `config.json`, `printMode: "email"`. This way v2's output goes to email for inspection and can never double-print a real job.
+
+3. **Install the v2 unit** (already in the repo as `setup/helloclub-v2.service`):
+
+   ```bash
+   sudo cp /opt/helloclub-v2/app/setup/helloclub-v2.service /etc/systemd/system/
+   sudo systemctl daemon-reload
+   sudo systemctl enable --now helloclub-v2
+   journalctl -u helloclub-v2 -f
+   ```
+
+4. **Avoid the one real hazard — double printing.** The original prints events matching its `categories`; v2 prints events with a `print:` tag. An event that is both in a printed category _and_ tagged would print from both. To test safely, create test events in a category **not** in the original's `categories` and add a `print:` tag to their descriptions — only v2 picks them up.
+
+5. **Cutover**, once v2 proves itself: add `print:` tags to the real upcoming events, then
+
+   ```bash
+   sudo systemctl disable --now helloclub          # stop the original
+   # deploy v2 code into /opt/helloclub/app (or repoint the original unit), then:
+   sudo systemctl enable --now helloclub
+   ```
+
+   Keep `/opt/helloclub-v2` and its unit until you are confident, then remove them:
+
+   ```bash
+   sudo systemctl disable --now helloclub-v2
+   sudo rm /etc/systemd/system/helloclub-v2.service
+   sudo rm -rf /opt/helloclub-v2
+   sudo systemctl daemon-reload
+   ```
+
+Two services fetching hourly is far below Hello Club's rate limit, so sharing the API key is fine; optionally stagger their start times.
 
 ---
 

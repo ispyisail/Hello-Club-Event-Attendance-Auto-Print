@@ -333,7 +333,6 @@ API_BASE_URL=https://api-staging.helloclub.com
 
 ```json
 {
-  "categories": [],
   "preEventQueryMinutes": 5,
   "fetchWindowHours": 24,
   "serviceRunIntervalHours": 1,
@@ -343,42 +342,39 @@ API_BASE_URL=https://api-staging.helloclub.com
 }
 ```
 
-### Settings Reference
+### Selecting events to print: the `print:` tag
 
-#### `categories`
+Events are **not** selected in `config.json`. Instead, add a `print:` tag to the event's **description** in Hello Club. Only events whose description contains `print:` are printed; every other event is ignored.
 
-Array of event category names to process.
+The tag is case-insensitive, may appear anywhere in the description, and its value runs to the end of that line. Parameters are optional and order-independent:
 
-**Type**: `Array<string>`
+| Token             | Meaning                       | Range  |
+| ----------------- | ----------------------------- | ------ |
+| `<n>min`          | Lead time in minutes          | 1–1440 |
+| `<n>copies`       | Number of copies (local only) | 1–10   |
+| `local` / `email` | Print mode for this event     | —      |
 
-**Default**: `[]` (process all categories)
+**Examples**:
 
-**Example**:
+- `print:` — print this event using the config.json defaults
+- `print: 30min` — fetch and print 30 minutes before it starts
+- `print: 30min 2copies email` — 30-min lead, 2 copies, emailed
+- `**print: 15min**` — markdown formatting around the tag is fine
 
-```json
-{
-  "categories": ["NBA - Junior Events", "Pickleball"]
-}
-```
+**Rules**:
 
-**Behavior**:
-
-- **Empty array** `[]` → Process ALL categories
-- **With values** → Only process events matching these categories
-- **Case sensitive** → Must match exactly
-
-**How to Find Category Names**:
-
-1. Log into Hello Club
-2. View an event
-3. Check the "Categories" field
-4. Use the exact category name
+- No tag → the event is not printed.
+- Any parameter you omit falls back to the matching `config.json` default (`preEventQueryMinutes`, `printMode`; copies default to 1).
+- Out-of-range or unrecognised tokens are logged and ignored, but the tag still selects the event — a typo will not silently drop a printout.
+- **Removing the tag** from a description cancels a pending print on the next fetch.
+- `copies` only applies to local printing; in email mode a single email is sent and a warning is logged.
+- A description edit can take up to `serviceRunIntervalHours` + the API cache TTL to be picked up.
 
 ---
 
 #### `preEventQueryMinutes`
 
-How many minutes before an event starts to fetch the latest attendee list, generate the PDF, and print it. For example, `5` means the PDF will be ready 5 minutes before the event begins.
+Default lead time, used when an event's `print:` tag does not specify one (e.g. a bare `print:` or `print: email`). How many minutes before an event starts to fetch the latest attendee list, generate the PDF, and print it. For example, `5` means the PDF will be ready 5 minutes before the event begins. A `print: 30min` tag overrides this per-event.
 
 **Type**: `number` (integer, min: 1)
 
@@ -742,14 +738,6 @@ Column width in points.
 
 ## Advanced Configuration
 
-### Multiple Event Categories
-
-```json
-{
-  "categories": ["Basketball - Adults", "Basketball - Youth", "Volleyball - All Ages", "Tennis - Tournaments"]
-}
-```
-
 ### Aggressive Scheduling
 
 For high-volume or fast-changing events:
@@ -788,11 +776,10 @@ For stable schedules with few last-minute changes:
 
 ## Configuration Examples
 
-### Example 1: Local Printing, Single Category
+### Example 1: Local Printing Defaults
 
 ```json
 {
-  "categories": ["NBA - Junior Events"],
   "preEventQueryMinutes": 5,
   "fetchWindowHours": 24,
   "serviceRunIntervalHours": 1,
@@ -810,15 +797,14 @@ For stable schedules with few last-minute changes:
 }
 ```
 
-**Use Case**: Basketball club printing attendance for drop-in sessions
+**Use Case**: Basketball club printing attendance for drop-in sessions. Tag the relevant events with `print:` (or `print: local`) in their descriptions.
 
 ---
 
-### Example 2: Email Printing, Multiple Categories
+### Example 2: Email Printing Defaults
 
 ```json
 {
-  "categories": ["Pickleball - Beginner", "Pickleball - Intermediate", "Pickleball - Advanced"],
   "preEventQueryMinutes": 10,
   "fetchWindowHours": 48,
   "serviceRunIntervalHours": 2,
@@ -837,21 +823,19 @@ For stable schedules with few last-minute changes:
 }
 ```
 
-**Use Case**: Sports facility with network printer at front desk
+**Use Case**: Sports facility with a network printer at the front desk. Events default to email; override an individual event with `print: local` if needed.
 
 ---
 
 ### Example 3: Minimal Configuration (All Defaults)
 
 ```json
-{
-  "categories": []
-}
+{}
 ```
 
-**Behavior with Defaults**:
+**Behavior with Defaults** (each overridable per-event by the `print:` tag):
 
-- Process ALL event categories
+- Print events tagged with `print:` in their description (no tag → not printed)
 - Print 5 minutes before event
 - Look ahead 24 hours
 - Check for events every hour
