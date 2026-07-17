@@ -5,7 +5,6 @@
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js start-service",
-    "dashboard": "node web-dashboard/server.js",
     "fetch-events": "node src/index.js fetch-events",
     "test": "jest",
     "coverage": "jest --coverage",
@@ -53,14 +52,10 @@
     "axios-retry": "^4.4.0",
     "better-sqlite3": "^12.6.2",
     "dotenv": "^17.2.2",
-    "express": "^4.21.2",
     "joi": "^18.0.1",
-    "multer": "^2.0.1",
-    "node-cron": "^4.2.1",
     "nodemailer": "^7.0.6",
     "pdfkit": "^0.17.2",
     "winston": "^3.17.0",
-    "ws": "^8.18.0",
     "yargs": "^18.0.0"
   },
   "devDependencies": {

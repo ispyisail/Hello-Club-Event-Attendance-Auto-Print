@@ -56,8 +56,8 @@ fi
 # =============================================================================
 step "Step 1: Stop Services"
 
-systemctl stop helloclub helloclub-dashboard || true
-ok "Services stopped"
+systemctl stop helloclub || true
+ok "Service stopped"
 
 # =============================================================================
 # Step 2: Backup Configs
@@ -128,17 +128,16 @@ fi
 step "Step 6: Update systemd Services"
 
 cp "$APP_DIR/setup/helloclub.service" /etc/systemd/system/helloclub.service
-cp "$APP_DIR/setup/helloclub-dashboard.service" /etc/systemd/system/helloclub-dashboard.service
 systemctl daemon-reload
-ok "systemd services updated"
+ok "systemd service updated"
 
 # =============================================================================
 # Step 7: Start Services
 # =============================================================================
 step "Step 7: Start Services"
 
-systemctl start helloclub helloclub-dashboard
-ok "Services started"
+systemctl start helloclub
+ok "Service started"
 
 # Wait for services to stabilize
 sleep 3
@@ -154,12 +153,6 @@ else
     warn "helloclub.service failed to start — check: journalctl -u helloclub -n 50"
 fi
 
-if systemctl is-active --quiet helloclub-dashboard; then
-    ok "helloclub-dashboard.service is running"
-else
-    warn "helloclub-dashboard.service failed to start — check: journalctl -u helloclub-dashboard -n 50"
-fi
-
 # =============================================================================
 # Done
 # =============================================================================
@@ -171,9 +164,6 @@ echo ""
 echo "Updated to: $(cd $APP_DIR && git log -1 --oneline)"
 echo "Backup saved: $BACKUP_PATH"
 echo ""
-echo "Dashboard: http://$(hostname -I | awk '{print $1}'):3000"
-echo ""
 echo "Check logs:"
 echo "  journalctl -u helloclub -f"
-echo "  journalctl -u helloclub-dashboard -f"
 echo ""

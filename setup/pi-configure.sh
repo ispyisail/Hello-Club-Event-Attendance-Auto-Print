@@ -36,7 +36,7 @@ echo "========================================================"
 echo ""
 echo "This script will configure:"
 echo "  • System update"
-echo "  • UFW firewall (SSH + dashboard port)"
+echo "  • UFW firewall (SSH)"
 echo "  • fail2ban (brute-force protection)"
 echo "  • Automatic security updates"
 echo "  • helloclub service user"
@@ -82,7 +82,6 @@ sudo apt install -y ufw
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow 22/tcp comment 'SSH'
-sudo ufw allow 3000/tcp comment 'Hello Club Web Dashboard'
 sudo ufw --force enable
 
 ok "Firewall enabled"

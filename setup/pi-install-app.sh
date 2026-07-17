@@ -120,10 +120,9 @@ fi
 step "Step 5: Install systemd Services"
 
 sudo cp "$APP_DIR/setup/helloclub.service" /etc/systemd/system/helloclub.service
-sudo cp "$APP_DIR/setup/helloclub-dashboard.service" /etc/systemd/system/helloclub-dashboard.service
 sudo systemctl daemon-reload
-sudo systemctl enable helloclub helloclub-dashboard
-ok "helloclub.service and helloclub-dashboard.service installed and enabled"
+sudo systemctl enable helloclub
+ok "helloclub.service installed and enabled"
 
 # =============================================================================
 # Step 6: Optional CUPS Local Printing
@@ -169,21 +168,15 @@ echo ""
 echo "  1. Edit .env with your API key and SMTP settings:"
 echo "       sudo -u helloclub nano $APP_DIR/.env"
 echo ""
-echo "  2. Start both services:"
+echo "  2. Start the service:"
 echo "       sudo systemctl start helloclub"
-echo "       sudo systemctl start helloclub-dashboard"
 echo ""
-echo "  3. Open the web dashboard:"
-IP_ADDR=\$(hostname -I | awk '{print \$1}')
-echo "       http://\${IP_ADDR}:3000"
-echo ""
-echo "  4. Check service status:"
+echo "  3. Check service status:"
 echo "       sudo systemctl status helloclub"
-echo "       sudo systemctl status helloclub-dashboard"
 echo ""
-echo "  5. Follow logs:"
+echo "  4. Follow logs:"
 echo "       journalctl -u helloclub -f"
 echo ""
-echo "  6. Test event processing:"
+echo "  5. Test event processing:"
 echo "       sudo -u helloclub node $APP_DIR/src/index.js fetch-events"
 echo "       sudo -u helloclub node $APP_DIR/src/index.js process-schedule"

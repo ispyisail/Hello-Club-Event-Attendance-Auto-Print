@@ -8,8 +8,6 @@ const {
   getJobInfo,
 } = require('./database');
 const { fetchAndStoreUpcomingEvents, processSingleEvent } = require('./functions');
-const { startHealthChecks } = require('./health-check');
-const { getStatisticsSummary, writeStatisticsFile } = require('./statistics');
 const {
   notifyEventProcessed,
   notifyJobRetry,
@@ -434,7 +432,6 @@ async function runScheduler(config) {
  * - Validates critical configuration values
  * - Recovers pending jobs from previous session (crash recovery)
  * - Runs the scheduler immediately and then at configured intervals
- * - Sets up periodic health checks and statistics reporting
  * - Schedules daily database cleanup
  *
  * @param {Object} config - The application configuration object
@@ -528,29 +525,6 @@ function runService(config) {
     }
   }, heartbeatInterval);
 
-  // Write statistics report every hour
-  setInterval(
-    () => {
-      try {
-        logger.info(getStatisticsSummary());
-        writeStatisticsFile();
-      } catch (err) {
-        logger.error('Statistics write error:', err);
-      }
-    },
-    60 * 60 * 1000
-  ); // Every hour
-
-  // Write initial statistics
-  setTimeout(() => {
-    try {
-      logger.info(getStatisticsSummary());
-      writeStatisticsFile();
-    } catch (err) {
-      logger.error('Initial statistics write error:', err);
-    }
-  }, 5000); // 5 seconds after startup
-
   // Run database cleanup daily at 3 AM to remove old events
   // Uses self-scheduling setTimeout to avoid double-setInterval and handle DST changes
   const cleanupDays = config.database?.cleanupDays || 30;
@@ -581,10 +555,6 @@ function runService(config) {
   };
 
   scheduleDailyCleanup();
-
-  // Start health checks (writes status file at configured interval)
-  startHealthChecks(config.service?.healthCheckIntervalSeconds ?? 60);
-  logger.info('Health check monitoring started');
 
   // Start systemd watchdog integration (if enabled)
   startWatchdog();

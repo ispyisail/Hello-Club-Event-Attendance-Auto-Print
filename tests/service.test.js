@@ -8,8 +8,6 @@ jest.mock('../src/core/database');
 jest.mock('../src/core/functions');
 jest.mock('../src/utils/webhook');
 jest.mock('../src/services/logger');
-jest.mock('../src/core/health-check');
-jest.mock('../src/core/statistics');
 
 const {
   scheduleEvent,
