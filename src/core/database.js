@@ -59,6 +59,23 @@ function cleanupOldEvents(daysToKeep = 30) {
     cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
     const cutoffISO = cutoffDate.toISOString();
 
+    // Delete scheduled_jobs belonging to the old events first, since scheduled_jobs.event_id
+    // has a foreign key to events.id (no ON DELETE CASCADE) and foreign_keys=ON, deleting the
+    // events first would fail with SQLITE_CONSTRAINT_FOREIGNKEY.
+    const deleteJobsForOldEvents = db.prepare(`
+      DELETE FROM scheduled_jobs
+      WHERE event_id IN (
+        SELECT id FROM events
+        WHERE startDate < ?
+          AND status IN ('processed', 'failed')
+      )
+    `);
+
+    const jobsForOldEventsResult = deleteJobsForOldEvents.run(cutoffISO);
+    if (jobsForOldEventsResult.changes > 0) {
+      logger.info(`Database cleanup: Deleted ${jobsForOldEventsResult.changes} scheduled job(s) for old events`);
+    }
+
     // Delete old events
     const deleteEvents = db.prepare(`
       DELETE FROM events
@@ -73,7 +90,7 @@ function cleanupOldEvents(daysToKeep = 30) {
       logger.info(`Database cleanup: Deleted ${deletedCount} old event(s) older than ${daysToKeep} days`);
     }
 
-    // Also clean up orphaned scheduled_jobs
+    // Also clean up any remaining orphaned scheduled_jobs (defensive)
     const deleteJobs = db.prepare(`
       DELETE FROM scheduled_jobs
       WHERE event_id NOT IN (SELECT id FROM events)
